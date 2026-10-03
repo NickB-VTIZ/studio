@@ -226,11 +226,13 @@ async function api(req, res, url) {
         if (videoKeuze === 'teams') {
           const r = await graph.zetAfspraak(msDoc(), { naam, kennismaking: slot, locatie: 'Microsoft Teams', email, telefoon, type: doc.type }, cfg.duur || 60, { teams: true });
           teamsEvent = r.id; videolink = r.joinUrl || ''; videoprovider = 'Teams';
+          const nw = graph.nieuwRefreshToken(); if (nw) { const mm = msDoc(); mm.refreshToken = nw; store.set('instellingen', 'ms', mm); }
+          if (!videolink) throw new Error('Microsoft gaf geen Teams-link terug (controleer Calendars.ReadWrite-rechten)');
         } else if (videoKeuze === 'zoom') {
           const r = await zoom.maakMeeting(zoomDoc(), { topic: 'Kennismaking · ' + naam, start: slot, duur: cfg.duur || 60 });
           videolink = r.joinUrl || ''; videoprovider = 'Zoom';
         }
-      } catch (e) { console.error('[video]', e.message); }
+      } catch (e) { console.error('[video]', e.message); doc.logboek.push({ d: vandaag, t: 'Videocall (' + videoKeuze + ') aanmaken mislukt: ' + e.message, s: 'afspraak', ts: new Date().toISOString() }); }
     }
     if (videolink) { doc.videolink = videolink; doc.videoprovider = videoprovider; doc.locatie = videoprovider; if (teamsEvent) doc.msEventId = teamsEvent; doc.logboek.push({ d: vandaag, t: videoprovider + '-link aangemaakt: ' + videolink, s: 'afspraak', ts: new Date().toISOString() }); }
     store.set('klanten', id, doc);
@@ -243,8 +245,10 @@ async function api(req, res, url) {
       const alg = instellingen(); const sjab = Object.assign({}, STANDAARD_MAILS, alg.mails || {});
       const voornaam = (naam.split(/\s|&/)[0] || '').trim();
       const basis = { voornaam, naam, wanneer: when, duur: cfg.duur, locatie: cfg.locatie, titel: cfg.titel, bevestiging: cfg.bevestiging, afzender: cfg.afzender || alg.afzender || 'justPIXIT', email, telefoon: telefoon || '-', type: doc.type || '-', datumEvent: doc.datumEvent || '-', bericht: notitie || '(geen bericht)', app: publicBase(req) + '/app', videolink: doc.videolink ? (doc.videoprovider + ': ' + doc.videolink) : '', videoprovider: doc.videoprovider || '' };
-      verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: vul(sjab.boekingAdmin, basis) }, { soort: 'melding nieuwe afspraak' });
-      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: vul(sjab.boekingKlant, basis) }, { soort: 'bevestiging afspraak' });
+      let klantTekst = vul(sjab.boekingKlant, basis), adminTekst = vul(sjab.boekingAdmin, basis);
+      if (doc.videolink) { const lijn = (doc.videoprovider || 'Videocall') + ': ' + doc.videolink; if (!klantTekst.includes(doc.videolink)) klantTekst += '\n\n' + lijn; if (!adminTekst.includes(doc.videolink)) adminTekst += '\n\n' + lijn; }
+      verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: adminTekst }, { soort: 'melding nieuwe afspraak' });
+      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: klantTekst }, { soort: 'bevestiging afspraak' });
     }
     return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: doc.locatie || cfg.locatie, bevestiging: cfg.bevestiging, videolink: doc.videolink || '', videoprovider: doc.videoprovider || '', mail: mailActief() });
   }
