@@ -21,8 +21,11 @@ const SESSION_SECRET = process.env.SESSION_SECRET || '';
 const BASE_URL = (process.env.BASE_URL || '').replace(/\/$/, '');
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 
-if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 8) { console.error('Zet ADMIN_PASSWORD (minstens 8 tekens) in .env'); process.exit(1); }
-if (!SESSION_SECRET || SESSION_SECRET.length < 16) { console.error('Zet SESSION_SECRET (een lange willekeurige tekst) in .env'); process.exit(1); }
+// Ontbrekende instellingen: niet crashen (dan toont Traefik enkel een 404), maar een duidelijke pagina tonen.
+const SETUP_FOUTEN = [];
+if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 8) SETUP_FOUTEN.push('ADMIN_PASSWORD ontbreekt of is korter dan 8 tekens');
+if (!SESSION_SECRET || SESSION_SECRET.length < 16) SETUP_FOUTEN.push('SESSION_SECRET ontbreekt of is korter dan 16 tekens');
+if (SETUP_FOUTEN.length) console.error('[setup] ' + SETUP_FOUTEN.join('; ') + ' — vul .env in en herstart (./restart.sh)');
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const store = new Store(DATA_DIR);
@@ -178,11 +181,20 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const p = url.pathname;
   try {
+    if (p === '/gezond' || p === '/health') return text(res, 200, 'ok');
+    if (SETUP_FOUTEN.length) {
+      res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(`<!doctype html><html lang="nl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>justPIXIT Studio – instellen</title>
+<body style="font-family:system-ui,sans-serif;max-width:560px;margin:10vh auto;padding:0 20px;color:#1E2824;line-height:1.5"><h1 style="font-weight:600">Nog even instellen</h1>
+<p>De app draait, maar het bestand <code>.env</code> is niet volledig:</p><ul>${SETUP_FOUTEN.map(f => '<li>' + f + '</li>').join('')}</ul>
+<p>Op de server, in de map van de app:</p><pre style="background:#EEF1EC;padding:12px;border-radius:8px;overflow:auto">cp .env.example .env
+nano .env        # ADMIN_PASSWORD en SESSION_SECRET invullen
+./restart.sh</pre><p>Een goede SESSION_SECRET maak je met <code>openssl rand -hex 32</code>.</p></body></html>`);
+    }
     if (p.startsWith('/api/')) return await api(req, res, url);
     if (p === '/') { res.writeHead(302, { Location: '/app' }); return res.end(); }
     if (p === '/app' || p === '/app/') return serveFile(res, path.join(PUBLIC_DIR, 'app.html'), { 'Cache-Control': 'no-store' });
     if (p === '/afspraak' || p === '/afspraak/' || p === '/boek') return serveFile(res, path.join(PUBLIC_DIR, 'afspraak.html'), { 'Cache-Control': 'no-store' });
-    if (p === '/gezond' || p === '/health') return text(res, 200, 'ok');
     const blob = p.match(/^\/_blob\/([a-f0-9]{32})$/);
     if (blob) {
       if (!authed(req)) return text(res, 401, 'Niet aangemeld');
