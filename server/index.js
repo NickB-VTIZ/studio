@@ -1,6 +1,6 @@
 // justPIXIT Studio – server. Enkel Node.js (geen externe pakketten).
 // Routes:
-//   /            → /app (beheer, login vereist)
+//   /            → publieke startpagina (geen menu); /app → beheer (login vereist)
 //   /afspraak    → publieke boekingspagina
 //   /mijn        → klantenportaal (eigen sessie via inloglink per e-mail)
 //   /api/...     → data (login vereist), /api/boeking/... publiek, /api/portaal/... klantsessie
@@ -624,7 +624,7 @@ nano .env        # ADMIN_PASSWORD en SESSION_SECRET invullen
 ./restart.sh</pre><p>Een goede SESSION_SECRET maak je met <code>openssl rand -hex 32</code>.</p></body></html>`);
     }
     if (p.startsWith('/api/')) return await api(req, res, url);
-    if (p === '/') { res.writeHead(302, { Location: '/app' }); return res.end(); }
+    if (p === '/') return serveFile(res, path.join(PUBLIC_DIR, 'landing.html'), { 'Cache-Control': 'no-store' }); // publieke startpagina, zonder het Studio-menu
     if (p === '/app' || p === '/app/') return serveFile(res, path.join(PUBLIC_DIR, 'app.html'), { 'Cache-Control': 'no-store' });
     if (p === '/afspraak' || p === '/afspraak/' || p === '/boek') return serveFile(res, path.join(PUBLIC_DIR, 'afspraak.html'), { 'Cache-Control': 'no-store' });
     if (p === '/mijn' || p === '/mijn/') {

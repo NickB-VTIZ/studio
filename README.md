@@ -3,6 +3,7 @@
 Klantopvolging en online afspraken voor justPIXIT, als eigen webapp op https://studio.justpixit.be.
 
 - **`/app`** – jouw beheeromgeving (met wachtwoord): Vandaag, Pipeline, Klanten (fiche, planning, offerte, logboek), Beheer.
+- **`/`** – publieke startpagina zonder het Studio-menu: twee ingangen (kennismaking plannen, Mijn pagina) en een discreet "Studio"-linkje onderaan naar `/app`.
 - **`/afspraak`** – publieke boekingspagina (je eigen "Calendly"). Een boeking maakt automatisch een klant aan in de fase *Kennismaking ingepland*.
 - **`/mijn`** – klantenportaal ("Mijn pagina"): klanten loggen in met een inloglink per e-mail (geen wachtwoord), zien hun afspraak met de videocall-knop, verplaatsen ze zelf, volgen de fase van hun project en passen telefoon, feestdatum en aantal gasten aan.
 - Een echte database (SQLite, ingebouwd in Node — geen database-server en geen externe pakketten). Alle data staat in de map `data/` naast de compose-file en is zo in één keer te back-uppen.
