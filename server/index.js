@@ -11,15 +11,27 @@ const path = require('path');
 const crypto = require('crypto');
 const { Store } = require('./store');
 const { sendMail, smtpConfig } = require('./smtp');
-const { resendConfig, sendViaResend } = require('./resend');
-const { twilioConfig, sendWhatsApp } = require('./twilio');
-const { efConfig, maakFactuur } = require('./invoicing');
+const { resendConfig, sendViaResend, testResend } = require('./resend');
+const { twilioConfig, sendWhatsApp, testTwilio } = require('./twilio');
+const { efConfig, maakFactuur, testEF } = require('./invoicing');
 
-// Mail-verzender: Resend als dat ingesteld is, anders SMTP. Altijd best-effort.
-const mailActief = () => !!(resendConfig() || smtpConfig());
+// Instellingen van koppelingen: eerst uit .env (admin-override), anders uit de database (ingevuld via de pagina Koppelingen).
+const KOPPEL_VELDEN = {
+  mail: { resendApiKey:'RESEND_API_KEY', resendFrom:'RESEND_FROM', smtpHost:'SMTP_HOST', smtpPort:'SMTP_PORT', smtpUser:'SMTP_USER', smtpPass:'SMTP_PASS', smtpFrom:'SMTP_FROM', adminEmail:'ADMIN_EMAIL' },
+  whatsapp: { twilioSid:'TWILIO_ACCOUNT_SID', twilioToken:'TWILIO_AUTH_TOKEN', twilioFrom:'TWILIO_WHATSAPP_FROM' },
+  facturen: { efApiKey:'EF_API_KEY', efAccount:'EF_ACCOUNT_ID' },
+};
+const ENVMAP = Object.assign({}, KOPPEL_VELDEN.mail, KOPPEL_VELDEN.whatsapp, KOPPEL_VELDEN.facturen);
+const GEHEIM = new Set(['resendApiKey','smtpPass','twilioToken','efApiKey']);
+function koppelDoc() { return store.get('instellingen', 'koppelingen') || {}; }
+function viaEnv(field) { const v = process.env[ENVMAP[field]]; return v !== undefined && v !== ''; }
+function kv(field) { if (viaEnv(field)) return process.env[ENVMAP[field]]; const d = koppelDoc(); return d[field] || ''; }
+function effEnv() { const o = {}; for (const f in ENVMAP) o[ENVMAP[f]] = kv(f); return o; }
+
+const mailActief = () => !!(resendConfig(effEnv()) || smtpConfig(effEnv()));
 function verstuurMail(opts) {
-  if (resendConfig()) return sendViaResend(opts);
-  if (smtpConfig()) return sendMail(opts);
+  if (resendConfig(effEnv())) return sendViaResend(opts, resendConfig(effEnv()));
+  if (smtpConfig(effEnv())) return sendMail(opts, smtpConfig(effEnv()));
   return Promise.resolve(false);
 }
 const { slotsVoorPeriode, boekingDefaults, nuBrussel } = require('./boeking');
@@ -181,7 +193,8 @@ async function api(req, res, url) {
     const when = `${slot.slice(8, 10)}/${slot.slice(5, 7)}/${slot.slice(0, 4)} om ${slot.slice(11, 16)}`;
     // Mails zijn best-effort.
     if (mailActief()) {
-      const admin = ADMIN_EMAIL || (resendConfig() && resendConfig().from) || (smtpConfig() && smtpConfig().from);
+      const r2 = resendConfig(effEnv()), s2 = smtpConfig(effEnv());
+      const admin = kv('adminEmail') || (r2 && r2.from) || (s2 && s2.from);
       verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: `${naam} boekte een ${cfg.titel.toLowerCase()} op ${when}.\n\nE-mail: ${email}\nTelefoon: ${telefoon || '-'}\nType: ${doc.type}\nDatum event: ${doc.datumEvent || '-'}\n\n${notitie || '(geen bericht)'}\n\nOpen de fiche: ${publicBase(req)}/app` }).catch(e => console.error('[mail] admin:', e.message));
       verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: `Hoi ${naam.split(/\s|&/)[0]},\n\n${cfg.bevestiging}\n\nWanneer: ${when} (${cfg.duur} min)\nWaar: ${cfg.locatie}\n\nTot dan!\n${cfg.afzender || 'justPIXIT'}` }).catch(e => console.error('[mail] klant:', e.message));
     }
@@ -191,7 +204,7 @@ async function api(req, res, url) {
   // --- vanaf hier: login vereist ---
   if (!authed(req)) return json(res, 401, { error: 'Niet aangemeld' });
 
-  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(), facturen: !!efConfig(), versie: VERSION.version });
+  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: !!efConfig(effEnv()), versie: VERSION.version });
   if (p === '/api/version' && m === 'GET') {
     const latest = await nieuwsteVersie();
     return json(res, 200, { running: VERSION, latest, repo: REPO, updateBeschikbaar: latest ? cmpVersie(latest, VERSION.version) > 0 : false, updateEnabled: UPDATE_ENABLED });
@@ -203,7 +216,7 @@ async function api(req, res, url) {
     return json(res, 200, { started: true });
   }
   if (p === '/api/whatsapp' && m === 'POST') {
-    if (!twilioConfig()) return json(res, 400, { error: 'WhatsApp is niet ingesteld (Twilio-gegevens ontbreken in .env).' });
+    if (!twilioConfig(effEnv())) return json(res, 400, { error: 'WhatsApp is niet ingesteld. Vul de Twilio-gegevens in bij Koppelingen.' });
     const b = await readJson(req, 20e3).catch(() => ({}));
     const klant = store.get('klanten', String(b.klantId || ''));
     if (!klant) return json(res, 404, { error: 'Klant niet gevonden' });
@@ -211,7 +224,7 @@ async function api(req, res, url) {
     const tekst = String(b.tekst || '').trim();
     if (!tekst) return json(res, 400, { error: 'Leeg bericht' });
     try {
-      const r = await sendWhatsApp({ to: klant.telefoon, body: tekst });
+      const r = await sendWhatsApp({ to: klant.telefoon, body: tekst }, twilioConfig(effEnv()));
       const t = today();
       klant.logboek = (klant.logboek || []).concat([{ d: t, t: 'WhatsApp verstuurd: ' + tekst.slice(0, 200), s: 'telefoon', ts: new Date().toISOString() }]);
       store.set('klanten', klant.id, klant);
@@ -220,14 +233,14 @@ async function api(req, res, url) {
   }
   const facMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/factuur$/);
   if (facMatch && m === 'POST') {
-    if (!efConfig()) return json(res, 400, { error: 'De facturatiekoppeling is niet ingesteld (EF_API_KEY ontbreekt in .env).' });
+    if (!efConfig(effEnv())) return json(res, 400, { error: 'De facturatiekoppeling is niet ingesteld. Vul je EenvoudigFactureren-sleutel in bij Koppelingen.' });
     const klant = store.get('klanten', facMatch[1]);
     if (!klant) return json(res, 404, { error: 'Klant niet gevonden' });
     const b = await readJson(req, 10e3).catch(() => ({}));
     const offerte = (klant.offertes || []).find(o => o.id === String(b.offerteId || ''));
     if (!offerte) return json(res, 400, { error: 'Offerte niet gevonden' });
     try {
-      const r = await maakFactuur(klant, offerte);
+      const r = await maakFactuur(klant, offerte, efConfig(effEnv()));
       klant.id = facMatch[1];
       if (r.clientNieuw && r.clientId) klant.efClientId = r.clientId;
       offerte.factuur = { nummer: r.number, uri: r.uri, invoiceId: r.invoiceId, op: today() };
@@ -235,6 +248,42 @@ async function api(req, res, url) {
       const { id, ...rest } = klant; store.set('klanten', facMatch[1], rest);
       return json(res, 200, { ok: true, nummer: r.number, uri: r.uri });
     } catch (e) { return json(res, 502, { error: 'Factuur maken mislukt: ' + e.message }); }
+  }
+  if (p === '/api/koppelingen' && m === 'GET') {
+    const velden = {};
+    for (const f in ENVMAP) {
+      const env = viaEnv(f); const waarde = kv(f); const geheim = GEHEIM.has(f);
+      velden[f] = { viaEnv: env, secret: geheim, set: !!waarde, value: geheim ? '' : waarde, hint: geheim && waarde ? '••••••' + waarde.slice(-4) : '' };
+    }
+    const groepActief = { mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: !!efConfig(effEnv()) };
+    return json(res, 200, { velden, groepen: groepActief });
+  }
+  if (p === '/api/koppelingen' && m === 'POST') {
+    const b = await readJson(req, 50e3).catch(() => ({}));
+    const d = koppelDoc();
+    if (Array.isArray(b.wis)) for (const g of b.wis) for (const f in (KOPPEL_VELDEN[g] || {})) delete d[f];
+    const data = b.data && typeof b.data === 'object' ? b.data : {};
+    for (const f in data) {
+      if (!(f in ENVMAP) || viaEnv(f)) continue;            // onbekend of vergrendeld via .env → overslaan
+      const v = String(data[f] ?? '').trim();
+      if (GEHEIM.has(f) && v === '') continue;              // leeg geheim veld = behouden
+      if (v === '') delete d[f]; else d[f] = v;
+    }
+    store.set('instellingen', 'koppelingen', d);
+    return json(res, 200, { ok: true });
+  }
+  if (p === '/api/koppelingen/test' && m === 'POST') {
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    try {
+      if (b.groep === 'mail') {
+        if (resendConfig(effEnv())) { await testResend(resendConfig(effEnv())); return json(res, 200, { ok: true, detail: 'Resend-sleutel werkt.' }); }
+        if (smtpConfig(effEnv())) return json(res, 200, { ok: true, detail: 'SMTP is ingesteld (geen testbericht verstuurd).' });
+        return json(res, 400, { error: 'Nog geen e-mail ingesteld.' });
+      }
+      if (b.groep === 'whatsapp') { await testTwilio(twilioConfig(effEnv())); return json(res, 200, { ok: true, detail: 'Twilio-verbinding werkt.' }); }
+      if (b.groep === 'facturen') { await testEF(efConfig(effEnv())); return json(res, 200, { ok: true, detail: 'Verbinding met EenvoudigFactureren werkt.' }); }
+      return json(res, 400, { error: 'Onbekende koppeling' });
+    } catch (e) { return json(res, 502, { error: e.message }); }
   }
   if (p === '/api/data' && m === 'GET') {
     const klanten = {}; for (const k of store.list('klanten')) { const { id, ...rest } = k; klanten[id] = rest; }

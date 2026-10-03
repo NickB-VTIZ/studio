@@ -32,20 +32,20 @@ function efRequest(method, pad, body, cfg = efConfig()) {
 const num = v => { const n = parseFloat(String(v ?? '').replace(/\s|€/g, '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 
 // Zorg dat de klant bestaat in EenvoudigFactureren; geeft het client_id terug.
-async function ensureClient(klant) {
+async function ensureClient(klant, cfg = efConfig()) {
   if (klant.efClientId) return { id: klant.efClientId, nieuw: false };
   const body = { name: (klant.naam || 'Klant').slice(0, 75) };
   if (klant.email) body.email_address = String(klant.email).slice(0, 125);
   if (klant.locatie) body.city = String(klant.locatie).slice(0, 50);
-  const res = await efRequest('POST', '/clients', body);
+  const res = await efRequest('POST', '/clients', body, cfg);
   const id = res.client_id || res.id || (res.client && (res.client.client_id || res.client.id));
   if (!id) throw new Error('Geen client_id ontvangen van EenvoudigFactureren');
   return { id, nieuw: true };
 }
 
 // Maak een factuur op basis van een offerte uit de app.
-async function maakFactuur(klant, offerte) {
-  const { id: clientId, nieuw } = await ensureClient(klant);
+async function maakFactuur(klant, offerte, cfg = efConfig()) {
+  const { id: clientId, nieuw } = await ensureClient(klant, cfg);
   const items = (offerte.regels || [])
     .filter(r => (r.oms || '').trim() || num(r.prijs))
     .map(r => ({ description: (r.oms || 'Item').slice(0, 500), amount: num(r.prijs), quantity: num(r.aantal) || 1, tax_rate: num(offerte.btw) || 21 }));
@@ -53,7 +53,7 @@ async function maakFactuur(klant, offerte) {
   const note = num(offerte.korting) ? `Korting: € ${num(offerte.korting).toFixed(2)}` : undefined;
   const body = { client_id: clientId, days_due: 30, tax_calculation: 'total', tax_included: 'no', language: 'dutch', items };
   if (note) body.note = note;
-  const inv = await efRequest('POST', '/invoices', body);
+  const inv = await efRequest('POST', '/invoices', body, cfg);
   return {
     clientId, clientNieuw: nieuw,
     invoiceId: inv.invoice_id || inv.id,
@@ -63,4 +63,5 @@ async function maakFactuur(klant, offerte) {
   };
 }
 
-module.exports = { efConfig, efRequest, ensureClient, maakFactuur };
+async function testEF(cfg = efConfig()) { await efRequest('GET', '/clients', null, cfg); return true; }
+module.exports = { efConfig, efRequest, ensureClient, maakFactuur, testEF };

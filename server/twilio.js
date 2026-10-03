@@ -40,4 +40,14 @@ function sendWhatsApp({ to, body }, cfg = twilioConfig()) {
   });
 }
 
-module.exports = { twilioConfig, sendWhatsApp, naarE164 };
+function testTwilio(cfg = twilioConfig()) {
+  if (!cfg) return Promise.reject(new Error('Twilio niet ingesteld'));
+  const auth = Buffer.from(cfg.sid + ':' + cfg.token).toString('base64');
+  return new Promise((resolve, reject) => {
+    const req = https.request(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(cfg.sid)}.json`, { method: 'GET', headers: { 'Authorization': 'Basic ' + auth }, timeout: 12000 }, r => {
+      let b = ''; r.on('data', c => b += c); r.on('end', () => r.statusCode < 300 ? resolve(true) : reject(new Error('Twilio ' + r.statusCode + ': controleer SID en token')));
+    });
+    req.on('error', reject); req.on('timeout', () => { req.destroy(); reject(new Error('Twilio timeout')); }); req.end();
+  });
+}
+module.exports = { twilioConfig, sendWhatsApp, naarE164, testTwilio };

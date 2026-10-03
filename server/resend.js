@@ -23,4 +23,13 @@ function sendViaResend({ to, subject, text, replyTo }, cfg = resendConfig()) {
   });
 }
 
-module.exports = { resendConfig, sendViaResend };
+function testResend(cfg = resendConfig()) {
+  if (!cfg) return Promise.reject(new Error('Resend niet ingesteld'));
+  return new Promise((resolve, reject) => {
+    const req = https.request('https://api.resend.com/domains', { method: 'GET', headers: { 'Authorization': 'Bearer ' + cfg.key }, timeout: 12000 }, r => {
+      let b = ''; r.on('data', c => b += c); r.on('end', () => r.statusCode < 300 ? resolve(true) : reject(new Error('Resend ' + r.statusCode + ': controleer de API-sleutel')));
+    });
+    req.on('error', reject); req.on('timeout', () => { req.destroy(); reject(new Error('Resend timeout')); }); req.end();
+  });
+}
+module.exports = { resendConfig, sendViaResend, testResend };

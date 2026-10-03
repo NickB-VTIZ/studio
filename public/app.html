@@ -330,6 +330,7 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
     <button data-v="pipeline">Pipeline</button>
     <button data-v="klanten">Klanten</button>
     <button data-v="beheer">Beheer</button>
+    <button data-v="koppelingen">Koppelingen</button>
   </nav>
   <div class="spacer"></div>
   <a class="btn ghost" href="/afspraak" target="_blank" rel="noopener" title="Publieke boekingspagina">Afsprakenpagina ↗</a>
@@ -482,9 +483,9 @@ function planning(k){
 let db=null, sample=null, klanten=[], loaded=false, showEnded=false;
 let view={v:'vandaag'}; let work=null; let mounted=null; let pendingTop={}; let saveTimer=null; let chain=Promise.resolve();
 let search='', filterType='', confirmDel=false, klantTab='fiche', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null;
-try{const v=localStorage.getItem('jp-view');if(v&&['vandaag','pipeline','klanten','beheer'].includes(v))view={v}}catch(e){}
+try{const v=localStorage.getItem('jp-view');if(v&&['vandaag','pipeline','klanten','beheer','koppelingen'].includes(v))view={v}}catch(e){}
 
-function go(v,id){view={v,id};beheerOpen=false;ofMounted=false;ofConfirm=null;if(v==='klant'){klantTab='fiche';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
+function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;ofConfirm=null;if(v==='klant'){klantTab='fiche';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
   try{if(v!=='klant'&&v!=='nieuw')localStorage.setItem('jp-view',v)}catch(e){}
   render();window.scrollTo(0,0)}
 
@@ -499,6 +500,7 @@ function render(){
   else if(view.v==='klanten')app.innerHTML=vKlanten();
   else if(view.v==='nieuw')app.innerHTML=vNieuw();
   else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel()}}
+  else if(view.v==='koppelingen'){if(!koppelOpen){app.innerHTML=vKoppelingen();koppelOpen=true;laadKoppelingen()}}
   else if(view.v==='klant'){
     const k=klanten.find(x=>x.id===view.id);
     if(!k){app.innerHTML='<p class="empty">Deze klant bestaat niet meer.</p>';return}
@@ -1021,12 +1023,6 @@ function vBeheer(){
   return `<div class="vhead"><div><h1>Beheer</h1><p>Pas hier de keuzes, termijnen en mailteksten aan. Wijzigingen worden meteen bewaard.</p></div><div class="spacer"></div><span class="savestate" id="cfgstate">Alles opgeslagen</span></div>
   <div class="beheer">
    <section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
-   <section><h2>Koppelingen</h2><p>Deze koppelingen stel je in met sleutels in het <code>.env</code>-bestand op de server (niet hier, om ze veilig te houden). Hieronder zie je wat actief is.</p>
-    <div class="lists">
-     <div class="sec"><h3>E-mail — Resend of SMTP</h3><p class="hint" style="margin:0">${serverInfo.mail?'<b style="color:var(--ok)">Actief.</b> Bevestigingsmails bij een boeking worden verstuurd.':'Uit. Voeg RESEND_API_KEY (of SMTP_*) toe aan .env.'}</p></div>
-     <div class="sec"><h3>WhatsApp — Twilio</h3><p class="hint" style="margin:0">${serverInfo.whatsapp?'<b style="color:var(--ok)">Actief.</b> Op een klantpagina kan je een WhatsApp sturen.':'Uit. Voeg TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN en TWILIO_WHATSAPP_FROM toe aan .env.'}</p></div>
-     <div class="sec"><h3>Facturen — EenvoudigFactureren</h3><p class="hint" style="margin:0">${serverInfo.facturen?'<b style="color:var(--ok)">Actief.</b> Op een offerte kan je een factuur aanmaken.':'Uit. Voeg EF_API_KEY toe aan .env.'}</p></div>
-    </div></section>
    <section><h2>Keuzelijsten</h2><p>Deze opties zie je bij een nieuwe klant en in de kennismakingsfiche. Verwijder je een keuze, dan blijft ze gewoon staan bij klanten die ze al hebben.</p><div class="lists">${lists}</div></section>
    <section><h2>Opvolgtermijnen</h2><p>Hiermee berekent het systeem wanneer een actie op "Vandaag" verschijnt.</p><div class="terms">${terms}</div></section>
    <section><h2>Planning</h2><p>De planning op de klantpagina vertrekt van de datum van het kennismakingsgesprek. Ze telt de termijnen hierboven op met deze doorlooptijden. Fases die al voorbij zijn, krijgen hun echte datum.</p>
@@ -1192,6 +1188,76 @@ function setThemeBtn(){const b=$('#themeBtn');if(b)b.textContent=huidigThema()==
 function wisselThema(){const n=huidigThema()==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);try{localStorage.setItem('jp-theme',n)}catch(e){}setThemeBtn()}
 document.addEventListener('click',e=>{if(e.target.closest('#themeBtn'))wisselThema()});
 setThemeBtn();
+
+/* ---------- koppelingen (aparte pagina) ---------- */
+let koppelOpen=false, koppelData=null;
+const KOPPEL_UI=[
+  {g:'mail',titel:'E-mail',sub:'Verstuurt de bevestigingsmails bij een online boeking. Kies Resend (aanbevolen) of SMTP.',velden:[
+    {f:'resendApiKey',l:'Resend API-sleutel',ph:'re_…'},{f:'resendFrom',l:'Afzender (Resend)',ph:'justPIXIT <info@justpixit.be>'},
+    {f:'smtpHost',l:'SMTP-server',ph:'smtp.hostinger.com'},{f:'smtpPort',l:'SMTP-poort',ph:'465'},
+    {f:'smtpUser',l:'SMTP-gebruiker',ph:'info@justpixit.be'},{f:'smtpPass',l:'SMTP-wachtwoord',ph:''},
+    {f:'smtpFrom',l:'Afzender (SMTP)',ph:'justPIXIT <info@justpixit.be>'},{f:'adminEmail',l:'Meldingen naar',ph:'info@justpixit.be'},
+  ]},
+  {g:'whatsapp',titel:'WhatsApp (Twilio)',sub:'Stuur klanten een WhatsApp vanaf hun klantpagina. WhatsApp vereist een goedgekeurde afzender en templates.',velden:[
+    {f:'twilioSid',l:'Account SID',ph:'AC…'},{f:'twilioToken',l:'Auth token',ph:''},{f:'twilioFrom',l:'WhatsApp-afzender',ph:'+32470000000'},
+  ]},
+  {g:'facturen',titel:'Facturen (EenvoudigFactureren)',sub:'Maak vanuit een offerte een factuur aan in EenvoudigFactureren.',velden:[
+    {f:'efApiKey',l:'API-sleutel',ph:''},{f:'efAccount',l:'Account-ID (enkel bij meerdere)',ph:'C…'},
+  ]},
+];
+function vKoppelingen(){
+  return `<div class="vhead"><div><h1>Externe koppelingen</h1><p>Vul hier je sleutels in en zie de status. Ze worden veilig op je server bewaard en nooit volledig getoond.</p></div></div>
+   <div class="beheer" id="koppelBox"><p class="hint">Laden…</p></div>`;
+}
+async function laadKoppelingen(){
+  const box=$('#koppelBox');if(!box)return;
+  try{koppelData=await (await fetch('/api/koppelingen',{credentials:'same-origin'})).json()}catch(e){box.innerHTML='<p class="err">Kon de koppelingen niet laden.</p>';return}
+  box.innerHTML=KOPPEL_UI.map(sec=>{
+    const actief=koppelData.groepen[sec.g];
+    const envLocked=sec.velden.some(v=>koppelData.velden[v.f]&&koppelData.velden[v.f].viaEnv);
+    const badge=actief?'<span class="stt done">Actief</span>':'<span class="stt plan">Niet ingesteld</span>';
+    const velden=sec.velden.map(v=>{const info=koppelData.velden[v.f]||{};const lock=info.viaEnv;
+      const ph=lock?'ingesteld via .env':(info.secret&&info.set?(info.hint||'ingesteld — laat leeg om te behouden'):(v.ph||''));
+      return `<label class="fld"><span>${esc(v.l)}${lock?' <span class="hint">(vergrendeld)</span>':''}</span>
+        <input ${info.secret?'type="password"':'type="text"'} data-kv="${v.f}" value="${esc(lock?'':(info.secret?'':(info.value||'')))}" placeholder="${esc(ph)}" autocomplete="off" ${lock?'disabled':''}></label>`}).join('');
+    return `<section><h2>${esc(sec.titel)} ${badge}</h2><p>${esc(sec.sub)}</p>
+     <div class="sec" style="display:grid;gap:14px"><div class="grid2">${velden}</div>
+      ${envLocked?'<p class="hint" style="margin:0">Deze koppeling is via het .env-bestand ingesteld en kan daarom hier niet gewijzigd worden.</p>':''}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+       ${envLocked?'':`<button class="btn primary small" data-ksave="${sec.g}">Bewaar</button>`}
+       <button class="btn small" data-ktest="${sec.g}">Test verbinding</button>
+       ${envLocked?'':`<button class="btn ghost small danger" data-kwis="${sec.g}">Wis sleutels</button>`}
+       <span class="hint" id="kmsg-${sec.g}"></span></div>
+     </div></section>`;
+  }).join('');
+}
+async function bewaarKoppeling(g){
+  const msg=$('#kmsg-'+g);const sec=KOPPEL_UI.find(x=>x.g===g);
+  const data={};document.querySelectorAll('[data-kv]').forEach(i=>{if(sec.velden.some(v=>v.f===i.dataset.kv)&&!i.disabled)data[i.dataset.kv]=i.value});
+  if(msg){msg.style.color='';msg.textContent='Bewaren…'}
+  try{const r=await fetch('/api/koppelingen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data}),credentials:'same-origin'}).then(x=>x.json());
+    if(r.error){if(msg){msg.style.color='var(--late)';msg.textContent=r.error}return}
+    toast('Bewaard');koppelOpen=false;await refreshServerInfo();render();
+  }catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Bewaren mislukt'}}
+}
+async function testKoppeling(g){
+  const msg=$('#kmsg-'+g);if(msg){msg.style.color='';msg.textContent='Testen…'}
+  try{const r=await fetch('/api/koppelingen/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({groep:g}),credentials:'same-origin'}).then(x=>x.json());
+    if(msg){msg.style.color=r.error?'var(--late)':'var(--ok)';msg.textContent=r.error||r.detail||'In orde'}}
+  catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Test mislukt'}}
+}
+async function wisKoppeling(g){
+  const msg=$('#kmsg-'+g);if(msg)msg.textContent='Wissen…';
+  try{await fetch('/api/koppelingen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wis:[g]}),credentials:'same-origin'});
+    toast('Sleutels gewist');koppelOpen=false;await refreshServerInfo();render();}
+  catch(e){if(msg)msg.textContent='Wissen mislukt'}
+}
+async function refreshServerInfo(){try{serverInfo=await (await fetch('/api/me',{credentials:'same-origin'})).json();setVersieBadge()}catch(e){}}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-ksave],[data-ktest],[data-kwis]');if(!t)return;
+  if(t.dataset.ksave)return bewaarKoppeling(t.dataset.ksave);
+  if(t.dataset.ktest)return testKoppeling(t.dataset.ktest);
+  if(t.dataset.kwis)return wisKoppeling(t.dataset.kwis);
+});
 
 /* ---------- boot ---------- */
 render();

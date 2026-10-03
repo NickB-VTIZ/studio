@@ -96,7 +96,7 @@ Dan `./restart.sh`. Bij elke boeking krijgt de klant een bevestiging en jij een 
 
 ## 5b. Koppelingen (e-mail, WhatsApp, facturen)
 
-Alle sleutels zet je in `.env` op de server (niet in de app, zo blijven ze veilig). In **Beheer → Koppelingen** zie je wat actief is. Na een wijziging in `.env`: `./restart.sh`.
+Je stelt de koppelingen in op de pagina **Koppelingen** in de app: vul de sleutels in, zie de status en klik op **Test verbinding**. De sleutels worden veilig op je server bewaard (in de database, nooit volledig teruggestuurd naar de browser). Wie liever met het `.env`-bestand werkt, kan dat ook: staat een sleutel in `.env`, dan heeft die voorrang en is het veld in de app vergrendeld. Hieronder staan de namen voor de `.env`-manier.
 
 **E-mail via Resend** (aanbevolen, eenvoudiger dan SMTP). Maak op resend.com een API-sleutel en verifieer je domein of afzender, en zet:
 ```
