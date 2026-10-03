@@ -14,7 +14,7 @@ const { sendMail, smtpConfig } = require('./smtp');
 const { resendConfig, sendViaResend, testResend } = require('./resend');
 const { twilioConfig, sendWhatsApp, testTwilio } = require('./twilio');
 const { maakUBL } = require('./ubl');
-const { STANDAARD_MAILS, vul } = require('./mails');
+const { STANDAARD_MAILS, vul, vulHtml } = require('./mails');
 const { bouwFeed, nieuwToken } = require('./agenda');
 const graph = require('./graph');
 const zoom = require('./zoom');
@@ -244,11 +244,14 @@ async function api(req, res, url) {
       const admin = kv('adminEmail') || (r2 && r2.from) || (s2 && s2.from);
       const alg = instellingen(); const sjab = Object.assign({}, STANDAARD_MAILS, alg.mails || {});
       const voornaam = (naam.split(/\s|&/)[0] || '').trim();
-      const basis = { voornaam, naam, wanneer: when, duur: cfg.duur, locatie: cfg.locatie, titel: cfg.titel, bevestiging: cfg.bevestiging, afzender: cfg.afzender || alg.afzender || 'justPIXIT', email, telefoon: telefoon || '-', type: doc.type || '-', datumEvent: doc.datumEvent || '-', bericht: notitie || '(geen bericht)', app: publicBase(req) + '/app', videolink: doc.videolink ? (doc.videoprovider + ': ' + doc.videolink) : '', videoprovider: doc.videoprovider || '' };
-      let klantTekst = vul(sjab.boekingKlant, basis), adminTekst = vul(sjab.boekingAdmin, basis);
-      if (doc.videolink) { const lijn = (doc.videoprovider || 'Videocall') + ': ' + doc.videolink; if (!klantTekst.includes(doc.videolink)) klantTekst += '\n\n' + lijn; if (!adminTekst.includes(doc.videolink)) adminTekst += '\n\n' + lijn; }
-      verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: adminTekst }, { soort: 'melding nieuwe afspraak' });
-      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: klantTekst }, { soort: 'bevestiging afspraak' });
+      const knopLabel = 'Deelnemen aan ' + (doc.videoprovider || 'videocall');
+      const knop = doc.videolink ? { url: doc.videolink, label: knopLabel } : null;
+      const basis = { voornaam, naam, wanneer: when, duur: cfg.duur, locatie: cfg.locatie, titel: cfg.titel, bevestiging: cfg.bevestiging, afzender: cfg.afzender || alg.afzender || 'justPIXIT', email, telefoon: telefoon || '-', type: doc.type || '-', datumEvent: doc.datumEvent || '-', bericht: notitie || '(geen bericht)', app: publicBase(req) + '/app', videolink: knop ? (knopLabel + ': ' + doc.videolink) : '', videoprovider: doc.videoprovider || '' };
+      // {videolink} mag vrij in het sjabloon staan. Bevat een opgeslagen sjabloon het niet, dan hangen we de knop achteraan.
+      const bouw = tpl => { let t = String(tpl || ''); if (knop && !t.includes('{videolink}')) t += '\n\n{videolink}'; return { text: vul(t, basis), html: vulHtml(t, basis, knop) }; };
+      const kMail = bouw(sjab.boekingKlant), aMail = bouw(sjab.boekingAdmin);
+      verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: aMail.text, html: aMail.html }, { soort: 'melding nieuwe afspraak' });
+      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: kMail.text, html: kMail.html }, { soort: 'bevestiging afspraak' });
     }
     return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: doc.locatie || cfg.locatie, bevestiging: cfg.bevestiging, videolink: doc.videolink || '', videoprovider: doc.videoprovider || '', mail: mailActief() });
   }

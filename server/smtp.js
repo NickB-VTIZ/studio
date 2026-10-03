@@ -15,7 +15,7 @@ function smtpConfig(env = process.env) {
   };
 }
 
-function sendMail({ to, subject, text, replyTo }, cfg = smtpConfig()) {
+function sendMail({ to, subject, text, html, replyTo }, cfg = smtpConfig()) {
   if (!cfg || !cfg.from || !to) return Promise.resolve(false);
   return new Promise((resolve, reject) => {
     let socket, buffer = '', step = 0, upgraded = cfg.secure;
@@ -23,12 +23,24 @@ function sendMail({ to, subject, text, replyTo }, cfg = smtpConfig()) {
     const fail = e => { clearTimeout(timeout); try { socket.destroy(); } catch (_) {} reject(e); };
     const write = s => socket.write(s + '\r\n');
     const b64 = s => Buffer.from(s, 'utf8').toString('base64');
+    const wrap = s => b64(s).replace(/.{76}/g, '$&\r\n');
     const encHeader = s => /[^\x20-\x7e]/.test(s) ? `=?UTF-8?B?${b64(s)}?=` : s;
-    const message = [
-      `From: ${cfg.from}`, `To: ${to}`, replyTo ? `Reply-To: ${replyTo}` : null,
-      `Subject: ${encHeader(subject)}`, 'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8',
-      'Content-Transfer-Encoding: base64', `Date: ${new Date().toUTCString()}`, '', b64(text).replace(/.{76}/g, '$&\r\n'), '.',
-    ].filter(l => l !== null).join('\r\n');
+    const kop = [`From: ${cfg.from}`, `To: ${to}`, replyTo ? `Reply-To: ${replyTo}` : null, `Subject: ${encHeader(subject)}`, `Date: ${new Date().toUTCString()}`, 'MIME-Version: 1.0'];
+    let body;
+    if (html) {
+      const grens = 'bnd_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      kop.push(`Content-Type: multipart/alternative; boundary="${grens}"`);
+      body = [
+        'Dit is een bericht in meerdere formaten.', '',
+        `--${grens}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(text), '',
+        `--${grens}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(html), '',
+        `--${grens}--`,
+      ].join('\r\n');
+    } else {
+      kop.push('Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64');
+      body = wrap(text);
+    }
+    const message = kop.filter(l => l !== null).join('\r\n') + '\r\n\r\n' + body + '\r\n.';
 
     const steps = [
       () => write('EHLO studio'),
