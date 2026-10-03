@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
 <style>:root{color-scheme:light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<script>try{document.documentElement.setAttribute("data-theme",localStorage.getItem("jp-theme")||"light")}catch(e){document.documentElement.setAttribute("data-theme","light")}</script>
 <title>justPIXIT Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -333,6 +334,7 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
   <div class="spacer"></div>
   <a class="btn ghost" href="/afspraak" target="_blank" rel="noopener" title="Publieke boekingspagina">Afsprakenpagina ↗</a>
   <button class="btn primary" id="newBtn">+ Nieuwe klant</button>
+  <button class="btn ghost small" id="themeBtn" title="Wissel tussen licht en donker" aria-label="Wissel thema"></button>
   <span id="versieBadge" class="chip" style="cursor:pointer" title="Versie-informatie"></span>
   <button class="btn ghost small" id="logoutBtn" title="Afmelden">Afmelden</button>
 </div></div>
@@ -1160,6 +1162,13 @@ document.addEventListener('click',e=>{const t=e.target.closest('#updateBtn,#chec
   if(t.id==='checkBtn'){laadVersiePaneel();toast('Gecontroleerd')}
   if(t.id==='versieBadge')return go('beheer');
 });
+
+/* ---------- thema ---------- */
+function huidigThema(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'}
+function setThemeBtn(){const b=$('#themeBtn');if(b)b.textContent=huidigThema()==='dark'?'☀ Licht':'☾ Donker'}
+function wisselThema(){const n=huidigThema()==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);try{localStorage.setItem('jp-theme',n)}catch(e){}setThemeBtn()}
+document.addEventListener('click',e=>{if(e.target.closest('#themeBtn'))wisselThema()});
+setThemeBtn();
 
 /* ---------- boot ---------- */
 render();
