@@ -140,6 +140,10 @@ Daarna maakt elke nieuwe boeking automatisch een afspraak in je agenda. Met **Ze
 
 Geen zin in de app-registratie? Gebruik dan gewoon de ICS-feed (5c); die werkt zonder Azure, maar ververst trager.
 
+## 5f. E-mail testen & logboek
+
+In **Beheer → E-mail testen & logboek** stuur je een testmail naar jezelf en zie je elke verstuurde mail met status en reden. Komt een mail niet aan, dan staat de fout hier (bv. "geen afzender ingesteld" of een weigering van Resend), zodat je meteen weet wat er scheelt. De meest voorkomende oorzaak is een ontbrekende of niet-geverifieerde afzender bij Koppelingen → E-mail.
+
 ## 6. Lokaal testen
 
 Zonder Docker:

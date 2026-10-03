@@ -7,7 +7,8 @@ function resendConfig(env = process.env) {
 }
 
 function sendViaResend({ to, subject, text, replyTo }, cfg = resendConfig()) {
-  if (!cfg || !cfg.from || !to) return Promise.resolve(false);
+  if (!to) return Promise.reject(new Error('geen ontvanger'));
+  if (!cfg || !cfg.from) return Promise.reject(new Error('geen afzender ingesteld (vul een afzender in bij Koppelingen → E-mail)'));
   const body = JSON.stringify({ from: cfg.from, to: [to], subject, text, reply_to: replyTo || undefined });
   return new Promise((resolve, reject) => {
     const req = https.request('https://api.resend.com/emails', {

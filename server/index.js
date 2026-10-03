@@ -39,10 +39,24 @@ async function msZet(klant) { if (!msVerbonden()) return; try { const dur = boek
 function verkoperKlaar() { const v = verkoperDoc(); return !!(v.btw && v.bedrijfsnaam); }
 
 const mailActief = () => !!(resendConfig(effEnv()) || smtpConfig(effEnv()));
-function verstuurMail(opts) {
-  if (resendConfig(effEnv())) return sendViaResend(opts, resendConfig(effEnv()));
-  if (smtpConfig(effEnv())) return sendMail(opts, smtpConfig(effEnv()));
-  return Promise.resolve(false);
+function logMail(e) {
+  const d = store.get('instellingen', 'maillog') || { items: [] };
+  d.items = (d.items || []); d.items.unshift(Object.assign({ ts: new Date().toISOString() }, e));
+  if (d.items.length > 100) d.items.length = 100;
+  store.set('instellingen', 'maillog', d);
+}
+// Stuurt een mail en logt altijd het resultaat. Geeft {ok,error} terug (gooit niet).
+async function verstuurMail(opts, meta = {}) {
+  const r = resendConfig(effEnv()), sm = smtpConfig(effEnv());
+  let ok = false, fout = '', via = '';
+  try {
+    if (r) { via = 'Resend'; await sendViaResend(opts, r); ok = true; }
+    else if (sm) { via = 'SMTP'; await sendMail(opts, sm); ok = true; }
+    else throw new Error('Geen e-mailkoppeling ingesteld (vul Resend in bij Koppelingen).');
+  } catch (e) { fout = e.message || String(e); }
+  logMail({ to: opts.to, subject: opts.subject, soort: meta.soort || '', via, status: ok ? 'ok' : 'fout', fout });
+  if (!ok) console.error('[mail]', meta.soort || '', fout);
+  return { ok, error: fout };
 }
 const { slotsVoorPeriode, boekingDefaults, nuBrussel } = require('./boeking');
 
@@ -209,8 +223,8 @@ async function api(req, res, url) {
       const alg = instellingen(); const sjab = Object.assign({}, STANDAARD_MAILS, alg.mails || {});
       const voornaam = (naam.split(/\s|&/)[0] || '').trim();
       const basis = { voornaam, naam, wanneer: when, duur: cfg.duur, locatie: cfg.locatie, titel: cfg.titel, bevestiging: cfg.bevestiging, afzender: cfg.afzender || alg.afzender || 'justPIXIT', email, telefoon: telefoon || '-', type: doc.type || '-', datumEvent: doc.datumEvent || '-', bericht: notitie || '(geen bericht)', app: publicBase(req) + '/app' };
-      verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: vul(sjab.boekingAdmin, basis) }).catch(e => console.error('[mail] admin:', e.message));
-      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: vul(sjab.boekingKlant, basis) }).catch(e => console.error('[mail] klant:', e.message));
+      verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: vul(sjab.boekingAdmin, basis) }, { soort: 'melding nieuwe afspraak' });
+      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: vul(sjab.boekingKlant, basis) }, { soort: 'bevestiging afspraak' });
     }
     return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: cfg.locatie, bevestiging: cfg.bevestiging, mail: mailActief() });
   }
@@ -295,6 +309,15 @@ async function api(req, res, url) {
     return json(res, 200, { ok: true, aantal: n, fouten });
   }
   if (p === '/api/facturatie' && m === 'GET') return json(res, 200, { verkoper: verkoperDoc(), klaar: verkoperKlaar() });
+  if (p === '/api/maillog' && m === 'GET') { const d = store.get('instellingen', 'maillog') || { items: [] }; return json(res, 200, { items: d.items || [], actief: mailActief() }); }
+  if (p === '/api/mailtest' && m === 'POST') {
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    const naar = String(b.to || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(naar)) return json(res, 400, { error: 'Vul een geldig e-mailadres in.' });
+    const alg = instellingen();
+    const r = await verstuurMail({ to: naar, subject: 'Testmail van justPIXIT Studio', text: 'Dit is een testmail van justPIXIT Studio.\n\nAls je dit ontvangt, werkt je e-mailkoppeling.\n\n' + (alg.afzender || 'justPIXIT') }, { soort: 'test' });
+    return r.ok ? json(res, 200, { ok: true }) : json(res, 502, { error: r.error || 'Versturen mislukt' });
+  }
   if (p === '/api/agenda' && m === 'GET') {
     const a = store.get('instellingen', 'agenda') || {};
     if (!a.token) { a.token = nieuwToken(); store.set('instellingen', 'agenda', a); }

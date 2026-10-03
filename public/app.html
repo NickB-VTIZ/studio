@@ -502,7 +502,7 @@ function render(){
   else if(view.v==='pipeline')app.innerHTML=vPipeline();
   else if(view.v==='klanten')app.innerHTML=vKlanten();
   else if(view.v==='nieuw')app.innerHTML=vNieuw();
-  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel();laadAgenda()}}
+  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel();laadAgenda();laadMailtest()}}
   else if(view.v==='koppelingen'){if(!koppelOpen){app.innerHTML=vKoppelingen();koppelOpen=true;laadKoppelingen()}}
   else if(view.v==='klant'){
     const k=klanten.find(x=>x.id===view.id);
@@ -1060,11 +1060,33 @@ function vBeheer(){
     </div></section>
    <section><h2>Agenda (Office 365 / Outlook)</h2><p>Zet je kennismakingsgesprekken automatisch in je Outlook-agenda. Voeg de onderstaande link toe in Outlook via <b>Agenda toevoegen → Abonneren vanaf internet</b>. Outlook ververst die daarna zelf (meestal elke paar uur).</p>
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>
+   <section><h2>E-mail testen &amp; logboek</h2><p>Stuur een testmail naar jezelf en bekijk wat er verstuurd werd. Zie je hier een fout, dan toont die meteen waarom een mail niet aankwam.</p>
+    <div class="sec" style="display:grid;gap:12px" id="mailtestBox"><p class="hint" style="margin:0">Laden…</p></div></section>
    <section><h2>Mailteksten</h2><p>De eerste twee worden automatisch verstuurd bij een online boeking. De andere kan je per klant kopiëren. Plaatshouders tussen accolades worden ingevuld; onder elk vak staat welke je kan gebruiken.</p>
     <div class="mailgrid"><div class="sec"><h3 style="font-size:13px;font-weight:600">Ondertekening <code>{afzender}</code></h3><textarea id="mail-afzender" data-afzender="1" style="min-height:80px" aria-label="Ondertekening">${esc(cfg.afzender)}</textarea></div>${ml}</div></section>
   </div>`;
 }
-function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();window.scrollTo(0,y)}
+function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();window.scrollTo(0,y)}
+async function laadMailtest(){
+  const box=$('#mailtestBox');if(!box)return;
+  let d={items:[],actief:false};try{d=await (await fetch('/api/maillog',{credentials:'same-origin'})).json()}catch(e){}
+  const rows=(d.items||[]).slice(0,20).map(it=>{const t=new Date(it.ts);const dt=t.toLocaleDateString('nl-BE',{day:'numeric',month:'short'})+' '+t.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});
+    const kl=it.status==='ok'?'ok':'bad';
+    return `<li class="dlrow ${kl}" style="margin:0"><b>${it.status==='ok'?'Verzonden':'Mislukt'} · ${esc(it.soort||'mail')}</b><span>${esc(dt)} · naar ${esc(it.to||'')}${it.via?' · '+esc(it.via):''}${it.fout?' — '+esc(it.fout):''}</span></li>`}).join('');
+  box.innerHTML=`<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+     <label class="fld" style="flex:1 1 240px"><span>Testmail sturen naar</span><input id="mailtestTo" type="email" placeholder="jij@justpixit.be"></label>
+     <button class="btn primary" id="mailtestSend" ${d.actief?'':'disabled'}>Stuur testmail</button>
+     <span class="hint" id="mailtestMsg">${d.actief?'':'Stel eerst Resend in bij Koppelingen.'}</span></div>
+    <div><div class="label" style="margin-bottom:6px">Recente e-mails</div>${rows?`<ul style="list-style:none;margin:0;padding:0;display:grid;gap:6px">${rows}</ul>`:'<p class="hint" style="margin:0">Nog geen e-mails verstuurd.</p>'}</div>`;
+}
+async function stuurTestmail(){
+  const to=($('#mailtestTo')||{}).value||'';const msg=$('#mailtestMsg');if(msg){msg.style.color='';msg.textContent='Versturen…'}
+  try{const r=await fetch('/api/mailtest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to}),credentials:'same-origin'}).then(x=>x.json());
+    if(r.error){if(msg){msg.style.color='var(--late)';msg.textContent=r.error}}else{if(msg){msg.style.color='var(--ok)';msg.textContent='Verstuurd! Kijk je mailbox na.'}}
+    laadMailtest();
+  }catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Versturen mislukt'}}
+}
+document.addEventListener('click',e=>{if(e.target.closest('#mailtestSend'))stuurTestmail()});
 async function laadAgenda(){
   const box=$('#agendaBox');if(!box)return;
   let d=null;try{d=await (await fetch('/api/agenda',{credentials:'same-origin'})).json()}catch(e){}
