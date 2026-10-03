@@ -1,0 +1,26 @@
+name: justpixit-studio
+services:
+  studio:
+    image: ${STUDIO_IMAGE:-ghcr.io/nickb-vtiz/justpixit-studio:latest}
+    build: .
+    container_name: justpixit-studio
+    restart: unless-stopped
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.justpixit-studio.rule=Host(`studio.justpixit.be`)"
+      - "traefik.http.routers.justpixit-studio.entrypoints=websecure"
+      - "traefik.http.routers.justpixit-studio.tls=true"
+      - "traefik.http.routers.justpixit-studio.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.justpixit-studio.service=justpixit-studio"
+      - "traefik.http.services.justpixit-studio.loadbalancer.server.port=80"
+      - "traefik.http.routers.justpixit-studio-http.rule=Host(`studio.justpixit.be`)"
+      - "traefik.http.routers.justpixit-studio-http.entrypoints=web"
+      - "traefik.http.routers.justpixit-studio-http.middlewares=justpixit-studio-https"
+      - "traefik.http.routers.justpixit-studio-http.service=justpixit-studio"
+      - "traefik.http.middlewares.justpixit-studio-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.justpixit-studio-https.redirectscheme.permanent=true"
+# Traefik draait op deze server in hostmodus. Geen gedeeld netwerk nodig.
+# De HTTP-router veronderstelt een entrypoint 'web'; verwijder de zes
+# justpixit-studio-http/https-labels als dat entrypoint niet bestaat.
