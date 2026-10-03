@@ -115,6 +115,16 @@ Op een klantpagina verschijnt dan een WhatsApp-venster waarmee je de klant een b
 
 **E-facturen (UBL) voor sbbSLIM.** sbbSLIM (de facturatietool van SBB) heeft geen open API om facturen in te pushen. De ondersteunde en toekomstvaste weg — en vanaf 1 januari 2026 verplicht — is e-facturatie via **UBL/Peppol**. De app maakt daarom per offerte een **UBL-bestand** dat je in sbbSLIM inleest of via Peppol verstuurt. Vul je facturatiegegevens in bij **Koppelingen → E-facturen (UBL)** (bedrijfsnaam, BTW-nummer, adres, IBAN, nummerreeks). Op een offerte verschijnt dan de knop **Download e-factuur (UBL)**. Het factuurnummer loopt vanzelf op; stem je reeks af op wat je in sbbSLIM gebruikt.
 
+## 5c. Agenda in Office 365 / Outlook
+
+De app biedt een **agenda-link** (ICS-feed) met al je kennismakingsgesprekken. In **Beheer → Agenda (Office 365 / Outlook)** kopieer je die link en voeg je ze in Outlook toe via **Agenda toevoegen → Abonneren vanaf internet**. Outlook ververst de feed daarna zelf (meestal om de paar uur — het is dus geen directe sync, maar nieuwe afspraken komen vanzelf binnen). Houd de link privé; met "Nieuwe link maken" vervalt de oude.
+
+Een directe, tweerichtings-sync (afspraak meteen in je agenda, wijzigingen terug) vergt een Microsoft-app­registratie met OAuth (Microsoft Graph). Dat is een groter project; de ICS-feed is de eenvoudige, robuuste eerste stap.
+
+## 5d. Mailteksten aanpassen
+
+In **Beheer → Mailteksten** pas je alle automatische en kopieerbare e-mails aan, inclusief de **bevestigingsmail bij een online boeking** en de **melding naar jezelf**. Plaatshouders tussen accolades (bv. `{voornaam}`, `{wanneer}`, `{locatie}`) worden bij het versturen ingevuld; onder elk vak staat welke je kan gebruiken.
+
 ## 6. Lokaal testen
 
 Zonder Docker:

@@ -14,6 +14,8 @@ const { sendMail, smtpConfig } = require('./smtp');
 const { resendConfig, sendViaResend, testResend } = require('./resend');
 const { twilioConfig, sendWhatsApp, testTwilio } = require('./twilio');
 const { maakUBL } = require('./ubl');
+const { STANDAARD_MAILS, vul } = require('./mails');
+const { bouwFeed, nieuwToken } = require('./agenda');
 
 // Instellingen van koppelingen: eerst uit .env (admin-override), anders uit de database (ingevuld via de pagina Koppelingen).
 const KOPPEL_VELDEN = {
@@ -198,8 +200,11 @@ async function api(req, res, url) {
     if (mailActief()) {
       const r2 = resendConfig(effEnv()), s2 = smtpConfig(effEnv());
       const admin = kv('adminEmail') || (r2 && r2.from) || (s2 && s2.from);
-      verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: `${naam} boekte een ${cfg.titel.toLowerCase()} op ${when}.\n\nE-mail: ${email}\nTelefoon: ${telefoon || '-'}\nType: ${doc.type}\nDatum event: ${doc.datumEvent || '-'}\n\n${notitie || '(geen bericht)'}\n\nOpen de fiche: ${publicBase(req)}/app` }).catch(e => console.error('[mail] admin:', e.message));
-      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: `Hoi ${naam.split(/\s|&/)[0]},\n\n${cfg.bevestiging}\n\nWanneer: ${when} (${cfg.duur} min)\nWaar: ${cfg.locatie}\n\nTot dan!\n${cfg.afzender || 'justPIXIT'}` }).catch(e => console.error('[mail] klant:', e.message));
+      const alg = instellingen(); const sjab = Object.assign({}, STANDAARD_MAILS, alg.mails || {});
+      const voornaam = (naam.split(/\s|&/)[0] || '').trim();
+      const basis = { voornaam, naam, wanneer: when, duur: cfg.duur, locatie: cfg.locatie, titel: cfg.titel, bevestiging: cfg.bevestiging, afzender: cfg.afzender || alg.afzender || 'justPIXIT', email, telefoon: telefoon || '-', type: doc.type || '-', datumEvent: doc.datumEvent || '-', bericht: notitie || '(geen bericht)', app: publicBase(req) + '/app' };
+      verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: vul(sjab.boekingAdmin, basis) }).catch(e => console.error('[mail] admin:', e.message));
+      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: vul(sjab.boekingKlant, basis) }).catch(e => console.error('[mail] klant:', e.message));
     }
     return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: cfg.locatie, bevestiging: cfg.bevestiging, mail: mailActief() });
   }
@@ -258,6 +263,16 @@ async function api(req, res, url) {
     } catch (e) { return json(res, 500, { error: 'E-factuur maken mislukt: ' + e.message }); }
   }
   if (p === '/api/facturatie' && m === 'GET') return json(res, 200, { verkoper: verkoperDoc(), klaar: verkoperKlaar() });
+  if (p === '/api/agenda' && m === 'GET') {
+    const a = store.get('instellingen', 'agenda') || {};
+    if (!a.token) { a.token = nieuwToken(); store.set('instellingen', 'agenda', a); }
+    return json(res, 200, { url: publicBase(req) + '/cal/' + a.token + '.ics' });
+  }
+  if (p === '/api/agenda/nieuw' && m === 'POST') {
+    store.set('instellingen', 'agenda', { token: nieuwToken() });
+    const a = store.get('instellingen', 'agenda');
+    return json(res, 200, { url: publicBase(req) + '/cal/' + a.token + '.ics' });
+  }
   if (p === '/api/facturatie' && m === 'POST') {
     const b = await readJson(req, 20e3).catch(() => ({}));
     const v = verkoperDoc();
@@ -340,6 +355,14 @@ const server = http.createServer(async (req, res) => {
   const p = url.pathname;
   try {
     if (p === '/gezond' || p === '/health') return text(res, 200, 'ok');
+    const calM = p.match(/^\/cal\/([a-f0-9]{16,64})\.ics$/);
+    if (calM) {
+      const a = store.get('instellingen', 'agenda') || {};
+      if (!a.token || a.token !== calM[1]) return text(res, 404, 'Niet gevonden');
+      const duur = (boekingConfig().duur) || 60;
+      res.writeHead(200, { 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Disposition': 'inline; filename="justpixit.ics"' });
+      return res.end(bouwFeed(store.list('klanten'), duur));
+    }
     if (SETUP_FOUTEN.length) {
       res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(`<!doctype html><html lang="nl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>justPIXIT Studio – instellen</title>
