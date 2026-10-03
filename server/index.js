@@ -11,6 +11,17 @@ const path = require('path');
 const crypto = require('crypto');
 const { Store } = require('./store');
 const { sendMail, smtpConfig } = require('./smtp');
+const { resendConfig, sendViaResend } = require('./resend');
+const { twilioConfig, sendWhatsApp } = require('./twilio');
+const { efConfig, maakFactuur } = require('./invoicing');
+
+// Mail-verzender: Resend als dat ingesteld is, anders SMTP. Altijd best-effort.
+const mailActief = () => !!(resendConfig() || smtpConfig());
+function verstuurMail(opts) {
+  if (resendConfig()) return sendViaResend(opts);
+  if (smtpConfig()) return sendMail(opts);
+  return Promise.resolve(false);
+}
 const { slotsVoorPeriode, boekingDefaults, nuBrussel } = require('./boeking');
 
 const PORT = Number(process.env.PORT || 3000);
@@ -169,18 +180,18 @@ async function api(req, res, url) {
     store.set('klanten', id, doc);
     const when = `${slot.slice(8, 10)}/${slot.slice(5, 7)}/${slot.slice(0, 4)} om ${slot.slice(11, 16)}`;
     // Mails zijn best-effort.
-    if (smtpConfig()) {
-      const admin = ADMIN_EMAIL || smtpConfig().from;
-      sendMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: `${naam} boekte een ${cfg.titel.toLowerCase()} op ${when}.\n\nE-mail: ${email}\nTelefoon: ${telefoon || '-'}\nType: ${doc.type}\nDatum event: ${doc.datumEvent || '-'}\n\n${notitie || '(geen bericht)'}\n\nOpen de fiche: ${publicBase(req)}/app` }).catch(e => console.error('[mail] admin:', e.message));
-      sendMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: `Hoi ${naam.split(/\s|&/)[0]},\n\n${cfg.bevestiging}\n\nWanneer: ${when} (${cfg.duur} min)\nWaar: ${cfg.locatie}\n\nTot dan!\n${cfg.afzender || 'justPIXIT'}` }).catch(e => console.error('[mail] klant:', e.message));
+    if (mailActief()) {
+      const admin = ADMIN_EMAIL || (resendConfig() && resendConfig().from) || (smtpConfig() && smtpConfig().from);
+      verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: `${naam} boekte een ${cfg.titel.toLowerCase()} op ${when}.\n\nE-mail: ${email}\nTelefoon: ${telefoon || '-'}\nType: ${doc.type}\nDatum event: ${doc.datumEvent || '-'}\n\n${notitie || '(geen bericht)'}\n\nOpen de fiche: ${publicBase(req)}/app` }).catch(e => console.error('[mail] admin:', e.message));
+      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: `Hoi ${naam.split(/\s|&/)[0]},\n\n${cfg.bevestiging}\n\nWanneer: ${when} (${cfg.duur} min)\nWaar: ${cfg.locatie}\n\nTot dan!\n${cfg.afzender || 'justPIXIT'}` }).catch(e => console.error('[mail] klant:', e.message));
     }
-    return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: cfg.locatie, bevestiging: cfg.bevestiging, mail: !!smtpConfig() });
+    return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: cfg.locatie, bevestiging: cfg.bevestiging, mail: mailActief() });
   }
 
   // --- vanaf hier: login vereist ---
   if (!authed(req)) return json(res, 401, { error: 'Niet aangemeld' });
 
-  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: !!smtpConfig(), versie: VERSION.version });
+  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(), facturen: !!efConfig(), versie: VERSION.version });
   if (p === '/api/version' && m === 'GET') {
     const latest = await nieuwsteVersie();
     return json(res, 200, { running: VERSION, latest, repo: REPO, updateBeschikbaar: latest ? cmpVersie(latest, VERSION.version) > 0 : false, updateEnabled: UPDATE_ENABLED });
@@ -190,6 +201,40 @@ async function api(req, res, url) {
     // Fire-and-forget: Watchtower haalt de nieuwe image en herstart deze container. Dit proces stopt dan mee.
     triggerWatchtower().catch(e => console.error('[update]', e.message));
     return json(res, 200, { started: true });
+  }
+  if (p === '/api/whatsapp' && m === 'POST') {
+    if (!twilioConfig()) return json(res, 400, { error: 'WhatsApp is niet ingesteld (Twilio-gegevens ontbreken in .env).' });
+    const b = await readJson(req, 20e3).catch(() => ({}));
+    const klant = store.get('klanten', String(b.klantId || ''));
+    if (!klant) return json(res, 404, { error: 'Klant niet gevonden' });
+    if (!klant.telefoon) return json(res, 400, { error: 'Deze klant heeft geen telefoonnummer.' });
+    const tekst = String(b.tekst || '').trim();
+    if (!tekst) return json(res, 400, { error: 'Leeg bericht' });
+    try {
+      const r = await sendWhatsApp({ to: klant.telefoon, body: tekst });
+      const t = today();
+      klant.logboek = (klant.logboek || []).concat([{ d: t, t: 'WhatsApp verstuurd: ' + tekst.slice(0, 200), s: 'telefoon', ts: new Date().toISOString() }]);
+      store.set('klanten', klant.id, klant);
+      return json(res, 200, { ok: true, status: r.status });
+    } catch (e) { return json(res, 502, { error: 'Versturen mislukt: ' + e.message }); }
+  }
+  const facMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/factuur$/);
+  if (facMatch && m === 'POST') {
+    if (!efConfig()) return json(res, 400, { error: 'De facturatiekoppeling is niet ingesteld (EF_API_KEY ontbreekt in .env).' });
+    const klant = store.get('klanten', facMatch[1]);
+    if (!klant) return json(res, 404, { error: 'Klant niet gevonden' });
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    const offerte = (klant.offertes || []).find(o => o.id === String(b.offerteId || ''));
+    if (!offerte) return json(res, 400, { error: 'Offerte niet gevonden' });
+    try {
+      const r = await maakFactuur(klant, offerte);
+      klant.id = facMatch[1];
+      if (r.clientNieuw && r.clientId) klant.efClientId = r.clientId;
+      offerte.factuur = { nummer: r.number, uri: r.uri, invoiceId: r.invoiceId, op: today() };
+      klant.logboek = (klant.logboek || []).concat([{ d: today(), t: 'Factuur aangemaakt in EenvoudigFactureren' + (r.number ? ' (' + r.number + ')' : ''), s: 'notitie', ts: new Date().toISOString() }]);
+      const { id, ...rest } = klant; store.set('klanten', facMatch[1], rest);
+      return json(res, 200, { ok: true, nummer: r.number, uri: r.uri });
+    } catch (e) { return json(res, 502, { error: 'Factuur maken mislukt: ' + e.message }); }
   }
   if (p === '/api/data' && m === 'GET') {
     const klanten = {}; for (const k of store.list('klanten')) { const { id, ...rest } = k; klanten[id] = rest; }

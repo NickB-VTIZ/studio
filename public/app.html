@@ -671,6 +671,9 @@ function renderSide(){
     ${k.datumEvent?`<div class="dlrow none" style="margin-bottom:10px">Event op ${fmt(k.datumEvent)}</div>`:''}
     <div class="flowfoot" style="border-top:0;padding-top:0"><button class="btn small ghost" data-tab="planning">Uitgebreide planning →</button></div>
     <div class="flowfoot">${next?`<button class="btn primary small" data-fase="${next.k}">→ ${esc(next.l)}</button>`:''}${k.fase!=='geen_deal'&&k.fase!=='afgerond'?'<button class="btn small ghost" data-fase="geen_deal">Niet doorgegaan</button>':''}</div></section>
+   ${serverInfo.whatsapp&&k.telefoon?`<section class="panel"><header><h2>WhatsApp</h2></header><div class="todo-card">
+     <textarea id="waText" rows="3" aria-label="WhatsApp-bericht" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:8px 10px">${esc('Hoi '+(voornaam(k.naam)||'')+', ')}</textarea>
+     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn small primary" id="waSend">Stuur naar ${esc(k.telefoon)}</button><span class="hint">via WhatsApp</span></div></div></section>`:''}
    <section class="panel"><header><h2>Logboek</h2><button class="btn small ghost" style="margin-left:auto" data-tab="logboek">Alles (${(k.logboek||[]).length}) →</button></header>
     <ul class="log">${logSorted(k).slice(0,3).map(({l})=>`<li><time>${fmt(l.d)}</time><span>${esc(l.t)}</span></li>`).join('')||'<li><span></span><span style="color:var(--muted)">Nog geen notities.</span></li>'}</ul>
     <form class="logadd" id="logform"><input id="logtxt" placeholder="bv. gebeld, voicemail ingesproken" aria-label="Notitie voor logboek"><button class="btn small">Voeg toe</button></form></section>`;
@@ -779,6 +782,10 @@ window.addEventListener('pagehide',flushSave);
 
 
 /* ---------- niet doorgegaan ---------- */
+document.addEventListener('click',async e=>{const w=e.target.closest('#waSend');if(w&&work){const tx=($('#waText')||{}).value||'';if(!tx.trim()){toast('Leeg bericht');return}w.disabled=true;w.textContent='Versturen…';
+  try{const r=await fetch('/api/whatsapp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({klantId:work.id,tekst:tx.trim()}),credentials:'same-origin'}).then(x=>x.json());
+    if(r.error){toast(r.error);w.disabled=false;w.textContent='Opnieuw proberen'}else{toast('WhatsApp verstuurd');work.logboek=(work.logboek||[]).concat([{d:today(),t:'WhatsApp verstuurd: '+tx.trim().slice(0,200),s:'telefoon',ts:nowTs()}]);renderSide()}}
+  catch(e2){toast('Versturen mislukt');w.disabled=false;w.textContent='Opnieuw proberen'}return}});
 document.addEventListener('click',e=>{const t=e.target.closest('#stopYes,#stopNo,#stopEdit');if(!t||!work)return;
   if(t.id==='stopNo'){stopForm=false;renderSide();return}
   if(t.id==='stopEdit'){stopForm=true;renderSide();return}
@@ -937,9 +944,18 @@ function ofCard(o){
   <label class="fld"><span>Notitie bij deze offerte</span><textarea id="of-${o.id}-notitie" data-of="${o.id}" data-ok="notitie" rows="2">${esc(o.notitie)}</textarea></label>
   <div class="files"><div class="label">Bestanden</div>${(o.bestanden||[]).map(f=>fileHtml(o,f)).join('')}
    ${assets?`<label class="drop" data-ofdrop="${o.id}">Sleep je offerte (PDF of afbeelding) hierheen of <u>kies een bestand</u><input type="file" id="of-${o.id}-file" data-ofupload="${o.id}" accept="application/pdf,image/png,image/jpeg,image/webp" multiple hidden></label>`:'<p class="hint" style="margin:0">Bestanden opladen kan enkel als je de pagina opent als eigenaar in Claude.</p>'}</div>
-  <div class="ofactions"><button class="btn small" data-ofcopy="${o.id}">Kopieer als tekst</button><button class="btn small" data-ofdup="${o.id}">Dupliceer als nieuwe optie</button><span class="spacer"></span>
+  ${o.factuur?`<div class="dlrow ok" style="margin:0"><b>Factuur aangemaakt${o.factuur.nummer?' · '+esc(o.factuur.nummer):''}</b>${o.factuur.uri?`<span><a href="${esc(o.factuur.uri)}" target="_blank" rel="noopener">Bekijk in EenvoudigFactureren</a></span>`:''}</div>`:''}
+  <div class="ofactions">${serverInfo.facturen?`<button class="btn small" data-factuur="${o.id}">${o.factuur?'Opnieuw factureren':'Maak factuur'}</button>`:''}<button class="btn small" data-ofcopy="${o.id}">Kopieer als tekst</button><button class="btn small" data-ofdup="${o.id}">Dupliceer als nieuwe optie</button><span class="spacer"></span>
    ${ofConfirm==='of:'+o.id?`<span class="confirm">Deze offerte verwijderen? <button class="btn small danger" data-ofdelyes="${o.id}">Ja, verwijder</button><button class="btn small ghost" data-ofcancel="1">Nee</button></span>`:`<button class="btn small ghost danger" data-ofdel="${o.id}">Verwijder offerte</button>`}</div>
   </section>`}
+async function maakFactuur(ofId){
+  const btn=document.querySelector(`[data-factuur="${ofId}"]`);if(btn){btn.disabled=true;btn.textContent='Bezig…'}
+  flushSave();await new Promise(r=>setTimeout(r,300));
+  try{const r=await fetch('/api/klant/'+work.id+'/factuur',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({offerteId:ofId}),credentials:'same-origin'}).then(x=>x.json());
+    if(r.error){toast(r.error)}else{toast('Factuur aangemaakt'+(r.nummer?' · '+r.nummer:''));const o=findOf(ofId);if(o)o.factuur={nummer:r.nummer,uri:r.uri,op:today()};ofMounted=false;renderOffertes();renderSide()}}
+  catch(e){toast('Factuur maken mislukt')}
+  finally{if(btn&&btn.isConnected){btn.disabled=false}}
+}
 function renderOffertes(){
   const box=$('#tab-offerte');if(!box||!work)return;ofMounted=true;const list=work.offertes||[];
   const wens=get(work,'fiche.offerte.opties');
@@ -970,7 +986,7 @@ document.addEventListener('dragover',e=>{const d=e.target.closest&&e.target.clos
 document.addEventListener('dragleave',e=>{const d=e.target.closest&&e.target.closest('[data-ofdrop]');if(d)d.classList.remove('over')});
 document.addEventListener('drop',e=>{const d=e.target.closest&&e.target.closest('[data-ofdrop]');if(!d)return;e.preventDefault();d.classList.remove('over');if(e.dataTransfer.files.length)uploadFiles(d.dataset.ofdrop,[...e.dataTransfer.files])});
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-tab],[data-ofstop],[data-ofnew],[data-ofaddrow],[data-ofdelrow],[data-ofdel],[data-ofdelyes],[data-ofcancel],[data-ofdup],[data-ofcopy],[data-ofphase],[data-ofdelfile],[data-ofdelfileyes]');
+  const t=e.target.closest('[data-tab],[data-factuur],[data-ofstop],[data-ofnew],[data-ofaddrow],[data-ofdelrow],[data-ofdel],[data-ofdelyes],[data-ofcancel],[data-ofdup],[data-ofcopy],[data-ofphase],[data-ofdelfile],[data-ofdelfileyes]');
   if(!t||!work)return;const D=t.dataset;
   if(D.tab){klantTab=D.tab;markSeen(klantTab);['fiche','planning','logboek','offerte'].forEach(x=>{$('#tab-'+x).hidden=klantTab!==x});if(klantTab==='offerte')renderOffertes();if(klantTab==='logboek')renderLogTab();renderSide();const tb=$('#tabs');if(tb&&tb.getBoundingClientRect().top<0)tb.scrollIntoView({block:'start'});return}
   if(D.ofstop){if(!work.stopReden)work.stopReden='Te duur';stopForm=true;renderSide();const sp=$('#stopform');if(sp)sp.scrollIntoView({block:'center',behavior:'smooth'});return}
@@ -981,6 +997,7 @@ document.addEventListener('click',e=>{
   if(D.ofcancel){ofConfirm=null;renderOffertes();return}
   if(D.ofdelyes){const o=findOf(D.ofdelyes);if(assets)(o.bestanden||[]).forEach(f=>assets.delete(f.id).catch(()=>{}));work.offertes=work.offertes.filter(x=>x.id!==D.ofdelyes);ofConfirm=null;ofChanged(true);toast('Offerte verwijderd');return}
   if(D.ofdup){const o=clone(findOf(D.ofdup));o.id=Math.random().toString(36).slice(2,9);o.titel=(o.titel||'Offerte')+' (kopie)';o.status='Concept';o.datum='';o.bestanden=[];work.offertes.push(o);ofChanged(true);toast('Gedupliceerd');return}
+  if(D.factuur){return maakFactuur(D.factuur)}
   if(D.ofcopy){const o=findOf(D.ofcopy),tt=ofTotals(o);const lines=(o.regels||[]).filter(r=>r.oms||num(r.prijs)).map(r=>`- ${r.oms}: ${num(r.aantal)} × ${euro(num(r.prijs))} = ${euro(num(r.aantal)*num(r.prijs))}`);
     copy(`${o.titel}\n${lines.join('\n')}\n\nSubtotaal excl. btw: ${euro(tt.sub)}${tt.kort?`\nKorting: − ${euro(tt.kort)}`:''}\nBtw ${num(o.btw)}%: ${euro(tt.btw)}\nTotaal incl. btw: ${euro(tt.tot)}`);return}
   if(D.ofphase){const o=findOf(D.of);zetFase(D.ofphase,D.ofphase==='offerte'&&o&&o.datum?o.datum:undefined);return}
@@ -1004,6 +1021,12 @@ function vBeheer(){
   return `<div class="vhead"><div><h1>Beheer</h1><p>Pas hier de keuzes, termijnen en mailteksten aan. Wijzigingen worden meteen bewaard.</p></div><div class="spacer"></div><span class="savestate" id="cfgstate">Alles opgeslagen</span></div>
   <div class="beheer">
    <section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
+   <section><h2>Koppelingen</h2><p>Deze koppelingen stel je in met sleutels in het <code>.env</code>-bestand op de server (niet hier, om ze veilig te houden). Hieronder zie je wat actief is.</p>
+    <div class="lists">
+     <div class="sec"><h3>E-mail — Resend of SMTP</h3><p class="hint" style="margin:0">${serverInfo.mail?'<b style="color:var(--ok)">Actief.</b> Bevestigingsmails bij een boeking worden verstuurd.':'Uit. Voeg RESEND_API_KEY (of SMTP_*) toe aan .env.'}</p></div>
+     <div class="sec"><h3>WhatsApp — Twilio</h3><p class="hint" style="margin:0">${serverInfo.whatsapp?'<b style="color:var(--ok)">Actief.</b> Op een klantpagina kan je een WhatsApp sturen.':'Uit. Voeg TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN en TWILIO_WHATSAPP_FROM toe aan .env.'}</p></div>
+     <div class="sec"><h3>Facturen — EenvoudigFactureren</h3><p class="hint" style="margin:0">${serverInfo.facturen?'<b style="color:var(--ok)">Actief.</b> Op een offerte kan je een factuur aanmaken.':'Uit. Voeg EF_API_KEY toe aan .env.'}</p></div>
+    </div></section>
    <section><h2>Keuzelijsten</h2><p>Deze opties zie je bij een nieuwe klant en in de kennismakingsfiche. Verwijder je een keuze, dan blijft ze gewoon staan bij klanten die ze al hebben.</p><div class="lists">${lists}</div></section>
    <section><h2>Opvolgtermijnen</h2><p>Hiermee berekent het systeem wanneer een actie op "Vandaag" verschijnt.</p><div class="terms">${terms}</div></section>
    <section><h2>Planning</h2><p>De planning op de klantpagina vertrekt van de datum van het kennismakingsgesprek. Ze telt de termijnen hierboven op met deze doorlooptijden. Fases die al voorbij zijn, krijgen hun echte datum.</p>

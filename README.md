@@ -94,6 +94,32 @@ ADMIN_EMAIL=info@justpixit.be
 ```
 Dan `./restart.sh`. Bij elke boeking krijgt de klant een bevestiging en jij een melding. Zonder deze regels werkt boeken ook; er wordt dan niets gemaild.
 
+## 5b. Koppelingen (e-mail, WhatsApp, facturen)
+
+Alle sleutels zet je in `.env` op de server (niet in de app, zo blijven ze veilig). In **Beheer → Koppelingen** zie je wat actief is. Na een wijziging in `.env`: `./restart.sh`.
+
+**E-mail via Resend** (aanbevolen, eenvoudiger dan SMTP). Maak op resend.com een API-sleutel en verifieer je domein of afzender, en zet:
+```
+RESEND_API_KEY=re_xxxxxxxx
+RESEND_FROM=justPIXIT <info@justpixit.be>
+```
+Staat Resend ingesteld, dan gebruikt de app Resend; anders valt ze terug op SMTP. Beide sturen de bevestigingsmails bij een online boeking.
+
+**WhatsApp via Twilio.** Nodig: een Twilio-account, een geactiveerde WhatsApp-afzender en goedgekeurde berichttemplates.
+```
+TWILIO_ACCOUNT_SID=ACxxxx
+TWILIO_AUTH_TOKEN=xxxx
+TWILIO_WHATSAPP_FROM=+32470000000
+```
+Op een klantpagina verschijnt dan een WhatsApp-venster waarmee je de klant een bericht stuurt (het nummer wordt automatisch naar +32-formaat gezet). Let op: WhatsApp staat een bedrijf enkel toe om ongevraagd te berichten met een vooraf goedgekeurde template, of binnen 24 uur nadat de klant zelf iets stuurde. Een vrij bericht buiten dat venster wordt door WhatsApp geweigerd — dat is een regel van WhatsApp, niet van de app.
+
+**Facturen via EenvoudigFactureren.** Maak een API-sleutel via *Toegangsbeheer* in EenvoudigFactureren en zet:
+```
+EF_API_KEY=xxxx
+EF_ACCOUNT_ID=Cxxxx      # enkel bij meerdere accounts
+```
+Op een offerte verschijnt dan de knop **Maak factuur**. De app maakt de klant aan in EenvoudigFactureren (als die er nog niet is) en zet de offerteregels om in een factuur. De link naar de factuur verschijnt bij de offerte.
+
 ## 6. Lokaal testen
 
 Zonder Docker:
