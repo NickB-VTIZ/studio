@@ -333,6 +333,7 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
   <div class="spacer"></div>
   <a class="btn ghost" href="/afspraak" target="_blank" rel="noopener" title="Publieke boekingspagina">Afsprakenpagina ↗</a>
   <button class="btn primary" id="newBtn">+ Nieuwe klant</button>
+  <span id="versieBadge" class="chip" style="cursor:pointer" title="Versie-informatie"></span>
   <button class="btn ghost small" id="logoutBtn" title="Afmelden">Afmelden</button>
 </div></div>
 <main class="wrap" id="app"><p class="empty">Klanten laden…</p></main>
@@ -495,7 +496,7 @@ function render(){
   else if(view.v==='pipeline')app.innerHTML=vPipeline();
   else if(view.v==='klanten')app.innerHTML=vKlanten();
   else if(view.v==='nieuw')app.innerHTML=vNieuw();
-  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true}}
+  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel()}}
   else if(view.v==='klant'){
     const k=klanten.find(x=>x.id===view.id);
     if(!k){app.innerHTML='<p class="empty">Deze klant bestaat niet meer.</p>';return}
@@ -1000,6 +1001,7 @@ function vBeheer(){
     <textarea id="mail-${k}" data-mail="${k}" aria-label="${esc(MAIL_LABELS[k])}">${esc(cfg.mails[k])}</textarea></div>`).join('');
   return `<div class="vhead"><div><h1>Beheer</h1><p>Pas hier de keuzes, termijnen en mailteksten aan. Wijzigingen worden meteen bewaard.</p></div><div class="spacer"></div><span class="savestate" id="cfgstate">Alles opgeslagen</span></div>
   <div class="beheer">
+   <section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
    <section><h2>Keuzelijsten</h2><p>Deze opties zie je bij een nieuwe klant en in de kennismakingsfiche. Verwijder je een keuze, dan blijft ze gewoon staan bij klanten die ze al hebben.</p><div class="lists">${lists}</div></section>
    <section><h2>Opvolgtermijnen</h2><p>Hiermee berekent het systeem wanneer een actie op "Vandaag" verschijnt.</p><div class="terms">${terms}</div></section>
    <section><h2>Planning</h2><p>De planning op de klantpagina vertrekt van de datum van het kennismakingsgesprek. Ze telt de termijnen hierboven op met deze doorlooptijden. Fases die al voorbij zijn, krijgen hun echte datum.</p>
@@ -1032,7 +1034,7 @@ function vBeheer(){
     <div class="mailgrid"><div class="sec"><h3 style="font-size:13px;font-weight:600">Ondertekening <code>{afzender}</code></h3><textarea id="mail-afzender" data-afzender="1" style="min-height:80px" aria-label="Ondertekening">${esc(cfg.afzender)}</textarea></div>${ml}</div></section>
   </div>`;
 }
-function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();window.scrollTo(0,y)}
+function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();window.scrollTo(0,y)}
 function saveCfg(now){clearTimeout(cfgTimer);const st=$('#cfgstate');if(st)st.textContent='Opslaan…';
   const run=()=>{cfgTimer=null;if(!db)return;const data=JSON.parse(JSON.stringify(cfg));
     cfgChain=cfgChain.then(()=>db.doc('instellingen/algemeen').set(data)).then(()=>{const s2=$('#cfgstate');if(s2&&!cfgTimer)s2.textContent='Alles opgeslagen'},e=>{const s2=$('#cfgstate');if(s2)s2.textContent='Niet opgeslagen ('+(e&&e.code||'fout')+')'})};
@@ -1064,7 +1066,8 @@ document.addEventListener('input',e=>{const el=e.target;
 });
 
 /* ---------- verbinding met de server ---------- */
-let serverInfo={base:location.origin,mail:false};
+let serverInfo={base:location.origin,mail:false,versie:"?"};
+let updateBezig=false;
 function apiDb(){
   let store={};const subs=[];let pending=0;
   const isObj=v=>v&&typeof v==='object'&&!Array.isArray(v);
@@ -1113,6 +1116,51 @@ document.addEventListener('click',async e=>{const t=e.target.closest('#logoutBtn
   if(t.id==='logoutBtn'){await fetch('/api/logout',{method:'POST',credentials:'same-origin'});location.reload()}
   if(t.id==='copyBoekLink')copy(serverInfo.base+'/afspraak');});
 
+/* ---------- versie & updates ---------- */
+function setVersieBadge(){const el=$('#versieBadge');if(el)el.textContent='v'+(serverInfo.versie||'?')}
+async function laadVersiePaneel(){
+  const box=$('#versiePaneel');if(!box)return;
+  let info=null;try{info=await (await fetch('/api/version',{credentials:'same-origin'})).json()}catch(e){}
+  if(!info){box.innerHTML='<p class="hint" style="margin:0">Versie-informatie niet beschikbaar.</p>';return}
+  serverInfo.versie=info.running.version;setVersieBadge();
+  const d=info.running.builtAt?new Date(info.running.builtAt).toLocaleDateString('nl-BE',{day:'numeric',month:'long',year:'numeric'}):'';
+  const nieuw=info.updateBeschikbaar;
+  box.innerHTML=`
+   <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap"><span style="font-family:var(--f-display);font-size:26px">Versie ${esc(info.running.version)}</span>
+    ${info.running.commit?`<span class="hint">build ${esc(info.running.commit)}</span>`:''}${d?`<span class="hint">· ${d}</span>`:''}</div>
+   ${nieuw?`<div class="dlrow ok" style="margin:0"><b>Nieuwe versie ${esc(info.latest)} beschikbaar</b><span>Klik op "Laad nieuwe versie" om bij te werken. De app herstart even; je gegevens blijven bewaard.</span></div>`
+     :info.latest?`<div class="dlrow none" style="margin:0">Je draait de nieuwste versie (${esc(info.latest)}).</div>`:''}
+   <div id="updateStatus" class="hint" style="min-height:1.2em">${updateBezig?'Bijwerken… de app herstart, dit duurt een halve minuut.':''}</div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn ${nieuw?'primary':''}" id="updateBtn" ${!info.updateEnabled||updateBezig?'disabled':''}>${updateBezig?'Bezig…':'Laad nieuwe versie'}</button>
+    <button class="btn ghost" id="checkBtn" ${updateBezig?'disabled':''}>Controleer op updates</button>
+    <a class="btn ghost" href="https://github.com/${esc(info.repo||'NickB-VTIZ/studio')}/releases" target="_blank" rel="noopener">Wat is er nieuw? ↗</a>
+   </div>
+   ${info.updateEnabled?'':'<p class="hint" style="margin:0;color:var(--late)">Automatisch updaten is niet ingesteld. Voeg UPDATE_TOKEN toe aan .env en start Watchtower (zie README).</p>'}`;
+}
+async function doeUpdate(){
+  if(updateBezig)return;
+  const startV=serverInfo.versie;
+  const r=await fetch('/api/update',{method:'POST',credentials:'same-origin'}).then(x=>x.json()).catch(()=>({error:'Geen verbinding'}));
+  if(r.error){const st=$('#updateStatus');if(st){st.style.color='var(--late)';st.textContent=r.error}return}
+  updateBezig=true;laadVersiePaneel();
+  // Poll tot de versie verandert (de app herstart op de nieuwe image) of tot time-out.
+  let tries=0;
+  const poll=async()=>{
+    tries++;
+    let info=null;try{info=await (await fetch('/api/version',{credentials:'same-origin'})).json()}catch(e){}
+    if(info&&info.running.version!==startV){updateBezig=false;toast('Bijgewerkt naar versie '+info.running.version);laadVersiePaneel();return}
+    if(tries>30){updateBezig=false;const st=$('#updateStatus');laadVersiePaneel();const s2=$('#updateStatus');if(s2){s2.style.color='var(--muted)';s2.textContent='Geen nieuwe versie geladen. Mogelijk draai je al de nieuwste, of de build is nog bezig.'}return}
+    setTimeout(poll,4000);
+  };
+  setTimeout(poll,5000);
+}
+document.addEventListener('click',e=>{const t=e.target.closest('#updateBtn,#checkBtn,#versieBadge');if(!t)return;
+  if(t.id==='updateBtn')return doeUpdate();
+  if(t.id==='checkBtn'){laadVersiePaneel();toast('Gecontroleerd')}
+  if(t.id==='versieBadge')return go('beheer');
+});
+
 /* ---------- boot ---------- */
 render();
 (async()=>{
@@ -1120,6 +1168,7 @@ render();
   if(me.status===401){showLogin();return}
   if(!me.ok){dbFailed=true;render();return}
   serverInfo=await me.json();
+  setVersieBadge();
   db=apiDb();assets=apiAssets();sample=null;
   try{await db.load()}catch(e){if(e&&e.code!=='not_granted'){dbFailed=true;render()}return}
   db.collection('klanten').onSnapshot(snap=>{

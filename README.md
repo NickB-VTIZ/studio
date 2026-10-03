@@ -47,6 +47,23 @@ Open daarna https://studio.justpixit.be/app en meld je aan met je `ADMIN_PASSWOR
 
 **Alternatief zonder GHCR:** met de volledige repository op de server bouw je ter plekke: `docker compose -f compose.hostinger.yml up -d --build`.
 
+## 2b. Updaten met één klik (versiebeheer)
+
+De app toont haar versienummer (rechtsboven en in **Beheer → Versie & updates**). Elke push naar `main` krijgt automatisch een hoger nummer: `1.1`, `1.2`, `1.3`, …
+
+Zo werkt de kringloop, zonder dat je nog op de server hoeft in te loggen:
+
+1. Jij (of ik) pusht een wijziging naar `main`.
+2. GitHub Actions bouwt de nieuwe image en maakt release `v1.N`.
+3. In de app zie je in **Beheer → Versie & updates** "Nieuwe versie beschikbaar".
+4. Je klikt op **Laad nieuwe versie**. De app haalt de nieuwe image op en herstart zichzelf (±30 sec). Je gegevens blijven bewaard; daarna toont de app het nieuwe nummer.
+
+Dit werkt via de meegeleverde **Watchtower**-container. Eenmalig instellen:
+- Zet in `.env` een `UPDATE_TOKEN` (een lange willekeurige tekst: `openssl rand -hex 24`).
+- Start opnieuw op met `docker compose -f compose.hostinger.yml up -d` (dan draait ook Watchtower mee).
+
+Zonder `UPDATE_TOKEN` werkt de app gewoon, maar is de knop uitgeschakeld en update je handmatig met `./update.sh`.
+
 ## 3. Dagelijks gebruik
 
 | Wat | Commando (in `/opt/studio`) |

@@ -5,6 +5,7 @@
 //   /api/...     → data (login vereist), /api/boeking/... publiek
 //   /_blob/:id   → opgeladen bestanden (login vereist)
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -20,6 +21,41 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const SESSION_SECRET = process.env.SESSION_SECRET || '';
 const BASE_URL = (process.env.BASE_URL || '').replace(/\/$/, '');
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
+const UPDATE_TOKEN = process.env.UPDATE_TOKEN || '';
+const WATCHTOWER_URL = (process.env.WATCHTOWER_URL || 'http://watchtower:8080').replace(/\/$/, '');
+const REPO = process.env.GITHUB_REPO || 'NickB-VTIZ/studio';
+
+// Versie van deze build (version.json wordt in de Docker-image geschreven door GitHub Actions).
+let VERSION = { version: 'dev', commit: '', builtAt: '' };
+try { VERSION = Object.assign(VERSION, JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'version.json'), 'utf8'))); } catch (e) {}
+const UPDATE_ENABLED = !!UPDATE_TOKEN;
+
+// Nieuwste beschikbare versie opvragen bij GitHub (laatste release), met korte cache.
+let latestCache = { at: 0, data: null };
+function cmpVersie(a, b) { const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number); for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const d = (pa[i] || 0) - (pb[i] || 0); if (d) return d > 0 ? 1 : -1; } return 0; }
+function nieuwsteVersie() {
+  if (Date.now() - latestCache.at < 60000) return Promise.resolve(latestCache.data);
+  return new Promise(resolve => {
+    const req = https.get(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { 'User-Agent': 'justpixit-studio', 'Accept': 'application/vnd.github+json' }, timeout: 6000 }, r => {
+      let b = ''; r.on('data', c => b += c); r.on('end', () => {
+        try { const tag = (JSON.parse(b).tag_name || '').replace(/^v/, ''); latestCache = { at: Date.now(), data: tag || null }; resolve(latestCache.data); }
+        catch (e) { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null)); req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
+function triggerWatchtower() {
+  return new Promise((resolve, reject) => {
+    const u = new URL(WATCHTOWER_URL + '/v1/update');
+    const lib = u.protocol === 'https:' ? https : http;
+    const req = lib.request(u, { method: 'POST', headers: { 'Authorization': 'Bearer ' + UPDATE_TOKEN }, timeout: 15000 }, r => {
+      r.on('data', () => {}); r.on('end', () => r.statusCode < 400 ? resolve(true) : reject(new Error('watchtower ' + r.statusCode)));
+    });
+    req.on('error', reject); req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    req.end();
+  });
+}
 
 // Ontbrekende instellingen: niet crashen (dan toont Traefik enkel een 404), maar een duidelijke pagina tonen.
 const SETUP_FOUTEN = [];
@@ -144,7 +180,17 @@ async function api(req, res, url) {
   // --- vanaf hier: login vereist ---
   if (!authed(req)) return json(res, 401, { error: 'Niet aangemeld' });
 
-  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: !!smtpConfig() });
+  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: !!smtpConfig(), versie: VERSION.version });
+  if (p === '/api/version' && m === 'GET') {
+    const latest = await nieuwsteVersie();
+    return json(res, 200, { running: VERSION, latest, repo: REPO, updateBeschikbaar: latest ? cmpVersie(latest, VERSION.version) > 0 : false, updateEnabled: UPDATE_ENABLED });
+  }
+  if (p === '/api/update' && m === 'POST') {
+    if (!UPDATE_ENABLED) return json(res, 400, { error: 'Automatisch updaten is niet ingesteld (UPDATE_TOKEN ontbreekt in .env).' });
+    // Fire-and-forget: Watchtower haalt de nieuwe image en herstart deze container. Dit proces stopt dan mee.
+    triggerWatchtower().catch(e => console.error('[update]', e.message));
+    return json(res, 200, { started: true });
+  }
   if (p === '/api/data' && m === 'GET') {
     const klanten = {}; for (const k of store.list('klanten')) { const { id, ...rest } = k; klanten[id] = rest; }
     return json(res, 200, { klanten, instellingen: store.data.instellingen || {} });

@@ -9,6 +9,9 @@ services:
     environment:
       - PORT=80
       - DATA_DIR=/data
+      - UPDATE_TOKEN=${UPDATE_TOKEN}
+      - WATCHTOWER_URL=http://watchtower:8080
+      - GITHUB_REPO=NickB-VTIZ/studio
     volumes:
       - ./data:/data             # klanten, instellingen, uploads en back-ups blijven hier bewaard
     sysctls:
@@ -17,6 +20,7 @@ services:
       - "80"
     labels:
       - "traefik.enable=true"
+      - "com.centurylinklabs.watchtower.enable=true"   # laat Watchtower deze container bijwerken
       - "traefik.http.routers.justpixit-studio.rule=Host(`studio.justpixit.be`)"
       - "traefik.http.routers.justpixit-studio.entrypoints=websecure"
       - "traefik.http.routers.justpixit-studio.tls=true"
@@ -32,3 +36,19 @@ services:
 # Traefik draait op deze server in hostmodus. Geen gedeeld netwerk nodig.
 # De HTTP-router veronderstelt een entrypoint 'web'; verwijder de zes
 # justpixit-studio-http/https-labels als dat entrypoint niet bestaat.
+
+  # Werkt de studio-container bij wanneer je in de app op "Laad nieuwe versie" klikt.
+  # Haalt dan de nieuwste image van GHCR en herstart de container; je data blijft bewaard.
+  watchtower:
+    image: containrrr/watchtower
+    container_name: justpixit-watchtower
+    restart: unless-stopped
+    environment:
+      - WATCHTOWER_HTTP_API_UPDATE=true          # enkel bijwerken op aanvraag (via de knop), niet automatisch
+      - WATCHTOWER_HTTP_API_TOKEN=${UPDATE_TOKEN}
+      - WATCHTOWER_LABEL_ENABLE=true             # enkel containers met het label hierboven
+      - WATCHTOWER_CLEANUP=true                  # ruimt oude images op
+      - TZ=Europe/Brussels
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Geen gepubliceerde poort: enkel bereikbaar binnen dit compose-netwerk als "watchtower:8080".

@@ -4,7 +4,7 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write      # nodig om een release/tag aan te maken
   packages: write
 jobs:
   publish:
@@ -12,11 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - name: Image name in lowercase
-        id: image
+      - name: Versie en imagenaam bepalen
+        id: meta
         env:
           REPOSITORY: ${{ github.repository }}
-        run: echo "name=ghcr.io/${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "name=ghcr.io/${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "version=1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          echo "built=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -26,8 +29,21 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+            APP_COMMIT=${{ github.sha }}
+            APP_BUILT=${{ steps.meta.outputs.built }}
           tags: |
-            ${{ steps.image.outputs.name }}:latest
-            ${{ steps.image.outputs.name }}:${{ github.sha }}
+            ${{ steps.meta.outputs.name }}:latest
+            ${{ steps.meta.outputs.name }}:${{ steps.meta.outputs.version }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+      - name: Release aanmaken (voor de versiecontrole in de app)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.meta.outputs.version }}" \
+            --title "Versie ${{ steps.meta.outputs.version }}" \
+            --notes "Automatische build van commit ${{ github.sha }}." \
+            --target "${{ github.sha }}" || echo "Release bestaat al of kon niet aangemaakt worden; ga door."

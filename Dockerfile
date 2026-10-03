@@ -9,7 +9,11 @@ RUN apk add --no-cache tzdata wget su-exec && mkdir -p /data && chown node:node 
 WORKDIR /app
 COPY package.json ./
 COPY server ./server
+ARG APP_VERSION=dev
+ARG APP_COMMIT=
+ARG APP_BUILT=
 COPY public ./public
+RUN printf '{"version":"%s","commit":"%s","builtAt":"%s"}\n' "$APP_VERSION" "$APP_COMMIT" "$APP_BUILT" > /app/version.json
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 VOLUME ["/data"]
