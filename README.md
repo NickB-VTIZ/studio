@@ -144,6 +144,15 @@ Geen zin in de app-registratie? Gebruik dan gewoon de ICS-feed (5c); die werkt z
 
 In **Beheer → E-mail testen & logboek** stuur je een testmail naar jezelf en zie je elke verstuurde mail met status en reden. Komt een mail niet aan, dan staat de fout hier (bv. "geen afzender ingesteld" of een weigering van Resend), zodat je meteen weet wat er scheelt. De meest voorkomende oorzaak is een ontbrekende of niet-geverifieerde afzender bij Koppelingen → E-mail.
 
+## 5g. Videocall bij online afspraken (Zoom / Teams)
+
+Bij het boeken kan de klant kiezen voor een videocall; de meeting wordt automatisch aangemaakt en de link komt in de bevestigingsmail en de agenda.
+
+- **Teams**: werkt via de Office 365-koppeling (5e). Zet in **Beheer → Online afspraken** het vinkje "Microsoft Teams" aan. De afspraak in je agenda krijgt dan meteen een Teams-link.
+- **Zoom**: maak in de [Zoom App Marketplace](https://marketplace.zoom.us) een **Server-to-Server OAuth**-app met scope `meeting:write:admin`, en vul Account-ID, Client-ID en Client-secret in bij **Koppelingen → Videocall (Zoom)**. Zet daarna het vinkje "Zoom" aan bij Online afspraken.
+
+Staat er niets aangevinkt of is de koppeling er niet, dan toont de boekingspagina geen videokeuze (of enkel "In overleg"). De placeholder `{videolink}` in de bevestigingsmail wordt met de meetinglink ingevuld.
+
 ## 6. Lokaal testen
 
 Zonder Docker:

@@ -386,7 +386,7 @@ const DEFAULTS={
     onboarding:'Hoi {voornaam},\n\nWat fijn dat jullie voor justPIXIT kiezen! In bijlage vinden jullie het onboardingspakket en een korte vragenlijst.\n\nVan zodra ik de ingevulde vragenlijst terug heb, plan ik jullie ontwerp in en laat ik weten wanneer jullie de eerste digitale proef mogen verwachten.\n\nTot snel!\n{afzender}',
     vragenlijst:'Hoi {voornaam},\n\nEven een vriendelijke herinnering: ik heb jullie vragenlijst nog niet ontvangen. Van zodra die binnen is, kan ik jullie ontwerp inplannen.\n\nLaat gerust weten als er iets onduidelijk is!\n\nGroetjes,\n{afzender}',
     proef:'Hoi {voornaam},\n\nHebben jullie de digitale proef al kunnen bekijken? Laat me gerust weten wat jullie ervan vinden of wat er nog aangepast mag worden.\n\nGroetjes,\n{afzender}',
-    boekingKlant:'Hoi {voornaam},\n\n{bevestiging}\n\nWanneer: {wanneer} ({duur} min)\nWaar: {locatie}\n\nTot dan!\n{afzender}',
+    boekingKlant:'Hoi {voornaam},\n\n{bevestiging}\n\nWanneer: {wanneer} ({duur} min)\nWaar: {locatie}\n{videolink}\n\nTot dan!\n{afzender}',
     boekingAdmin:'Nieuwe afspraak via de website.\n\nKlant: {naam}\nWanneer: {wanneer}\nE-mail: {email}\nTelefoon: {telefoon}\nType: {type}\nDatum feest: {datumEvent}\n\nBericht:\n{bericht}\n\nOpen de fiche: {app}'
   }
 };
@@ -394,7 +394,7 @@ const LIJST_LABELS={stopReden:'Reden niet doorgegaan',bron:'Hoe gevonden?',type:
 const TERMIJN_LABELS={offerte:['Offerte versturen','dagen na het kennismakingsgesprek'],opvolging:['Offerte opvolgen','dagen na het versturen van de offerte'],herhaling:['Tweede opvolging','dagen na de eerste opvolging'],vragenlijst:['Herinnering vragenlijst','dagen na goedkeuring'],proef:['Feedback digitale proef opvolgen','dagen na het versturen van de proef'],proefdruk:['Proefdruk nakijken','dagen na bestelling'],deadlineWaarschuwing:['Deadline tonen op Vandaag','dagen vooraf']};
 const PLAN_LABELS={beslissing:['Beslissing klant over offerte','dagen na versturen offerte'],wachttijdOntwerp:['Wachttijd tot start ontwerp','dagen na ontvangst vragenlijst'],ontwerpduur:['Ontwerpen tot digitale proef','dagen'],feedback:['Feedbackrondes tot proefdruk','dagen'],proefdrukDuur:['Proefdruk tot drukwerk besteld','dagen'],levering:['Drukwerk tot levering (afgerond)','dagen']};
 const MAIL_LABELS={boekingKlant:'Bevestiging afspraak (naar de klant)',boekingAdmin:'Melding nieuwe afspraak (naar jou)',opvolging:'Opvolging offerte',onboarding:'Onboarding (na goedkeuring)',vragenlijst:'Herinnering vragenlijst',proef:'Feedback digitale proef'};
-const MAIL_PLACEHOLDERS={boekingKlant:'{voornaam} {naam} {wanneer} {duur} {locatie} {bevestiging} {afzender}',boekingAdmin:'{naam} {wanneer} {email} {telefoon} {type} {datumEvent} {bericht} {app}'};
+const MAIL_PLACEHOLDERS={boekingKlant:'{voornaam} {naam} {wanneer} {duur} {locatie} {videolink} {bevestiging} {afzender}',boekingAdmin:'{naam} {wanneer} {email} {telefoon} {type} {datumEvent} {bericht} {app}'};
 let cfg=JSON.parse(JSON.stringify(DEFAULTS));
 function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!stored)return c;
   if(stored.lijsten)for(const k in c.lijsten)if(Array.isArray(stored.lijsten[k]))c.lijsten[k]=stored.lijsten[k].map(String);
@@ -1038,6 +1038,8 @@ function vBeheer(){
    <section><h2>Online afspraken</h2><p>Zo ziet je afsprakenpagina eruit en wanneer klanten een gesprek kunnen boeken. Link: <code>${esc(serverInfo.base)}/afspraak</code> <button class="btn small ghost" id="copyBoekLink">Kopieer</button></p>
     <div class="sec" style="display:grid;gap:14px">
      <div class="opts"><label><input type="checkbox" id="bk-actief" data-bk="actief" ${cfg.boeking.actief?'checked':''}>Online boeken staat aan</label></div>
+     <div class="radiorow full"><span>Videocall aanbieden</span><div class="opts"><label><input type="checkbox" id="bk-videoTeams" data-bk="videoTeams" ${cfg.boeking.videoTeams?'checked':''}>Microsoft Teams</label><label><input type="checkbox" id="bk-videoZoom" data-bk="videoZoom" ${cfg.boeking.videoZoom?'checked':''}>Zoom</label></div></div>
+     <p class="hint" style="margin:0">Teams werkt via je Office 365-koppeling, Zoom via de Zoom-koppeling (zie Koppelingen). De klant kiest bij het boeken; de meetinglink komt automatisch in de bevestigingsmail.</p>
      <div class="grid2">
       <label class="fld"><span>Titel</span><input id="bk-titel" data-bk="titel" value="${esc(cfg.boeking.titel)}"></label>
       <label class="fld"><span>Locatie</span><input id="bk-locatie" data-bk="locatie" value="${esc(cfg.boeking.locatie)}"></label>
@@ -1272,6 +1274,7 @@ async function laadKoppelingen(){
   }).join('');
   await laadFacturatie();
   await laadMS();
+  await laadZoom();
 }
 const FACT_VELDEN=[
   {f:'bedrijfsnaam',l:'Bedrijfsnaam',ph:'justPIXIT'},{f:'btw',l:'BTW-nummer',ph:'BE0123456789'},
@@ -1318,6 +1321,33 @@ async function laadMS(){
     </div></section>`;
   box.insertAdjacentHTML('beforeend',html);
 }
+async function laadZoom(){
+  const box=$('#koppelBox');if(!box)return;
+  let d=null;try{d=await (await fetch('/api/zoom',{credentials:'same-origin'})).json()}catch(e){}
+  if(!d){return}
+  const badge=d.actief?'<span class="stt done">Actief</span>':'<span class="stt plan">Niet ingesteld</span>';
+  const html=`<section><h2>Videocall — Zoom ${badge}</h2>
+    <p>Voor Zoom-meetings bij online afspraken. Maak in de Zoom App Marketplace een <b>Server-to-Server OAuth</b>-app met de scope <code>meeting:write:admin</code> en plak hieronder Account-ID, Client-ID en Client-secret. (Teams vraagt geen aparte koppeling — dat loopt via Office 365 hierboven.)</p>
+    <div class="sec" style="display:grid;gap:14px"><div class="grid2">
+      <label class="fld"><span>Account-ID</span><input data-zoom="accountId" value="${esc(d.accountId||'')}" autocomplete="off"></label>
+      <label class="fld"><span>Client-ID</span><input data-zoom="clientId" placeholder="${d.clientIdSet?'ingesteld — laat leeg om te behouden':''}" autocomplete="off"></label>
+      <label class="fld"><span>Client-secret</span><input type="password" data-zoom="clientSecret" placeholder="${d.secretSet?'ingesteld — laat leeg om te behouden':''}" autocomplete="off"></label>
+     </div>
+     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="btn primary small" id="zoomSave">Bewaar</button><button class="btn small" id="zoomTest">Test verbinding</button>${d.actief?'<button class="btn ghost small danger" id="zoomOff">Wis</button>':''}<span class="hint" id="zoomMsg"></span></div>
+     <p class="hint" style="margin:0">Zet daarna "Zoom" aan bij Beheer → Online afspraken om het aan klanten aan te bieden.</p>
+    </div></section>`;
+  box.insertAdjacentHTML('beforeend',html);
+}
+async function bewaarZoom(){const msg=$('#zoomMsg');const data={};document.querySelectorAll('[data-zoom]').forEach(i=>{if(i.type==='password'&&!i.value)return;data[i.dataset.zoom]=i.value});
+  if(msg){msg.style.color='';msg.textContent='Bewaren…'}
+  try{await fetch('/api/zoom',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),credentials:'same-origin'});toast('Bewaard');koppelOpen=false;await refreshServerInfo();render()}catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Mislukt'}}
+}
+async function testZoom(){const msg=$('#zoomMsg');if(msg){msg.style.color='';msg.textContent='Testen…'}
+  try{const r=await fetch('/api/zoom/test',{method:'POST',credentials:'same-origin'}).then(x=>x.json());if(msg){msg.style.color=r.error?'var(--late)':'var(--ok)';msg.textContent=r.error||r.detail||'In orde'}}catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Mislukt'}}
+}
+async function ontkoppelZoom(){try{await fetch('/api/zoom/ontkoppel',{method:'POST',credentials:'same-origin'});toast('Zoom gewist');koppelOpen=false;await refreshServerInfo();render()}catch(e){}}
+document.addEventListener('click',e=>{const t=e.target.closest('#zoomSave,#zoomTest,#zoomOff');if(!t)return;
+  if(t.id==='zoomSave')return bewaarZoom();if(t.id==='zoomTest')return testZoom();if(t.id==='zoomOff')return ontkoppelZoom();});
 async function bewaarMS(){const msg=$('#msMsg');const data={};document.querySelectorAll('[data-ms]').forEach(i=>{if(i.type==='password'&&!i.value)return;data[i.dataset.ms]=i.value});
   if(msg){msg.style.color='';msg.textContent='Bewaren…'}
   try{await fetch('/api/ms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),credentials:'same-origin'});if(msg)msg.textContent='Bewaard. Klik nu "Verbind met Office 365".'}catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Bewaren mislukt'}}

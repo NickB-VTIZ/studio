@@ -99,6 +99,10 @@ button,input,textarea,select{font:inherit;color:inherit}
 @media (max-width:620px){.slots{grid-template-columns:repeat(auto-fill,minmax(5rem,1fr))}}
 .slot{border:1px solid var(--green);color:var(--green);background:var(--card);border-radius:3px;padding:12px 6px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:15px}
 .slot:hover{background:var(--green);color:var(--green-ink)}
+.vidopts{display:flex;gap:8px;flex-wrap:wrap}
+.vidopt{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:3px;padding:9px 13px;cursor:pointer;background:var(--paper)}
+.vidopt:has(input:checked){border-color:var(--green);background:var(--sage)}
+.vidopt input{accent-color:var(--green);margin:0}
 .slot-empty{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:16px;text-align:center}
 .pick-first{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:20px 16px;text-align:center}
 
@@ -213,6 +217,7 @@ function renderForm(){
     <label class="fld"><span>E-mail</span><input id="f-email" type="email" required maxlength="160" placeholder="naam@voorbeeld.be"></label>
     <label class="fld"><span>Telefoon</span><input id="f-tel" type="tel" maxlength="40"></label>
     ${types.length?`<label class="fld"><span>Waarvoor?</span><select id="f-type">${types.map(t=>`<option>${esc(t)}</option>`).join('')}</select></label>`:''}
+    ${(cfg.video&&cfg.video.length)?`<div class="fld full"><span>Videocall via</span><div class="vidopts">${cfg.video.map((v,i)=>`<label class="vidopt"><input type="radio" name="f-video" value="${esc(v.id)}" ${i===0?'checked':''}>${esc(v.label)}</label>`).join('')}<label class="vidopt"><input type="radio" name="f-video" value="">In overleg</label></div></div>`:''}
     <label class="fld"><span>Datum van het feest (als die al vastligt)</span><input id="f-event" type="date"></label>
     ${vragen.map((v,i)=>`<label class="fld full"><span>${esc(v)}</span><input data-vraag="${esc(v)}" id="f-v${i}" maxlength="500"></label>`).join('')}
     <label class="fld full"><span>Vertel al iets over jullie plannen (optioneel)</span><textarea id="f-bericht" maxlength="2000" placeholder="Stijl, aantal gasten, inspiratie…"></textarea></label>
@@ -236,6 +241,7 @@ function renderDone(r){
    <div class="recap">
      <div class="row"><span class="k">Wanneer</span><span class="v">${esc(fmtLongY(r.slot.slice(0,10)))}<br>${r.slot.slice(11,16)} – ${eindUur(r.slot,r.duur)} (${r.duur} min)</span></div>
      <div class="row"><span class="k">Waar</span><span class="v">${esc(r.locatie)}</span></div>
+     ${r.videolink?`<div class="row"><span class="k">Videocall</span><span class="v"><a href="${esc(r.videolink)}" target="_blank" rel="noopener">${esc(r.videoprovider||'Deelnemen')}</a></span></div>`:''}
    </div>
    <p class="after">${r.mail?'Er is een bevestiging naar je mailbox onderweg.':'Noteer dit moment gerust in je agenda.'}</p>
    <a class="btn primary" href="${icsLink(r.slot)}" download="afspraak-justpixit.ics">Zet in mijn agenda</a></div>`;
@@ -254,7 +260,8 @@ document.addEventListener('submit',async e=>{
   if(naam.length<2){err.innerHTML='<p class="err">Vul jullie naam in.</p>';$('#f-naam').focus();return}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){err.innerHTML='<p class="err">Vul een geldig e-mailadres in.</p>';$('#f-email').focus();return}
   const antwoorden={};document.querySelectorAll('[data-vraag]').forEach(i=>{if(i.value.trim())antwoorden[i.dataset.vraag]=i.value.trim()});
-  const body={naam,email,telefoon:$('#f-tel').value.trim(),type:$('#f-type')?$('#f-type').value:'',datumEvent:$('#f-event').value,bericht:$('#f-bericht').value.trim(),slot:selSlot,antwoorden};
+  const video=(document.querySelector('input[name="f-video"]:checked')||{}).value||'';
+  const body={naam,email,telefoon:$('#f-tel').value.trim(),type:$('#f-type')?$('#f-type').value:'',video,datumEvent:$('#f-event').value,bericht:$('#f-bericht').value.trim(),slot:selSlot,antwoorden};
   busy=true;$('#submit').disabled=true;$('#submit').textContent='Even geduld…';
   try{const r=await fetch('/api/boeking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();
     if(!r.ok){err.innerHTML=`<p class="err">${esc(j.error||'Er liep iets mis.')}</p>`;if(r.status===409){selSlot=null;await init()}return}

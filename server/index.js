@@ -17,6 +17,7 @@ const { maakUBL } = require('./ubl');
 const { STANDAARD_MAILS, vul } = require('./mails');
 const { bouwFeed, nieuwToken } = require('./agenda');
 const graph = require('./graph');
+const zoom = require('./zoom');
 
 // Instellingen van koppelingen: eerst uit .env (admin-override), anders uit de database (ingevuld via de pagina Koppelingen).
 const KOPPEL_VELDEN = {
@@ -35,7 +36,10 @@ function verkoperDoc() { return store.get('instellingen', 'facturatie') || {}; }
 function msDoc() { return store.get('instellingen', 'ms') || {}; }
 function msVerbonden() { const mm = msDoc(); return !!(mm.clientId && mm.clientSecret && mm.refreshToken); }
 function msRedirect(req) { return publicBase(req) + '/api/ms/callback'; }
-async function msZet(klant) { if (!msVerbonden()) return; try { const dur = boekingConfig().duur || 60; const id = await graph.zetAfspraak(msDoc(), klant, dur); const nw = graph.nieuwRefreshToken(); const mm = msDoc(); if (nw) mm.refreshToken = nw; store.set('instellingen', 'ms', mm); const k = store.get('klanten', klant.id); if (k) { k.msEventId = id; store.set('klanten', klant.id, k); } } catch (e) { console.error('[ms]', e.message); } }
+function zoomDoc() { return store.get('instellingen', 'zoom') || {}; }
+function zoomActief() { return !!zoom.zoomConfig(zoomDoc()); }
+function videoBeschikbaar() { const c = boekingConfig(); const out = []; if (c.videoTeams && msVerbonden()) out.push({ id: 'teams', label: 'Microsoft Teams' }); if (c.videoZoom && zoomActief()) out.push({ id: 'zoom', label: 'Zoom' }); return out; }
+async function msZet(klant) { if (!msVerbonden()) return; try { const dur = boekingConfig().duur || 60; const id = (await graph.zetAfspraak(msDoc(), klant, dur)).id; const nw = graph.nieuwRefreshToken(); const mm = msDoc(); if (nw) mm.refreshToken = nw; store.set('instellingen', 'ms', mm); const k = store.get('klanten', klant.id); if (k) { k.msEventId = id; store.set('klanten', klant.id, k); } } catch (e) { console.error('[ms]', e.message); } }
 function verkoperKlaar() { const v = verkoperDoc(); return !!(v.btw && v.bedrijfsnaam); }
 
 const mailActief = () => !!(resendConfig(effEnv()) || smtpConfig(effEnv()));
@@ -183,7 +187,7 @@ async function api(req, res, url) {
     if (!cfg.actief) return json(res, 200, { actief: false });
     const bezet = store.list('klanten').filter(k => k.kennismaking && k.fase !== 'geen_deal').map(k => k.kennismaking);
     const slots = slotsVoorPeriode(cfg, bezet);
-    return json(res, 200, { actief: true, titel: cfg.titel, intro: cfg.intro, locatie: cfg.locatie, duur: cfg.duur, bevestiging: cfg.bevestiging, types: cfg.types, vragen: cfg.vragen, dagen: slots });
+    return json(res, 200, { actief: true, titel: cfg.titel, intro: cfg.intro, locatie: cfg.locatie, duur: cfg.duur, bevestiging: cfg.bevestiging, types: cfg.types, vragen: cfg.vragen, video: videoBeschikbaar(), dagen: slots });
   }
   if (p === '/api/boeking' && m === 'POST') {
     const ip = clientIp(req);
@@ -213,8 +217,24 @@ async function api(req, res, url) {
       logboek: [{ d: vandaag, t: 'Afspraak geboekt via de website' + (bericht ? ': ' + bericht : ''), s: 'afspraak', ts: new Date().toISOString() }],
       aangemaakt: new Date().toISOString(), bijgewerkt: new Date().toISOString(),
     };
+    // Videocall aanmaken indien gekozen en beschikbaar.
+    const videoKeuze = String(b.video || '');
+    const videoOpties = videoBeschikbaar().map(v => v.id);
+    let videolink = '', videoprovider = '', teamsEvent = null;
+    if (videoKeuze && videoOpties.includes(videoKeuze)) {
+      try {
+        if (videoKeuze === 'teams') {
+          const r = await graph.zetAfspraak(msDoc(), { naam, kennismaking: slot, locatie: 'Microsoft Teams', email, telefoon, type: doc.type }, cfg.duur || 60, { teams: true });
+          teamsEvent = r.id; videolink = r.joinUrl || ''; videoprovider = 'Teams';
+        } else if (videoKeuze === 'zoom') {
+          const r = await zoom.maakMeeting(zoomDoc(), { topic: 'Kennismaking · ' + naam, start: slot, duur: cfg.duur || 60 });
+          videolink = r.joinUrl || ''; videoprovider = 'Zoom';
+        }
+      } catch (e) { console.error('[video]', e.message); }
+    }
+    if (videolink) { doc.videolink = videolink; doc.videoprovider = videoprovider; doc.locatie = videoprovider; if (teamsEvent) doc.msEventId = teamsEvent; doc.logboek.push({ d: vandaag, t: videoprovider + '-link aangemaakt: ' + videolink, s: 'afspraak', ts: new Date().toISOString() }); }
     store.set('klanten', id, doc);
-    msZet(Object.assign({ id }, doc));
+    if (!teamsEvent) msZet(Object.assign({ id }, doc));  // Teams maakte het agenda-item al
     const when = `${slot.slice(8, 10)}/${slot.slice(5, 7)}/${slot.slice(0, 4)} om ${slot.slice(11, 16)}`;
     // Mails zijn best-effort.
     if (mailActief()) {
@@ -222,17 +242,17 @@ async function api(req, res, url) {
       const admin = kv('adminEmail') || (r2 && r2.from) || (s2 && s2.from);
       const alg = instellingen(); const sjab = Object.assign({}, STANDAARD_MAILS, alg.mails || {});
       const voornaam = (naam.split(/\s|&/)[0] || '').trim();
-      const basis = { voornaam, naam, wanneer: when, duur: cfg.duur, locatie: cfg.locatie, titel: cfg.titel, bevestiging: cfg.bevestiging, afzender: cfg.afzender || alg.afzender || 'justPIXIT', email, telefoon: telefoon || '-', type: doc.type || '-', datumEvent: doc.datumEvent || '-', bericht: notitie || '(geen bericht)', app: publicBase(req) + '/app' };
+      const basis = { voornaam, naam, wanneer: when, duur: cfg.duur, locatie: cfg.locatie, titel: cfg.titel, bevestiging: cfg.bevestiging, afzender: cfg.afzender || alg.afzender || 'justPIXIT', email, telefoon: telefoon || '-', type: doc.type || '-', datumEvent: doc.datumEvent || '-', bericht: notitie || '(geen bericht)', app: publicBase(req) + '/app', videolink: doc.videolink ? (doc.videoprovider + ': ' + doc.videolink) : '', videoprovider: doc.videoprovider || '' };
       verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: vul(sjab.boekingAdmin, basis) }, { soort: 'melding nieuwe afspraak' });
       verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: vul(sjab.boekingKlant, basis) }, { soort: 'bevestiging afspraak' });
     }
-    return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: cfg.locatie, bevestiging: cfg.bevestiging, mail: mailActief() });
+    return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: doc.locatie || cfg.locatie, bevestiging: cfg.bevestiging, videolink: doc.videolink || '', videoprovider: doc.videoprovider || '', mail: mailActief() });
   }
 
   // --- vanaf hier: login vereist ---
   if (!authed(req)) return json(res, 401, { error: 'Niet aangemeld' });
 
-  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), office365: msVerbonden(), versie: VERSION.version });
+  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), office365: msVerbonden(), zoom: zoomActief(), versie: VERSION.version });
   if (p === '/api/version' && m === 'GET') {
     const latest = await nieuwsteVersie();
     return json(res, 200, { running: VERSION, latest, repo: REPO, updateBeschikbaar: latest ? cmpVersie(latest, VERSION.version) > 0 : false, updateEnabled: UPDATE_ENABLED });
@@ -303,11 +323,15 @@ async function api(req, res, url) {
     const vd = vandaagBE(); let n = 0, fouten = 0;
     for (const k of store.list('klanten')) {
       if (k.fase === 'geen_deal' || !k.kennismaking || k.kennismaking.slice(0, 10) < vd) continue;
-      try { const id = await graph.zetAfspraak(msDoc(), k, boekingConfig().duur || 60); const kk = store.get('klanten', k.id); if (kk) { kk.msEventId = id; store.set('klanten', k.id, kk); } n++; } catch (e) { fouten++; }
+      try { const id = (await graph.zetAfspraak(msDoc(), k, boekingConfig().duur || 60)).id; const kk = store.get('klanten', k.id); if (kk) { kk.msEventId = id; store.set('klanten', k.id, kk); } n++; } catch (e) { fouten++; }
     }
     const nw = graph.nieuwRefreshToken(); if (nw) { const m2 = msDoc(); m2.refreshToken = nw; store.set('instellingen', 'ms', m2); }
     return json(res, 200, { ok: true, aantal: n, fouten });
   }
+  if (p === '/api/zoom' && m === 'GET') { const z = zoomDoc(); return json(res, 200, { actief: zoomActief(), accountId: z.accountId || '', clientIdSet: !!z.clientId, secretSet: !!z.clientSecret }); }
+  if (p === '/api/zoom' && m === 'POST') { const b = await readJson(req, 10e3).catch(() => ({})); const z = zoomDoc(); if ('accountId' in b) z.accountId = String(b.accountId || '').trim(); if ('clientId' in b) z.clientId = String(b.clientId || '').trim(); if (b.clientSecret) z.clientSecret = String(b.clientSecret).trim(); store.set('instellingen', 'zoom', z); return json(res, 200, { ok: true }); }
+  if (p === '/api/zoom/ontkoppel' && m === 'POST') { store.set('instellingen', 'zoom', {}); return json(res, 200, { ok: true }); }
+  if (p === '/api/zoom/test' && m === 'POST') { if (!zoomActief()) return json(res, 400, { error: 'Vul eerst de Zoom-gegevens in.' }); try { await zoom.test(zoomDoc()); return json(res, 200, { ok: true, detail: 'Zoom-verbinding werkt.' }); } catch (e) { return json(res, 502, { error: e.message }); } }
   if (p === '/api/facturatie' && m === 'GET') return json(res, 200, { verkoper: verkoperDoc(), klaar: verkoperKlaar() });
   if (p === '/api/maillog' && m === 'GET') { const d = store.get('instellingen', 'maillog') || { items: [] }; return json(res, 200, { items: d.items || [], actief: mailActief() }); }
   if (p === '/api/mailtest' && m === 'POST') {

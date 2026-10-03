@@ -74,20 +74,23 @@ function eindWall(dt, min) {
 }
 
 // Maakt (of werkt bij) een agenda-afspraak voor een klant. Geeft het event-id terug.
-async function zetAfspraak(cfg, klant, duur) {
+async function zetAfspraak(cfg, klant, duur, opts = {}) {
   const token = await accessToken(cfg);
   if (!klant.kennismaking || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(klant.kennismaking)) throw new Error('Geen geldig tijdstip');
   const start = klant.kennismaking.slice(0, 16) + ':00';
+  const regels = [klant.type ? 'Type: ' + klant.type : '', klant.email ? 'E-mail: ' + klant.email : '', klant.telefoon ? 'Tel: ' + klant.telefoon : '', opts.extraDesc || ''].filter(Boolean);
   const body = {
     subject: 'Kennismaking · ' + (klant.naam || 'Klant'),
     start: { dateTime: start, timeZone: 'Romance Standard Time' },
     end: { dateTime: eindWall(klant.kennismaking, duur), timeZone: 'Romance Standard Time' },
     location: { displayName: klant.locatie || '' },
-    body: { contentType: 'text', content: [klant.type ? 'Type: ' + klant.type : '', klant.email ? 'E-mail: ' + klant.email : '', klant.telefoon ? 'Tel: ' + klant.telefoon : ''].filter(Boolean).join('\n') },
+    body: { contentType: 'text', content: regels.join('\n') },
   };
-  if (klant.msEventId) { const ev = await graph('PATCH', '/me/events/' + encodeURIComponent(klant.msEventId), token, body); return ev.id || klant.msEventId; }
-  const ev = await graph('POST', '/me/events', token, body);
-  return ev.id;
+  if (opts.teams) { body.isOnlineMeeting = true; body.onlineMeetingProvider = 'teamsForBusiness'; }
+  const ev = klant.msEventId
+    ? await graph('PATCH', '/me/events/' + encodeURIComponent(klant.msEventId), token, body)
+    : await graph('POST', '/me/events', token, body);
+  return { id: ev.id || klant.msEventId, joinUrl: (ev.onlineMeeting && ev.onlineMeeting.joinUrl) || '' };
 }
 
 module.exports = { authUrl, exchangeCode, accessToken, nieuwRefreshToken, wieBenIk, zetAfspraak };

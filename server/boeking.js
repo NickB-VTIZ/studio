@@ -9,6 +9,8 @@ function boekingDefaults() {
     locatie: 'Online via videocall, of bij mij thuis',
     duur: 60,          // minuten
     buffer: 15,        // minuten pauze tussen twee gesprekken
+    videoTeams: false, // online afspraken via Microsoft Teams aanbieden
+    videoZoom: false,  // online afspraken via Zoom aanbieden
     dagen: { 1: true, 2: true, 3: true, 4: true, 5: false, 6: false, 0: false }, // 0 = zondag
     blokken: [{ van: '09:30', tot: '12:00' }, { van: '19:00', tot: '21:30' }],
     minUren: 48,       // minimaal zoveel uur op voorhand
