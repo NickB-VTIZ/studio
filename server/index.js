@@ -193,7 +193,8 @@ async function api(req, res, url) {
   }
   if (p === '/api/data' && m === 'GET') {
     const klanten = {}; for (const k of store.list('klanten')) { const { id, ...rest } = k; klanten[id] = rest; }
-    return json(res, 200, { klanten, instellingen: store.data.instellingen || {} });
+    const instellingen = {}; for (const i of store.list('instellingen')) { const { id, ...rest } = i; instellingen[id] = rest; }
+    return json(res, 200, { klanten, instellingen });
   }
   const docMatch = p.match(/^\/api\/doc\/(klanten|instellingen)\/([A-Za-z0-9_\-.~:@+]{1,200})$/);
   if (docMatch) {
@@ -264,7 +265,7 @@ process.on('SIGTERM', () => { server.close(() => process.exit(0)); setTimeout(()
 
 /* ---------- voorbeelddata bij eerste start ---------- */
 function seedIfEmpty() {
-  if (store.list('klanten').length || store.data.meta.geseed) return;
+  if (store.list('klanten').length || store.getMeta('geseed')) return;
   const t = nuBrussel().slice(0, 10);
   const add = (s, n) => { const d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
   const a = n => add(t, n);
@@ -275,8 +276,7 @@ function seedIfEmpty() {
     'vb-baby-noor': Object.assign(base(), { naam: 'Voorbeeld · Baby Noor', type: 'Geboorte', bron: 'Via via', locatie: '', kennismaking: a(-34) + 'T10:00', datumEvent: a(60), deadline: a(50), fase: 'offerte', faseDatums: { ingepland: a(-42), gehad: a(-34), offerte: a(-17) }, offertes: [{ id: 'vbof1', titel: 'Offerte', status: 'Verstuurd', datum: a(-17), geldigTot: '', btw: '21', korting: '', notitie: '', bestanden: [], regels: [{ oms: 'Geboortekaartje enkel, wild white', aantal: '120', prijs: '1,85' }, { oms: 'Ontwerp', aantal: '1', prijs: '150' }] }], logboek: [{ d: a(-17), t: 'Fase → Offerte verstuurd', s: 'fase' }] }),
     'vb-sarah-tom': Object.assign(base(), { naam: 'Voorbeeld · Sarah & Tom', type: 'Huwelijk', bron: 'Website', locatie: 'Antwerpen', kennismaking: a(-120) + 'T19:00', datumEvent: a(200), deadline: a(100), ontwerpDatum: a(-16), fase: 'ontwerp_bezig', faseDatums: { ingepland: a(-130), gehad: a(-120), offerte: a(-110), goedgekeurd: a(-90), ontwerp_gepland: a(-70), ontwerp_bezig: a(-16) }, logboek: [{ d: a(-16), t: 'Fase → Ontwerp in progress', s: 'fase' }] }),
   };
-  for (const [id, d] of Object.entries(vb)) store.data.klanten[id] = d;
-  store.data.meta.geseed = true;
-  store.save();
+  for (const [id, d] of Object.entries(vb)) store.set('klanten', id, d);
+  store.setMeta('geseed', '1');
   console.log('[seed] voorbeeldklanten toegevoegd');
 }

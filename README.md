@@ -4,7 +4,7 @@ Klantopvolging en online afspraken voor justPIXIT, als eigen webapp op https://s
 
 - **`/app`** – jouw beheeromgeving (met wachtwoord): Vandaag, Pipeline, Klanten (fiche, planning, offerte, logboek), Beheer.
 - **`/afspraak`** – publieke boekingspagina (je eigen "Calendly"). Een boeking maakt automatisch een klant aan in de fase *Kennismaking ingepland*.
-- Geen database-server en geen externe pakketten: enkel Node.js. Alle data staat in de map `data/` naast de compose-file.
+- Een echte database (SQLite, ingebouwd in Node — geen database-server en geen externe pakketten). Alle data staat in de map `data/` naast de compose-file en is zo in één keer te back-uppen.
 
 ```
 .
@@ -77,7 +77,7 @@ Zonder `UPDATE_TOKEN` werkt de app gewoon, maar is de knop uitgeschakeld en upda
 
 ## 4. Back-ups en data
 
-- Alles staat in `data/`: `studio.json` (klanten + instellingen), `uploads/` (offertes, afbeeldingen) en `backups/` (automatisch één kopie per dag van `studio.json`, 30 dagen bewaard).
+- Alles staat in `data/`: `studio.db` (SQLite-database met klanten + instellingen), `uploads/` (offertes, afbeeldingen) en `backups/` (automatisch één databasekopie per dag, 30 dagen bewaard). Een bestaand `studio.json` uit een oudere versie wordt bij de eerste start automatisch overgezet naar de database.
 - `./backup.sh` maakt een volledig archief. Download `backups-archief/` af en toe via SFTP naar je eigen computer.
 - Terugzetten: stop de app, pak het archief uit over `data/`, start opnieuw.
 
@@ -98,7 +98,7 @@ Dan `./restart.sh`. Bij elke boeking krijgt de klant een bevestiging en jij een 
 
 Zonder Docker:
 ```bash
-ADMIN_PASSWORD=testwachtwoord SESSION_SECRET=een-lange-willekeurige-tekst PORT=3000 node server/index.js
+ADMIN_PASSWORD=testwachtwoord SESSION_SECRET=een-lange-willekeurige-tekst PORT=3000 node --experimental-sqlite server/index.js
 ```
 Open http://localhost:3000/app. Data komt in `data/`.
 
