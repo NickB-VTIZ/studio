@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="nl-BE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Plan een kennismakingsgesprek · justPIXIT</title>
+<meta name="description" content="Plan een vrijblijvend kennismakingsgesprek met justPIXIT voor jullie trouwuitnodigingen of geboortekaartje.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#F5F6F3;--surface:#FFFFFF;--sunk:#EEF1EC;--ink:#1E2824;--muted:#5F6C66;--line:#DCE2DD;
+  --accent:#2C5A4C;--accent-ink:#FFFFFF;--accent-soft:#E2ECE7;--late:#B3261E;--late-soft:#FAE3E0;--ok:#2F7D5B;--ok-soft:#E1F1E8;
+  --f-display:"Fraunces",Georgia,serif;--f-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.5;min-height:100%;padding-inline:16px}
+button,input,textarea,select{font:inherit;color:inherit}
+h1,h2,h3{margin:0;text-wrap:balance}
+.page{max-width:980px;margin:0 auto;padding-block:32px 64px}
+.brand{font-family:var(--f-display);font-size:20px;font-weight:600;margin-bottom:28px}
+.brand small{font-family:var(--f-ui);font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-left:6px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);overflow:hidden}
+@media (max-width:760px){.card{grid-template-columns:1fr}}
+.info{padding:28px 26px;border-right:1px solid var(--line);display:grid;gap:14px;align-content:start;background:var(--sunk)}
+@media (max-width:760px){.info{border-right:0;border-bottom:1px solid var(--line)}}
+.info h1{font-family:var(--f-display);font-weight:400;font-size:30px;letter-spacing:-.015em;line-height:1.1}
+.info p{margin:0;color:var(--muted)}
+.meta{display:grid;gap:8px;font-size:14px}
+.meta div{display:flex;gap:10px;align-items:flex-start}
+.meta b{font-weight:600;min-width:64px;color:var(--muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding-top:3px}
+.main{padding:28px 26px;min-width:0}
+.step{display:grid;gap:18px}
+.steplabel{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cal-head h2{font-family:var(--f-display);font-weight:400;font-size:22px;text-transform:capitalize}
+.nav{display:flex;gap:6px}
+.nav button{border:1px solid var(--line);background:var(--surface);width:36px;height:36px;border-radius:50%;cursor:pointer;display:grid;place-items:center}
+.nav button:disabled{opacity:.35;cursor:default}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;text-align:center}
+.grid .wd{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;padding-bottom:4px}
+.day{aspect-ratio:1;border-radius:50%;border:0;background:none;color:var(--muted);cursor:default;display:grid;place-items:center;font-variant-numeric:tabular-nums;position:relative;width:100%;max-width:48px;margin:0 auto}
+.day.free{background:var(--accent-soft);color:var(--accent);font-weight:600;cursor:pointer}
+.day.free:hover{background:var(--accent);color:var(--accent-ink)}
+.day.sel{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.day.today::after{content:"";position:absolute;bottom:5px;width:4px;height:4px;border-radius:50%;background:currentColor}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.slot{border:1px solid var(--accent);color:var(--accent);background:var(--surface);border-radius:8px;padding:10px 6px;cursor:pointer;font-weight:600;font-variant-numeric:tabular-nums}
+.slot:hover,.slot.sel{background:var(--accent);color:var(--accent-ink)}
+.empty{color:var(--muted);font-size:14px}
+.fld{display:grid;gap:5px}
+.fld>span{font-size:13px;color:var(--muted);font-weight:500}
+.fld input,.fld textarea,.fld select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px 12px;min-width:0}
+.fld input:focus,.fld textarea:focus,.fld select:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:600px){.form{grid-template-columns:1fr}}
+.full{grid-column:1/-1}
+.btn{border:1px solid var(--line);background:var(--surface);padding:11px 18px;border-radius:9px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:8px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:disabled{opacity:.6;cursor:default}
+.btn.ghost{border-color:transparent;color:var(--muted);background:none}
+a.btn{text-decoration:none;color:var(--ink)}
+.chosen{background:var(--accent-soft);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.chosen b{font-family:var(--f-display);font-weight:600;font-size:17px}
+.err{color:var(--late);background:var(--late-soft);padding:10px 12px;border-radius:8px;font-size:14px}
+.done{display:grid;gap:16px;max-width:520px}
+.done .big{font-family:var(--f-display);font-weight:400;font-size:30px;line-height:1.15}
+.done .box{background:var(--ok-soft);border-radius:10px;padding:14px 16px;display:grid;gap:4px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--accent-soft);vertical-align:-2px;margin-right:5px}
+.foot{text-align:center;color:var(--muted);font-size:12px;margin-top:28px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.day,.slot,.btn{transition:background .12s,color .12s}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="brand">justPIXIT<small>afspraak</small></div>
+  <div class="card">
+    <aside class="info" id="info"><h1>Even laden…</h1></aside>
+    <main class="main" id="main"><p class="empty">Beschikbare momenten ophalen…</p></main>
+  </div>
+  <p class="foot">justPIXIT · gepersonaliseerde trouwuitnodigingen en geboortekaartjes</p>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const parseDay=s=>{const [y,m,d]=s.slice(0,10).split('-').map(Number);return new Date(y,m-1,d)};
+const isoDay=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const fmtLong=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+let cfg=null,byDay={},month=null,selDay=null,selSlot=null,busy=false;
+
+async function init(){
+  let r;try{r=await (await fetch('/api/boeking/slots')).json()}catch(e){$('#main').innerHTML='<p class="err">De agenda kon niet geladen worden. Probeer later opnieuw.</p>';return}
+  cfg=r;
+  if(!r.actief){$('#info').innerHTML='<h1>Online boeken staat even uit</h1><p>Stuur gerust een berichtje via Instagram of mail, dan plannen we samen een moment.</p>';$('#main').innerHTML='';return}
+  byDay={};r.dagen.forEach(d=>byDay[d.datum]=d.slots);
+  const first=r.dagen[0]?r.dagen[0].datum:isoDay(new Date());
+  month=first.slice(0,7);
+  renderInfo();renderMain();
+}
+function renderInfo(){
+  $('#info').innerHTML=`<h1>${esc(cfg.titel)}</h1><p>${esc(cfg.intro)}</p>
+   <div class="meta"><div><b>Duur</b><span>${cfg.duur} minuten</span></div><div><b>Waar</b><span>${esc(cfg.locatie)}</span></div><div><b>Kost</b><span>Gratis en vrijblijvend</span></div></div>`;
+}
+function renderMain(){
+  const m=$('#main');
+  if(selSlot){m.innerHTML=renderForm();return}
+  m.innerHTML=`<div class="step"><div><span class="steplabel">1 · Kies een dag</span>${renderCalendar()}</div>
+   <div id="slotbox">${selDay?renderSlots():''}</div></div>`;
+}
+function renderCalendar(){
+  const [y,mo]=month.split('-').map(Number);const first=new Date(y,mo-1,1);const start=(first.getDay()+6)%7;const days=new Date(y,mo,0).getDate();
+  const today=isoDay(new Date());const months=Object.keys(byDay).map(d=>d.slice(0,7));const minM=months[0]||month,maxM=months[months.length-1]||month;
+  let cells='';for(let i=0;i<start;i++)cells+='<span></span>';
+  for(let d=1;d<=days;d++){const ds=`${y}-${pad(mo)}-${pad(d)}`;const free=!!byDay[ds];
+    cells+=`<button class="day ${free?'free':''} ${ds===selDay?'sel':''} ${ds===today?'today':''}" ${free?`data-day="${ds}"`:'disabled'} aria-label="${esc(fmtLong(ds))}${free?', '+byDay[ds].length+' momenten vrij':''}">${d}</button>`}
+  return `<div class="cal-head"><h2>${first.toLocaleDateString('nl-BE',{month:'long',year:'numeric'})}</h2><div class="nav"><button data-nav="-1" ${month<=minM?'disabled':''} aria-label="Vorige maand">‹</button><button data-nav="1" ${month>=maxM?'disabled':''} aria-label="Volgende maand">›</button></div></div>
+   <div class="grid" style="margin-top:12px">${['ma','di','wo','do','vr','za','zo'].map(w=>`<span class="wd">${w}</span>`).join('')}${cells}</div>
+   <div class="legend" style="margin-top:10px"><span><i></i>dag met vrije momenten</span></div>`;
+}
+function renderSlots(){
+  const slots=byDay[selDay]||[];
+  return `<div><span class="steplabel">2 · Kies een moment op ${esc(fmtLong(selDay))}</span>
+   <div class="slots" style="margin-top:12px">${slots.map(s=>`<button class="slot" data-slot="${s}">${s.slice(11,16)}</button>`).join('')||'<p class="empty">Geen vrije momenten op deze dag.</p>'}</div></div>`;
+}
+function renderForm(){
+  const types=cfg.types||[];const vragen=cfg.vragen||[];
+  return `<form id="bform" class="step" novalidate>
+   <div class="chosen"><div><div class="steplabel" style="margin-bottom:2px">Jullie moment</div><b>${esc(fmtLong(selSlot.slice(0,10)))} om ${selSlot.slice(11,16)}</b></div><button type="button" class="btn ghost" id="back">Ander moment</button></div>
+   <span class="steplabel">3 · Jullie gegevens</span>
+   <div class="form">
+    <label class="fld full"><span>Naam / namen *</span><input id="f-naam" required maxlength="120" placeholder="bv. Lotte & Bram"></label>
+    <label class="fld"><span>E-mail *</span><input id="f-email" type="email" required maxlength="160"></label>
+    <label class="fld"><span>Telefoon</span><input id="f-tel" type="tel" maxlength="40"></label>
+    ${types.length?`<label class="fld"><span>Waarvoor?</span><select id="f-type">${types.map(t=>`<option>${esc(t)}</option>`).join('')}</select></label>`:''}
+    <label class="fld"><span>Datum van het feest (als die al vastligt)</span><input id="f-event" type="date"></label>
+    ${vragen.map((v,i)=>`<label class="fld full"><span>${esc(v)}</span><input data-vraag="${esc(v)}" id="f-v${i}" maxlength="500"></label>`).join('')}
+    <label class="fld full"><span>Vertel al iets over jullie plannen (optioneel)</span><textarea id="f-bericht" rows="3" maxlength="2000"></textarea></label>
+   </div>
+   <div id="ferr"></div>
+   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="submit" id="submit">Bevestig afspraak</button><span class="empty">Je krijgt meteen een bevestiging.</span></div>
+  </form>`;
+}
+function icsLink(slot){
+  const start=parseDay(slot);const [h,mi]=slot.slice(11,16).split(':').map(Number);start.setHours(h,mi,0,0);const end=new Date(start.getTime()+cfg.duur*60000);
+  const f=d=>d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00';
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//justPIXIT//Studio//NL','BEGIN:VEVENT',`UID:${Date.now()}@justpixit`,`DTSTAMP:${f(new Date())}`,`DTSTART;TZID=Europe/Brussels:${f(start)}`,`DTEND;TZID=Europe/Brussels:${f(end)}`,`SUMMARY:${cfg.titel} · justPIXIT`,`LOCATION:${cfg.locatie.replace(/,/g,'\\,')}`,'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  return 'data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);
+}
+function renderDone(r){
+  $('#main').innerHTML=`<div class="done"><span class="steplabel">Afspraak bevestigd</span><div class="big">Tot ${esc(fmtLong(r.slot.slice(0,10)))} om ${r.slot.slice(11,16)}!</div>
+   <p style="margin:0">${esc(r.bevestiging)}</p>
+   <div class="box"><span><b>Wanneer</b> · ${esc(fmtLong(r.slot.slice(0,10)))}, ${r.slot.slice(11,16)} – ${eindUur(r.slot,r.duur)} (${r.duur} min)</span><span><b>Waar</b> · ${esc(r.locatie)}</span></div>
+   <p class="empty" style="margin:0">${r.mail?'Er is een bevestiging naar je mailbox onderweg.':'Noteer dit moment gerust in je agenda.'}</p>
+   <div><a class="btn" href="${icsLink(r.slot)}" download="afspraak-justpixit.ics">Zet in mijn agenda</a></div></div>`;
+}
+const eindUur=(slot,duur)=>{const [h,m]=slot.slice(11,16).split(':').map(Number);const t=h*60+m+duur;return pad(Math.floor(t/60)%24)+':'+pad(t%60)};
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-day],[data-nav],[data-slot],#back');if(!t)return;
+  if(t.dataset.day){selDay=t.dataset.day;renderMain();const sb=$('#slotbox');if(sb&&window.innerWidth<760)sb.scrollIntoView({behavior:'smooth',block:'start'});return}
+  if(t.dataset.nav){const [y,m]=month.split('-').map(Number);const d=new Date(y,m-1+Number(t.dataset.nav),1);month=d.getFullYear()+'-'+pad(d.getMonth()+1);renderMain();return}
+  if(t.dataset.slot){selSlot=t.dataset.slot;renderMain();window.scrollTo({top:0,behavior:'smooth'});return}
+  if(t.id==='back'){selSlot=null;renderMain();return}
+});
+document.addEventListener('submit',async e=>{
+  if(e.target.id!=='bform')return;e.preventDefault();if(busy)return;
+  const naam=$('#f-naam').value.trim(),email=$('#f-email').value.trim();const err=$('#ferr');err.innerHTML='';
+  if(naam.length<2){err.innerHTML='<p class="err">Vul je naam in.</p>';$('#f-naam').focus();return}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){err.innerHTML='<p class="err">Vul een geldig e-mailadres in.</p>';$('#f-email').focus();return}
+  const antwoorden={};document.querySelectorAll('[data-vraag]').forEach(i=>{if(i.value.trim())antwoorden[i.dataset.vraag]=i.value.trim()});
+  const body={naam,email,telefoon:$('#f-tel').value.trim(),type:$('#f-type')?$('#f-type').value:'',datumEvent:$('#f-event').value,bericht:$('#f-bericht').value.trim(),slot:selSlot,antwoorden};
+  busy=true;$('#submit').disabled=true;$('#submit').textContent='Even geduld…';
+  try{const r=await fetch('/api/boeking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();
+    if(!r.ok){err.innerHTML=`<p class="err">${esc(j.error||'Er liep iets mis.')}</p>`;if(r.status===409){selSlot=null;await init()}return}
+    renderDone(j);window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e2){err.innerHTML='<p class="err">Geen verbinding. Probeer opnieuw.</p>'}
+  finally{busy=false;const b=$('#submit');if(b){b.disabled=false;b.textContent='Bevestig afspraak'}}
+});
+init();
+</script>
+</body>
+</html>

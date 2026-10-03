@@ -1,5 +1,6 @@
-.git
-.github
-README.md
-*.zip
+data
+backups-archief
 .env
+.git
+*.md
+node_modules

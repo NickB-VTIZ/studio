@@ -2,5 +2,13 @@ name: justpixit-studio-local
 services:
   studio:
     build: .
+    env_file: .env
+    environment:
+      - PORT=80
+      - DATA_DIR=/data
+    volumes:
+      - ./data:/data
+    sysctls:
+      - net.ipv4.ip_unprivileged_port_start=0
     ports:
       - "127.0.0.1:8080:80"

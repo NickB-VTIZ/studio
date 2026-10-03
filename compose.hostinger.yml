@@ -1,10 +1,18 @@
 name: justpixit-studio
 services:
   studio:
-    image: ${STUDIO_IMAGE:-ghcr.io/nickb-vtiz/justpixit-studio:latest}
+    image: ${STUDIO_IMAGE:-ghcr.io/nickb-vtiz/studio:latest}
     build: .
     container_name: justpixit-studio
     restart: unless-stopped
+    env_file: .env
+    environment:
+      - PORT=80
+      - DATA_DIR=/data
+    volumes:
+      - ./data:/data             # klanten, instellingen, uploads en back-ups blijven hier bewaard
+    sysctls:
+      - net.ipv4.ip_unprivileged_port_start=0   # app draait als gewone gebruiker en mag toch op poort 80 luisteren
     expose:
       - "80"
     labels:

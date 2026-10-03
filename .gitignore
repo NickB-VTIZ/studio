@@ -1,2 +1,4 @@
+data/
+backups-archief/
 .env
-.DS_Store
+node_modules/
