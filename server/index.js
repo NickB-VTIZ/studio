@@ -16,6 +16,7 @@ const { twilioConfig, sendWhatsApp, testTwilio } = require('./twilio');
 const { maakUBL } = require('./ubl');
 const { STANDAARD_MAILS, vul } = require('./mails');
 const { bouwFeed, nieuwToken } = require('./agenda');
+const graph = require('./graph');
 
 // Instellingen van koppelingen: eerst uit .env (admin-override), anders uit de database (ingevuld via de pagina Koppelingen).
 const KOPPEL_VELDEN = {
@@ -31,6 +32,10 @@ function effEnv() { const o = {}; for (const f in ENVMAP) o[ENVMAP[f]] = kv(f); 
 const vandaagBE = () => nuBrussel().slice(0, 10);
 function plusDagen(ymd, n) { const d = new Date(ymd + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + (Number(n) || 0)); return d.toISOString().slice(0, 10); }
 function verkoperDoc() { return store.get('instellingen', 'facturatie') || {}; }
+function msDoc() { return store.get('instellingen', 'ms') || {}; }
+function msVerbonden() { const mm = msDoc(); return !!(mm.clientId && mm.clientSecret && mm.refreshToken); }
+function msRedirect(req) { return publicBase(req) + '/api/ms/callback'; }
+async function msZet(klant) { if (!msVerbonden()) return; try { const dur = boekingConfig().duur || 60; const id = await graph.zetAfspraak(msDoc(), klant, dur); const nw = graph.nieuwRefreshToken(); const mm = msDoc(); if (nw) mm.refreshToken = nw; store.set('instellingen', 'ms', mm); const k = store.get('klanten', klant.id); if (k) { k.msEventId = id; store.set('klanten', klant.id, k); } } catch (e) { console.error('[ms]', e.message); } }
 function verkoperKlaar() { const v = verkoperDoc(); return !!(v.btw && v.bedrijfsnaam); }
 
 const mailActief = () => !!(resendConfig(effEnv()) || smtpConfig(effEnv()));
@@ -195,6 +200,7 @@ async function api(req, res, url) {
       aangemaakt: new Date().toISOString(), bijgewerkt: new Date().toISOString(),
     };
     store.set('klanten', id, doc);
+    msZet(Object.assign({ id }, doc));
     const when = `${slot.slice(8, 10)}/${slot.slice(5, 7)}/${slot.slice(0, 4)} om ${slot.slice(11, 16)}`;
     // Mails zijn best-effort.
     if (mailActief()) {
@@ -212,7 +218,7 @@ async function api(req, res, url) {
   // --- vanaf hier: login vereist ---
   if (!authed(req)) return json(res, 401, { error: 'Niet aangemeld' });
 
-  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), versie: VERSION.version });
+  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), office365: msVerbonden(), versie: VERSION.version });
   if (p === '/api/version' && m === 'GET') {
     const latest = await nieuwsteVersie();
     return json(res, 200, { running: VERSION, latest, repo: REPO, updateBeschikbaar: latest ? cmpVersie(latest, VERSION.version) > 0 : false, updateEnabled: UPDATE_ENABLED });
@@ -261,6 +267,32 @@ async function api(req, res, url) {
       klant.id = facMatch[1]; const { id, ...rest } = klant; store.set('klanten', facMatch[1], rest);
       return json(res, 200, { ok: true, nummer, filename: ('factuur-' + nummer + '.xml').replace(/[^A-Za-z0-9.\-]/g, '_'), xml });
     } catch (e) { return json(res, 500, { error: 'E-factuur maken mislukt: ' + e.message }); }
+  }
+  if (p === '/api/ms' && m === 'GET') { const mm = msDoc(); return json(res, 200, { verbonden: msVerbonden(), account: mm.account || '', clientIdSet: !!mm.clientId, secretSet: !!mm.clientSecret, tenant: mm.tenant || 'common', redirect: msRedirect(req) }); }
+  if (p === '/api/ms' && m === 'POST') { const b = await readJson(req, 10e3).catch(() => ({})); const mm = msDoc(); if ('clientId' in b) mm.clientId = String(b.clientId || '').trim(); if ('tenant' in b) mm.tenant = String(b.tenant || '').trim() || 'common'; if (b.clientSecret) mm.clientSecret = String(b.clientSecret).trim(); store.set('instellingen', 'ms', mm); return json(res, 200, { ok: true }); }
+  if (p === '/api/ms/ontkoppel' && m === 'POST') { store.set('instellingen', 'ms', {}); return json(res, 200, { ok: true }); }
+  if (p === '/api/ms/connect' && m === 'GET') {
+    const mm = msDoc(); if (!mm.clientId || !mm.clientSecret) return text(res, 400, 'Vul eerst Client-ID en Client-secret in bij Koppelingen.');
+    const st = Date.now() + '.' + crypto.randomBytes(6).toString('hex');
+    res.setHeader('Set-Cookie', `msstate=${st}.${sign('ms:' + st)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${isHttps(req) ? '; Secure' : ''}`);
+    res.writeHead(302, { Location: graph.authUrl(mm, msRedirect(req), st) }); return res.end();
+  }
+  if (p === '/api/ms/callback' && m === 'GET') {
+    const code = url.searchParams.get('code'); const st = url.searchParams.get('state');
+    const ck = cookies(req).msstate || ''; const ci = ck.lastIndexOf('.'); const okState = ci > 0 && ck.slice(0, ci) === st && ck.slice(ci + 1) === sign('ms:' + st);
+    if (!code || !okState) return text(res, 400, 'Koppeling afgebroken of verlopen. Probeer opnieuw.');
+    try { const mm = msDoc(); const tok = await graph.exchangeCode(mm, code, msRedirect(req)); mm.refreshToken = tok.refresh_token; try { mm.account = await graph.wieBenIk(tok.access_token); } catch (e) {} store.set('instellingen', 'ms', mm); res.writeHead(302, { Location: '/app' }); return res.end(); }
+    catch (e) { return text(res, 502, 'Verbinden mislukt: ' + e.message); }
+  }
+  if (p === '/api/ms/sync' && m === 'POST') {
+    if (!msVerbonden()) return json(res, 400, { error: 'Office 365 is niet verbonden.' });
+    const vd = vandaagBE(); let n = 0, fouten = 0;
+    for (const k of store.list('klanten')) {
+      if (k.fase === 'geen_deal' || !k.kennismaking || k.kennismaking.slice(0, 10) < vd) continue;
+      try { const id = await graph.zetAfspraak(msDoc(), k, boekingConfig().duur || 60); const kk = store.get('klanten', k.id); if (kk) { kk.msEventId = id; store.set('klanten', k.id, kk); } n++; } catch (e) { fouten++; }
+    }
+    const nw = graph.nieuwRefreshToken(); if (nw) { const m2 = msDoc(); m2.refreshToken = nw; store.set('instellingen', 'ms', m2); }
+    return json(res, 200, { ok: true, aantal: n, fouten });
   }
   if (p === '/api/facturatie' && m === 'GET') return json(res, 200, { verkoper: verkoperDoc(), klaar: verkoperKlaar() });
   if (p === '/api/agenda' && m === 'GET') {
@@ -319,7 +351,7 @@ async function api(req, res, url) {
   }
   if (p === '/api/data' && m === 'GET') {
     const klanten = {}; for (const k of store.list('klanten')) { const { id, ...rest } = k; klanten[id] = rest; }
-    const instellingen = {}; for (const i of store.list('instellingen')) { if (i.id === 'koppelingen') continue; const { id, ...rest } = i; instellingen[id] = rest; }
+    const instellingen = {}; const algD = store.get('instellingen', 'algemeen'); if (algD) instellingen.algemeen = algD; // enkel 'algemeen'; geheimen blijven server-side
     return json(res, 200, { klanten, instellingen });
   }
   const docMatch = p.match(/^\/api\/doc\/(klanten|instellingen)\/([A-Za-z0-9_\-.~:@+]{1,200})$/);

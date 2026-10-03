@@ -125,6 +125,21 @@ Een directe, tweerichtings-sync (afspraak meteen in je agenda, wijzigingen terug
 
 In **Beheer → Mailteksten** pas je alle automatische en kopieerbare e-mails aan, inclusief de **bevestigingsmail bij een online boeking** en de **melding naar jezelf**. Plaatshouders tussen accolades (bv. `{voornaam}`, `{wanneer}`, `{locatie}`) worden bij het versturen ingevuld; onder elk vak staat welke je kan gebruiken.
 
+## 5e. Agenda — Office 365 (directe koppeling, Microsoft Graph)
+
+Naast de ICS-feed is er een **directe** koppeling: nieuwe afspraken komen meteen in je Outlook-agenda (en een gewijzigd tijdstip wordt bijgewerkt). Dit vraagt eenmalig een gratis app-registratie in Microsoft Entra (Azure):
+
+1. Ga naar https://entra.microsoft.com → **Identity → App registrations → New registration**.
+2. Naam: `justPIXIT Studio`. Bij **Redirect URI** kies je *Web* en plak je de URI die in de app staat (Koppelingen → Agenda Office 365), bv. `https://studio.justpixit.be/api/ms/callback`.
+3. Na het aanmaken: noteer de **Application (client) ID**.
+4. **Certificates & secrets → New client secret** → kopieer de **waarde** (niet de id).
+5. **API permissions → Add a permission → Microsoft Graph → Delegated → Calendars.ReadWrite** (en `offline_access`). "Grant admin consent" is niet nodig voor je eigen account.
+6. In de app, Koppelingen → Agenda Office 365: plak Client-ID en Client-secret (tenant mag `common` blijven), klik **Bewaar**, dan **Verbind met Office 365** en log in met je Microsoft-account.
+
+Daarna maakt elke nieuwe boeking automatisch een afspraak in je agenda. Met **Zet bestaande afspraken in agenda** zet je de reeds geplande gesprekken er in één keer bij. Ontkoppelen kan met één knop.
+
+Geen zin in de app-registratie? Gebruik dan gewoon de ICS-feed (5c); die werkt zonder Azure, maar ververst trager.
+
 ## 6. Lokaal testen
 
 Zonder Docker:

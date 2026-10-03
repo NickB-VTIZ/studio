@@ -1249,6 +1249,7 @@ async function laadKoppelingen(){
      </div></section>`;
   }).join('');
   await laadFacturatie();
+  await laadMS();
 }
 const FACT_VELDEN=[
   {f:'bedrijfsnaam',l:'Bedrijfsnaam',ph:'justPIXIT'},{f:'btw',l:'BTW-nummer',ph:'BE0123456789'},
@@ -1272,6 +1273,39 @@ async function laadFacturatie(){
     </div></section>`;
   box.insertAdjacentHTML('beforeend',html);
 }
+async function laadMS(){
+  const box=$('#koppelBox');if(!box)return;
+  let d=null;try{d=await (await fetch('/api/ms',{credentials:'same-origin'})).json()}catch(e){}
+  if(!d){return}
+  const badge=d.verbonden?`<span class="stt done">Verbonden${d.account?' · '+esc(d.account):''}</span>`:'<span class="stt plan">Niet verbonden</span>';
+  const html=`<section><h2>Agenda — Office 365 (direct) ${badge}</h2>
+    <p>Directe koppeling: nieuwe afspraken komen meteen in je Outlook-agenda. Dit vraagt eenmalig een app-registratie in Microsoft Entra (Azure). Zet daar de <b>Redirect URI</b> hieronder, en plak Client-ID en Client-secret. Zie de README voor de stappen.</p>
+    <div class="sec" style="display:grid;gap:14px">
+     <label class="fld"><span>Redirect URI (zet deze in Azure)</span><input readonly value="${esc(d.redirect)}" style="font-family:monospace;font-size:12.5px" onclick="this.select()"></label>
+     <div class="grid2">
+      <label class="fld"><span>Client-ID</span><input data-ms="clientId" value="${esc(d.clientIdSet&&!d.verbonden?'':'')}" placeholder="${d.clientIdSet?'ingesteld — laat leeg om te behouden':'00000000-0000-0000-0000-000000000000'}" autocomplete="off"></label>
+      <label class="fld"><span>Client-secret</span><input type="password" data-ms="clientSecret" placeholder="${d.secretSet?'ingesteld — laat leeg om te behouden':''}" autocomplete="off"></label>
+      <label class="fld"><span>Tenant</span><input data-ms="tenant" value="${esc(d.tenant||'common')}" placeholder="common"></label>
+     </div>
+     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn primary small" id="msSave">Bewaar</button>
+      <a class="btn small" href="/api/ms/connect">Verbind met Office 365</a>
+      ${d.verbonden?'<button class="btn small" id="msSync">Zet bestaande afspraken in agenda</button><button class="btn ghost small danger" id="msOff">Ontkoppel</button>':''}
+      <span class="hint" id="msMsg"></span></div>
+     <p class="hint" style="margin:0">Of gebruik de eenvoudige ICS-feed (Beheer → Agenda) als je geen app-registratie wil.</p>
+    </div></section>`;
+  box.insertAdjacentHTML('beforeend',html);
+}
+async function bewaarMS(){const msg=$('#msMsg');const data={};document.querySelectorAll('[data-ms]').forEach(i=>{if(i.type==='password'&&!i.value)return;data[i.dataset.ms]=i.value});
+  if(msg){msg.style.color='';msg.textContent='Bewaren…'}
+  try{await fetch('/api/ms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),credentials:'same-origin'});if(msg)msg.textContent='Bewaard. Klik nu "Verbind met Office 365".'}catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Bewaren mislukt'}}
+}
+async function syncMS(){const msg=$('#msMsg');if(msg){msg.style.color='';msg.textContent='Bezig…'}
+  try{const r=await fetch('/api/ms/sync',{method:'POST',credentials:'same-origin'}).then(x=>x.json());if(msg){msg.style.color=r.error?'var(--late)':'var(--ok)';msg.textContent=r.error||(r.aantal+' afspraken in je agenda gezet'+(r.fouten?(' ('+r.fouten+' mislukt)'):''))}}catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Mislukt'}}
+}
+async function ontkoppelMS(){try{await fetch('/api/ms/ontkoppel',{method:'POST',credentials:'same-origin'});toast('Office 365 ontkoppeld');koppelOpen=false;await refreshServerInfo();render()}catch(e){}}
+document.addEventListener('click',e=>{const t=e.target.closest('#msSave,#msSync,#msOff');if(!t)return;
+  if(t.id==='msSave')return bewaarMS();if(t.id==='msSync')return syncMS();if(t.id==='msOff')return ontkoppelMS();});
 async function bewaarFacturatie(){
   const msg=$('#factmsg');const data={};document.querySelectorAll('[data-fact]').forEach(i=>data[i.dataset.fact]=i.value);
   if(msg){msg.style.color='';msg.textContent='Bewaren…'}
