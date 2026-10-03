@@ -386,15 +386,21 @@ const DEFAULTS={
     onboarding:'Hoi {voornaam},\n\nWat fijn dat jullie voor justPIXIT kiezen! In bijlage vinden jullie het onboardingspakket en een korte vragenlijst.\n\nVan zodra ik de ingevulde vragenlijst terug heb, plan ik jullie ontwerp in en laat ik weten wanneer jullie de eerste digitale proef mogen verwachten.\n\nTot snel!\n{afzender}',
     vragenlijst:'Hoi {voornaam},\n\nEven een vriendelijke herinnering: ik heb jullie vragenlijst nog niet ontvangen. Van zodra die binnen is, kan ik jullie ontwerp inplannen.\n\nLaat gerust weten als er iets onduidelijk is!\n\nGroetjes,\n{afzender}',
     proef:'Hoi {voornaam},\n\nHebben jullie de digitale proef al kunnen bekijken? Laat me gerust weten wat jullie ervan vinden of wat er nog aangepast mag worden.\n\nGroetjes,\n{afzender}',
-    boekingKlant:'Hoi {voornaam},\n\n{bevestiging}\n\nWanneer: {wanneer} ({duur} min)\nWaar: {locatie}\n{videolink}\n\nTot dan!\n{afzender}',
-    boekingAdmin:'Nieuwe afspraak via de website.\n\nKlant: {naam}\nWanneer: {wanneer}\nE-mail: {email}\nTelefoon: {telefoon}\nType: {type}\nDatum feest: {datumEvent}\n\nBericht:\n{bericht}\n{videolink}\n\nOpen de fiche: {app}'
+    boekingKlant:'Hoi {voornaam},\n\n{bevestiging}\n\nWanneer: {wanneer} ({duur} min)\nWaar: {locatie}\n{videolink}\n\nMoet je de afspraak verplaatsen, of wil je volgen hoe ver we staan? Dat kan op jullie persoonlijke pagina:\n{portaallink}\n\nTot dan!\n{afzender}',
+    boekingAdmin:'Nieuwe afspraak via de website.\n\nKlant: {naam}\nWanneer: {wanneer}\nE-mail: {email}\nTelefoon: {telefoon}\nType: {type}\nDatum feest: {datumEvent}\n\nBericht:\n{bericht}\n{videolink}\n\nOpen de fiche: {app}',
+    verplaatstKlant:'Hoi {voornaam},\n\nJullie afspraak is verplaatst.\n\nNieuw moment: {wanneer} ({duur} min)\nVorig moment: {vorig}\nWaar: {locatie}\n{videolink}\n\nTot dan!\n{afzender}',
+    verplaatstAdmin:'Afspraak verplaatst door {door}.\n\nKlant: {naam}\nNieuw moment: {wanneer}\nVorig moment: {vorig}\nE-mail: {email}\n\nOpen de fiche: {app}',
+    portaalLogin:'Hoi {voornaam},\n\nMet de knop hieronder log je in op jullie persoonlijke pagina bij justPIXIT. Daar zien jullie de afspraak, kunnen jullie ze verplaatsen en volgen jullie hoe ver we staan.\n\n{loginlink}\n\nDe link werkt 30 minuten en is enkel voor jullie bedoeld.\n\n{afzender}'
   }
 };
 const LIJST_LABELS={stopReden:'Reden niet doorgegaan',bron:'Hoe gevonden?',type:'Type klant',versies:'Uitnodiging · versies',opOfferte:'Uitnodiging · op offerte',formaat:'Uitnodiging · formaat',enveloppen:'Uitnodiging · enveloppen',foto:'Uitnodiging · foto',afwerking:'Uitnodiging · afwerking'};
 const TERMIJN_LABELS={offerte:['Offerte versturen','dagen na het kennismakingsgesprek'],opvolging:['Offerte opvolgen','dagen na het versturen van de offerte'],herhaling:['Tweede opvolging','dagen na de eerste opvolging'],vragenlijst:['Herinnering vragenlijst','dagen na goedkeuring'],proef:['Feedback digitale proef opvolgen','dagen na het versturen van de proef'],proefdruk:['Proefdruk nakijken','dagen na bestelling'],deadlineWaarschuwing:['Deadline tonen op Vandaag','dagen vooraf']};
 const PLAN_LABELS={beslissing:['Beslissing klant over offerte','dagen na versturen offerte'],wachttijdOntwerp:['Wachttijd tot start ontwerp','dagen na ontvangst vragenlijst'],ontwerpduur:['Ontwerpen tot digitale proef','dagen'],feedback:['Feedbackrondes tot proefdruk','dagen'],proefdrukDuur:['Proefdruk tot drukwerk besteld','dagen'],levering:['Drukwerk tot levering (afgerond)','dagen']};
-const MAIL_LABELS={boekingKlant:'Bevestiging afspraak (naar de klant)',boekingAdmin:'Melding nieuwe afspraak (naar jou)',opvolging:'Opvolging offerte',onboarding:'Onboarding (na goedkeuring)',vragenlijst:'Herinnering vragenlijst',proef:'Feedback digitale proef'};
-const MAIL_PLACEHOLDERS={boekingKlant:'{voornaam} {naam} {wanneer} {duur} {locatie} {videolink} {bevestiging} {afzender}',boekingAdmin:'{naam} {wanneer} {email} {telefoon} {type} {datumEvent} {bericht} {videolink} {app}'};
+const MAIL_LABELS={boekingKlant:'Bevestiging afspraak (naar de klant)',boekingAdmin:'Melding nieuwe afspraak (naar jou)',verplaatstKlant:'Afspraak verplaatst (naar de klant)',verplaatstAdmin:'Afspraak verplaatst door de klant (naar jou)',portaalLogin:'Inloglink voor Mijn pagina (naar de klant)',opvolging:'Opvolging offerte',onboarding:'Onboarding (na goedkeuring)',vragenlijst:'Herinnering vragenlijst',proef:'Feedback digitale proef'};
+const MAIL_AUTO=['boekingKlant','boekingAdmin','verplaatstKlant','verplaatstAdmin','portaalLogin'];
+const MAIL_PLACEHOLDERS={boekingKlant:'{voornaam} {naam} {wanneer} {duur} {locatie} {videolink} {portaallink} {bevestiging} {afzender}',boekingAdmin:'{naam} {wanneer} {email} {telefoon} {type} {datumEvent} {bericht} {videolink} {app}',
+  verplaatstKlant:'{voornaam} {naam} {wanneer} {vorig} {duur} {locatie} {videolink} {portaallink} {afzender}',verplaatstAdmin:'{naam} {wanneer} {vorig} {email} {door} {app}',portaalLogin:'{voornaam} {naam} {loginlink} {afzender}'};
+const KNOP_UITLEG={videolink:'knop “Deelnemen aan Teams/Zoom” (valt weg zonder videocall)',portaallink:'knop “Mijn pagina” (klantenportaal)',loginlink:'knop “Inloggen” met de persoonlijke inloglink'};
 let cfg=JSON.parse(JSON.stringify(DEFAULTS));
 function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!stored)return c;
   if(stored.lijsten)for(const k in c.lijsten)if(Array.isArray(stored.lijsten[k]))c.lijsten[k]=stored.lijsten[k].map(String);
@@ -485,10 +491,10 @@ function planning(k){
 /* ---------- state ---------- */
 let db=null, sample=null, klanten=[], loaded=false, showEnded=false;
 let view={v:'vandaag'}; let work=null; let mounted=null; let pendingTop={}; let saveTimer=null; let chain=Promise.resolve();
-let search='', filterType='', confirmDel=false, klantTab='fiche', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null;
+let search='', filterType='', confirmDel=false, klantTab='fiche', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null, vpOpen=false, vpMsg=null, vpBusy=false;
 try{const v=localStorage.getItem('jp-view');if(v&&['vandaag','pipeline','klanten','beheer','koppelingen'].includes(v))view={v}}catch(e){}
 
-function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;ofConfirm=null;if(v==='klant'){klantTab='fiche';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
+function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;ofConfirm=null;vpOpen=false;vpMsg=null;if(v==='klant'){klantTab='fiche';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
   try{if(v!=='klant'&&v!=='nieuw')localStorage.setItem('jp-view',v)}catch(e){}
   render();window.scrollTo(0,0)}
 
@@ -670,6 +676,7 @@ function renderSide(){
    ${a&&!stopForm&&k.fase!=='geen_deal'?`<section class="panel"><header><h2>Nu te doen</h2><span class="due ${d.c}" style="margin-left:auto">${d.t}</span></header><div class="todo-card"><p>${esc(a.t)}</p>
      ${a.mail?`<div class="mail" id="mailtxt">${esc(M[a.mail])}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-copy="${a.mail}">Kopieer mail</button>${a.mail2?`<button class="btn small" data-copy="${a.mail2}">Kopieer herinnering</button>`:''}${k.email?`<button class="btn small ghost" data-copy="__email">${esc(k.email)}</button>`:''}</div>`:''}
    </div></section>`:''}
+   ${afspraakPanel(k)}
    <section class="panel"><header><h2>Traject &amp; planning</h2><span class="count" style="margin-left:auto">${k.fase==='geen_deal'?'gestopt':'fase '+(Math.min(cur,total)+1)+' van '+(total+1)}</span></header>
     <div class="progress" style="margin-top:12px"><i style="width:${pct}%"></i></div>${dl}
     <ol class="flow">${flow}</ol>
@@ -687,6 +694,45 @@ function renderSide(){
   if(klantTab==='logboek'&&logEdit===null&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tab-logboek')))renderLogTab();
   $('#delsec').innerHTML=confirmDel?`<div class="confirm">Deze klant en de hele fiche definitief verwijderen? <button class="btn small danger" id="delYes">Ja, verwijder</button><button class="btn small" id="delNo">Annuleer</button></div>`:`<button class="btn small ghost danger" id="delAsk">Klant verwijderen</button>`;
 }
+
+/* ---------- afspraak verplaatsen & klantenportaal (zijbalk) ---------- */
+function afspraakPanel(k){
+  if(k.fase==='geen_deal')return '';
+  const kanMailen=!!(serverInfo.mail&&k.email);
+  const nu=new Date(), nuLokaal=isoDay(nu)+'T'+pad(nu.getHours())+':'+pad(nu.getMinutes());
+  const toekomst=k.kennismaking&&k.kennismaking>=nuLokaal;
+  const form=vpOpen?`<div style="display:grid;gap:8px;margin-top:4px">
+     <label class="fld"><span>Nieuw moment</span><input type="datetime-local" id="vpSlot" value="${esc(k.kennismaking||'')}" step="300"></label>
+     <label class="opts" style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="vpMail" ${kanMailen?'checked':'disabled'}>Klant verwittigen per mail${kanMailen?'':' <span class="hint">(geen e-mail of mailkoppeling)</span>'}</label>
+     <p class="hint" style="margin:0">Outlook/Teams en Zoom worden mee verplaatst; de videolink blijft dezelfde. Je mag buiten je boekingsblokken kiezen, enkel botsingen met een ander gesprek worden geweigerd.</p>
+     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" id="vpGo" ${vpBusy?'disabled':''}>${vpBusy?'Bezig…':'Verplaats'}</button><button class="btn small ghost" id="vpCancel">Annuleer</button></div></div>`:'';
+  return `<section class="panel"><header><h2>Afspraak &amp; Mijn pagina</h2>${k.kennismaking?`<span class="count" style="margin-left:auto">${esc(fmtDT(k.kennismaking))}</span>`:''}</header><div class="todo-card" style="display:grid;gap:10px">
+    ${k.videolink?`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px"><a class="btn small" href="${esc(k.videolink)}" target="_blank" rel="noopener">Deelnemen aan ${esc(k.videoprovider||'videocall')} ↗</a><button class="btn small ghost" data-copytext="${esc(k.videolink)}">Kopieer link</button></div>`:''}
+    ${vpMsg?`<div class="dlrow ${vpMsg.ok?'ok':'bad'}" style="margin:0"><b>${esc(vpMsg.t)}</b>${vpMsg.sub?`<span>${esc(vpMsg.sub)}</span>`:''}</div>`:''}
+    ${form||`<div style="display:flex;gap:8px;flex-wrap:wrap">${k.kennismaking?`<button class="btn small" id="vpOpen">${toekomst?'Verplaatsen':'Nieuw moment plannen'}</button>`:'<button class="btn small" id="vpOpen">Kennismaking inplannen</button>'}</div>`}
+    <div style="border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px">
+     <div class="label">Mijn pagina (klantenportaal)</div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="plMail" ${kanMailen?'':'disabled'} title="${kanMailen?'Stuurt een inloglink naar '+esc(k.email):'Vul een e-mailadres in en stel e-mail in bij Koppelingen'}">Inloglink mailen</button><button class="btn small ghost" id="plCopy" title="Een week geldig; handig voor WhatsApp">Inloglink kopiëren</button></div>
+     ${k.portaalLaatstIngelogd?`<span class="hint">Laatst ingelogd ${esc(fmtDT(k.portaalLaatstIngelogd.slice(0,16)))}</span>`:'<span class="hint">De klant kan er de afspraak verplaatsen en het traject volgen.</span>'}
+    </div></div></section>`;
+}
+async function herlaadKlant(){flushSave();mounted=null;await db.load().catch(()=>{});await new Promise(r=>setTimeout(r,30));render()}
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('#vpOpen,#vpCancel,#vpGo,#plMail,#plCopy,[data-copytext]');if(!t||!work)return;
+  if(t.dataset.copytext){copy(t.dataset.copytext);return}
+  if(t.id==='vpOpen'){vpOpen=true;vpMsg=null;renderSide();const i=$('#vpSlot');if(i)i.focus();return}
+  if(t.id==='vpCancel'){vpOpen=false;vpMsg=null;renderSide();return}
+  if(t.id==='vpGo'){const slot=($('#vpSlot')||{}).value||'';const mail=!!($('#vpMail')&&$('#vpMail').checked);if(!slot){vpMsg={ok:false,t:'Kies een moment.'};renderSide();return}
+    vpBusy=true;renderSide();
+    try{const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/verplaats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot,mail}),credentials:'same-origin'}).then(x=>x.json());
+      if(r.error){vpMsg={ok:false,t:r.error}}else{vpOpen=false;vpMsg={ok:true,t:'Verplaatst naar '+fmtDT(r.slot),sub:(r.gemaild?'De klant kreeg een mail. ':'')+(r.problemen&&r.problemen.length?r.problemen.join(' '):'')};toast('Afspraak verplaatst');await herlaadKlant();return}}
+    catch(err){vpMsg={ok:false,t:'Verplaatsen mislukt'}}
+    finally{vpBusy=false}renderSide();return}
+  if(t.id==='plMail'||t.id==='plCopy'){const mail=t.id==='plMail';t.disabled=true;
+    try{const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/portaallink',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mail}),credentials:'same-origin'}).then(x=>x.json());
+      if(r.error){toast(r.error)}else if(mail){toast('Inloglink gemaild naar '+work.email)}else{await copy(r.link)}}
+    catch(err){toast('Mislukt')}finally{t.disabled=false}}
+});
 
 /* ---------- saving ---------- */
 function setSave(t){const el=$('#savestate');if(el)el.textContent=t}
@@ -1016,7 +1062,19 @@ document.addEventListener('click',e=>{
 
 /* ---------- beheer ---------- */
 let beheerOpen=false, cfgTimer=null, cfgChain=Promise.resolve(), resetMail=null;
+const BEHEER_TABS=[['afspraken','Afspraken & portaal'],['mails','E-mails'],['fiche','Fiche & planning'],['systeem','Systeem']];
+let beheerTab='afspraken';try{const b=localStorage.getItem('jp-beheer');if(BEHEER_TABS.some(t=>t[0]===b))beheerTab=b}catch(e){}
 function vBeheer(){
+  const intro={afspraken:'Wanneer klanten een gesprek kunnen boeken, welke videocall je aanbiedt en hun persoonlijke pagina.',mails:'Welke mails automatisch vertrekken en wat erin staat. Test je e-mail en bekijk wat er verstuurd werd.',fiche:'De keuzes in de kennismakingsfiche, en de termijnen waarmee Vandaag en de planning rekenen.',systeem:'Versie en updates van de app.'}[beheerTab];
+  return `<div class="vhead"><div><h1>Beheer</h1><p>${esc(intro)} Wijzigingen worden meteen bewaard.</p></div><div class="spacer"></div><span class="savestate" id="cfgstate">Alles opgeslagen</span></div>
+  <div class="tabs" role="tablist" style="margin-bottom:22px">${BEHEER_TABS.map(([id,l])=>`<button role="tab" aria-selected="${beheerTab===id}" data-btab="${id}">${esc(l)}</button>`).join('')}</div>
+  <div class="beheer">${({afspraken:beheerAfspraken,mails:beheerMails,fiche:beheerFiche,systeem:beheerSysteem})[beheerTab]()}</div>`;
+}
+function beheerSysteem(){
+  return `<section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
+   <section><h2>Koppelingen</h2><p>E-mail (Resend), WhatsApp, Office 365, Zoom en facturatie stel je in op de aparte pagina.</p><button class="btn" data-v="koppelingen" data-gonav="1">Naar Koppelingen →</button></section>`;
+}
+function beheerFiche(){
   const lists=Object.keys(LIJST_LABELS).map(key=>{const arr=cfg.lijsten[key];
     return `<div class="sec"><h3>${esc(LIJST_LABELS[key])}</h3>
     <ul class="items">${arr.map((v,i)=>`<li><span>${esc(v)}</span>
@@ -1024,18 +1082,29 @@ function vBeheer(){
       <button class="iconbtn" data-del="${key}" data-i="${i}" aria-label="${esc(v)} verwijderen">×</button></li>`).join('')||'<li><span style="color:var(--muted)">Lege lijst</span></li>'}</ul>
     <form class="additem" data-add="${key}"><input id="add-${key}" placeholder="Nieuwe keuze" aria-label="Nieuwe keuze voor ${esc(LIJST_LABELS[key])}"><button class="btn small">Voeg toe</button></form></div>`}).join('');
   const terms=Object.keys(TERMIJN_LABELS).map(k=>`<label><b>${esc(TERMIJN_LABELS[k][0])}</b><input type="number" min="0" max="365" id="term-${k}" data-term="${k}" value="${cfg.termijnen[k]}"><span>${esc(TERMIJN_LABELS[k][1])}</span></label>`).join('');
-  const ml=Object.keys(MAIL_LABELS).map(k=>`<div class="sec"><div class="row"><h3 style="font-size:13px;font-weight:600">${esc(MAIL_LABELS[k])}</h3>
-    ${resetMail===k?`<span class="confirm">Standaardtekst terugzetten? <button class="btn small" data-resetyes="${k}">Ja</button><button class="btn small ghost" data-resetno="1">Nee</button></span>`:`<button class="btn small ghost" data-reset="${k}">Standaardtekst</button>`}</div>
-    <textarea id="mail-${k}" data-mail="${k}" aria-label="${esc(MAIL_LABELS[k])}">${esc(cfg.mails[k]||'')}</textarea><p class="hint" style="margin:2px 0 0">Plaatshouders: ${esc(MAIL_PLACEHOLDERS[k]||'{voornaam} {naam} {afzender}')}</p>${(MAIL_PLACEHOLDERS[k]||'').includes('{videolink}')?`<p class="hint" style="margin:2px 0 0">{videolink} wordt een knop “Deelnemen aan Teams/Zoom”. Zet hem waar je hem in de mail wil; is er geen videocall, dan valt hij gewoon weg.</p>`:''}</div>`).join('');
-  return `<div class="vhead"><div><h1>Beheer</h1><p>Pas hier de keuzes, termijnen en mailteksten aan. Wijzigingen worden meteen bewaard.</p></div><div class="spacer"></div><span class="savestate" id="cfgstate">Alles opgeslagen</span></div>
-  <div class="beheer">
-   <section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
-   <section><h2>Keuzelijsten</h2><p>Deze opties zie je bij een nieuwe klant en in de kennismakingsfiche. Verwijder je een keuze, dan blijft ze gewoon staan bij klanten die ze al hebben.</p><div class="lists">${lists}</div></section>
+  return `<section><h2>Keuzelijsten</h2><p>Deze opties zie je bij een nieuwe klant en in de kennismakingsfiche. Verwijder je een keuze, dan blijft ze gewoon staan bij klanten die ze al hebben.</p><div class="lists">${lists}</div></section>
    <section><h2>Opvolgtermijnen</h2><p>Hiermee berekent het systeem wanneer een actie op "Vandaag" verschijnt.</p><div class="terms">${terms}</div></section>
    <section><h2>Planning</h2><p>De planning op de klantpagina vertrekt van de datum van het kennismakingsgesprek. Ze telt de termijnen hierboven op met deze doorlooptijden. Fases die al voorbij zijn, krijgen hun echte datum.</p>
     <div class="terms">${Object.keys(PLAN_LABELS).map(k=>`<label><b>${esc(PLAN_LABELS[k][0])}</b><input type="number" min="0" max="365" id="plan-${k}" data-plan="${k}" value="${cfg.planning[k]}"><span>${esc(PLAN_LABELS[k][1])}</span></label>`).join('')}
-    <label><b>Standaard btw op offertes</b><input type="number" min="0" max="100" id="cfg-btw" data-btw="1" value="${cfg.btw}"><span>procent</span></label></div></section>
-   <section><h2>Online afspraken</h2><p>Zo ziet je afsprakenpagina eruit en wanneer klanten een gesprek kunnen boeken. Link: <code>${esc(serverInfo.base)}/afspraak</code> <button class="btn small ghost" id="copyBoekLink">Kopieer</button></p>
+    <label><b>Standaard btw op offertes</b><input type="number" min="0" max="100" id="cfg-btw" data-btw="1" value="${cfg.btw}"><span>procent</span></label></div></section>`;
+}
+function mailVak(k){
+  const knoppen=Object.keys(KNOP_UITLEG).filter(b=>(MAIL_PLACEHOLDERS[k]||'').includes('{'+b+'}'));
+  return `<div class="sec"><div class="row"><h3 style="font-size:13px;font-weight:600">${esc(MAIL_LABELS[k])}</h3>
+    ${resetMail===k?`<span class="confirm">Standaardtekst terugzetten? <button class="btn small" data-resetyes="${k}">Ja</button><button class="btn small ghost" data-resetno="1">Nee</button></span>`:`<button class="btn small ghost" data-reset="${k}">Standaardtekst</button>`}</div>
+    <textarea id="mail-${k}" data-mail="${k}" aria-label="${esc(MAIL_LABELS[k])}">${esc(cfg.mails[k]||'')}</textarea><p class="hint" style="margin:2px 0 0">Plaatshouders: ${esc(MAIL_PLACEHOLDERS[k]||'{voornaam} {naam} {afzender}')}</p>
+    ${knoppen.length?`<p class="hint" style="margin:2px 0 0">${knoppen.map(b=>'{'+b+'} = '+esc(KNOP_UITLEG[b])).join(' · ')}. Zet een knop waar je wil; de plaats in de tekst bepaalt waar hij in de mail komt.</p>`:''}</div>`;
+}
+function beheerMails(){
+  const auto=MAIL_AUTO.map(mailVak).join(''), kopie=Object.keys(MAIL_LABELS).filter(k=>!MAIL_AUTO.includes(k)).map(mailVak).join('');
+  return `<section><h2>E-mail testen &amp; logboek</h2><p>Stuur een testmail naar jezelf en bekijk wat er verstuurd werd. Zie je hier een fout, dan toont die meteen waarom een mail niet aankwam.</p>
+    <div class="sec" style="display:grid;gap:12px" id="mailtestBox"><p class="hint" style="margin:0">Laden…</p></div></section>
+   <section><h2>Automatische mails</h2><p>Deze vertrekken vanzelf: bij een online boeking, bij het verplaatsen van een afspraak en bij een inloglink voor Mijn pagina. Plaatshouders tussen accolades worden ingevuld; onder elk vak staat welke je kan gebruiken.</p>
+    <div class="mailgrid"><div class="sec"><h3 style="font-size:13px;font-weight:600">Ondertekening <code>{afzender}</code></h3><textarea id="mail-afzender" data-afzender="1" style="min-height:80px" aria-label="Ondertekening">${esc(cfg.afzender)}</textarea></div>${auto}</div></section>
+   <section><h2>Mails om te kopiëren</h2><p>Deze stelt het systeem klaar op de klantpagina (onder “Nu te doen”); je kopieert ze en verstuurt ze zelf.</p><div class="mailgrid">${kopie}</div></section>`;
+}
+function beheerAfspraken(){
+  return `<section><h2>Online afspraken</h2><p>Zo ziet je afsprakenpagina eruit en wanneer klanten een gesprek kunnen boeken. Link: <code>${esc(serverInfo.base)}/afspraak</code> <button class="btn small ghost" id="copyBoekLink">Kopieer</button></p>
     <div class="sec" style="display:grid;gap:14px">
      <div class="opts"><label><input type="checkbox" id="bk-actief" data-bk="actief" ${cfg.boeking.actief?'checked':''}>Online boeken staat aan</label></div>
      <div class="radiorow full"><span>Videocall aanbieden</span><div class="opts"><label><input type="checkbox" id="bk-videoTeams" data-bk="videoTeams" ${cfg.boeking.videoTeams?'checked':''}>Microsoft Teams</label><label><input type="checkbox" id="bk-videoZoom" data-bk="videoZoom" ${cfg.boeking.videoZoom?'checked':''}>Zoom</label></div></div>
@@ -1058,17 +1127,22 @@ function vBeheer(){
       <label class="fld full"><span>Bevestigingstekst (op de pagina en in de mail)</span><textarea id="bk-bevestiging" data-bk="bevestiging" rows="2">${esc(cfg.boeking.bevestiging)}</textarea></label>
       <label class="fld"><span>Afzender in bevestigingsmail</span><input id="bk-afzender" data-bk="afzender" value="${esc(cfg.boeking.afzender)}"></label>
      </div>
-     <p class="hint" style="margin:0">${serverInfo.mail?'Bevestigingsmails staan aan: de klant en jij krijgen een mail bij elke boeking.':'Bevestigingsmails staan uit. Vul de SMTP-gegevens in het .env-bestand in om ze aan te zetten.'}</p>
+     <p class="hint" style="margin:0">${serverInfo.mail?'Bevestigingsmails staan aan: de klant en jij krijgen een mail bij elke boeking.':'Bevestigingsmails staan uit. Stel Resend in bij Koppelingen om ze aan te zetten.'}</p>
     </div></section>
-   <section><h2>Agenda (Office 365 / Outlook)</h2><p>Zet je kennismakingsgesprekken automatisch in je Outlook-agenda. Voeg de onderstaande link toe in Outlook via <b>Agenda toevoegen → Abonneren vanaf internet</b>. Outlook ververst die daarna zelf (meestal elke paar uur).</p>
-    <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>
-   <section><h2>E-mail testen &amp; logboek</h2><p>Stuur een testmail naar jezelf en bekijk wat er verstuurd werd. Zie je hier een fout, dan toont die meteen waarom een mail niet aankwam.</p>
-    <div class="sec" style="display:grid;gap:12px" id="mailtestBox"><p class="hint" style="margin:0">Laden…</p></div></section>
-   <section><h2>Mailteksten</h2><p>De eerste twee worden automatisch verstuurd bij een online boeking. De andere kan je per klant kopiëren. Plaatshouders tussen accolades worden ingevuld; onder elk vak staat welke je kan gebruiken.</p>
-    <div class="mailgrid"><div class="sec"><h3 style="font-size:13px;font-weight:600">Ondertekening <code>{afzender}</code></h3><textarea id="mail-afzender" data-afzender="1" style="min-height:80px" aria-label="Ondertekening">${esc(cfg.afzender)}</textarea></div>${ml}</div></section>
-  </div>`;
+   <section><h2>Mijn pagina (klantenportaal)</h2><p>Klanten loggen in met een link die ze per e-mail krijgen — geen wachtwoord nodig. Ze zien er hun afspraak (met de knop voor de videocall), kunnen ze zelf verplaatsen, volgen in welke fase hun project zit en passen telefoon, feestdatum en aantal gasten aan. Jij krijgt bij een verplaatsing een mail en een regel in het logboek.</p>
+    <div class="sec" style="display:grid;gap:10px">
+     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><code>${esc(serverInfo.base)}/mijn</code><button class="btn small ghost" id="copyPortaalLink">Kopieer</button><a class="btn small ghost" href="/mijn" target="_blank" rel="noopener">Bekijk ↗</a></div>
+     <p class="hint" style="margin:0">De link staat standaard in de bevestigingsmail (knop “Mijn pagina”). Op een klantpagina kan je ook een persoonlijke inloglink mailen of kopiëren, bv. voor in WhatsApp.${serverInfo.mail?'':' <b>Let op:</b> zonder e-mailkoppeling kunnen klanten zelf geen inloglink aanvragen; een gekopieerde link werkt wel.'}</p>
+    </div></section>
+   <section><h2>Agenda (Office 365 / Outlook)</h2><p>Zet je kennismakingsgesprekken automatisch in je Outlook-agenda. Voeg de onderstaande link toe in Outlook via <b>Agenda toevoegen → Abonneren vanaf internet</b>. Outlook ververst die daarna zelf (meestal elke paar uur). Heb je Office 365 gekoppeld (zie Koppelingen), dan komen afspraken ook rechtstreeks in je agenda.</p>
+    <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
 }
 function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();window.scrollTo(0,y)}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-btab],[data-gonav],#copyPortaalLink');if(!t)return;
+  if(t.dataset.btab){beheerTab=t.dataset.btab;try{localStorage.setItem('jp-beheer',beheerTab)}catch(err){}$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();window.scrollTo(0,0);return}
+  if(t.dataset.gonav){go(t.dataset.v);return}
+  if(t.id==='copyPortaalLink')copy(serverInfo.base+'/mijn');
+});
 async function laadMailtest(){
   const box=$('#mailtestBox');if(!box)return;
   let d={items:[],actief:false};try{d=await (await fetch('/api/maillog',{credentials:'same-origin'})).json()}catch(e){}

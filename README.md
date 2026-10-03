@@ -4,6 +4,7 @@ Klantopvolging en online afspraken voor justPIXIT, als eigen webapp op https://s
 
 - **`/app`** – jouw beheeromgeving (met wachtwoord): Vandaag, Pipeline, Klanten (fiche, planning, offerte, logboek), Beheer.
 - **`/afspraak`** – publieke boekingspagina (je eigen "Calendly"). Een boeking maakt automatisch een klant aan in de fase *Kennismaking ingepland*.
+- **`/mijn`** – klantenportaal ("Mijn pagina"): klanten loggen in met een inloglink per e-mail (geen wachtwoord), zien hun afspraak met de videocall-knop, verplaatsen ze zelf, volgen de fase van hun project en passen telefoon, feestdatum en aantal gasten aan.
 - Een echte database (SQLite, ingebouwd in Node — geen database-server en geen externe pakketten). Alle data staat in de map `data/` naast de compose-file en is zo in één keer te back-uppen.
 
 ```
@@ -154,6 +155,13 @@ Bij het boeken kan de klant kiezen voor een videocall; de meeting wordt automati
 - **Zoom**: maak in de [Zoom App Marketplace](https://marketplace.zoom.us) een **Server-to-Server OAuth**-app met scope `meeting:write:admin`, en vul Account-ID, Client-ID en Client-secret in bij **Koppelingen → Videocall (Zoom)**. Zet daarna het vinkje "Zoom" aan bij Online afspraken.
 
 Staat er niets aangevinkt of is de koppeling er niet, dan toont de boekingspagina geen videokeuze (of enkel "In overleg"). De placeholder `{videolink}` in de bevestigingsmail wordt met de meetinglink ingevuld.
+
+## 5h. Klantenportaal (Mijn pagina) en afspraken verplaatsen
+
+- Klanten komen op `https://studio.justpixit.be/mijn`. Ze vullen hun e-mailadres in en krijgen een inloglink (30 minuten geldig, eenmalig). De link staat ook als knop **Mijn pagina** in de bevestigingsmail.
+- Op een klantpagina (zijbalk *Afspraak & Mijn pagina*) kan je zelf een inloglink **mailen** of **kopiëren** (een week geldig, handig voor WhatsApp). Je ziet er ook wanneer de klant het laatst inlogde.
+- **Verplaatsen**: zowel jij (zijbalk, vrij tijdstip; enkel botsingen met een ander gesprek worden geweigerd) als de klant (enkel vrije momenten uit je boekingsblokken). De afspraak in Outlook/Teams en de Zoom-meeting schuiven mee; de videolink blijft dezelfde. De klant krijgt de mail *Afspraak verplaatst*; verplaatst de klant zelf, dan krijg jij een melding en een regel in het logboek.
+- De mailteksten (bevestiging, verplaatst, inloglink) pas je aan in **Beheer → E-mails**. Knop-plaatshouders zoals `{videolink}`, `{portaallink}` en `{loginlink}` worden knoppen; zet ze waar je wil.
 
 ## 6. Lokaal testen
 

@@ -1,8 +1,11 @@
 // Standaard mailteksten + placeholder-invuller. Templates zijn bewerkbaar in Beheer (instellingen/algemeen.mails).
-// {videolink} wordt in de HTML-mail een knop ("Deelnemen aan …") en mag overal in het sjabloon staan.
+// Knop-plaatshouders ({videolink}, {loginlink}, {portaallink}) worden in de HTML-mail een knop en mogen overal in het sjabloon staan.
 const STANDAARD_MAILS = {
-  boekingKlant: 'Hoi {voornaam},\n\n{bevestiging}\n\nWanneer: {wanneer} ({duur} min)\nWaar: {locatie}\n{videolink}\n\nTot dan!\n{afzender}',
+  boekingKlant: 'Hoi {voornaam},\n\n{bevestiging}\n\nWanneer: {wanneer} ({duur} min)\nWaar: {locatie}\n{videolink}\n\nMoet je de afspraak verplaatsen, of wil je volgen hoe ver we staan? Dat kan op jullie persoonlijke pagina:\n{portaallink}\n\nTot dan!\n{afzender}',
   boekingAdmin: 'Nieuwe afspraak via de website.\n\nKlant: {naam}\nWanneer: {wanneer}\nE-mail: {email}\nTelefoon: {telefoon}\nType: {type}\nDatum feest: {datumEvent}\n\nBericht:\n{bericht}\n{videolink}\n\nOpen de fiche: {app}',
+  verplaatstKlant: 'Hoi {voornaam},\n\nJullie afspraak is verplaatst.\n\nNieuw moment: {wanneer} ({duur} min)\nVorig moment: {vorig}\nWaar: {locatie}\n{videolink}\n\nTot dan!\n{afzender}',
+  verplaatstAdmin: 'Afspraak verplaatst door {door}.\n\nKlant: {naam}\nNieuw moment: {wanneer}\nVorig moment: {vorig}\nE-mail: {email}\n\nOpen de fiche: {app}',
+  portaalLogin: 'Hoi {voornaam},\n\nMet de knop hieronder log je in op jullie persoonlijke pagina bij justPIXIT. Daar zien jullie de afspraak, kunnen jullie ze verplaatsen en volgen jullie hoe ver we staan.\n\n{loginlink}\n\nDe link werkt 30 minuten en is enkel voor jullie bedoeld.\n\n{afzender}',
 };
 
 // Vervangt {sleutel} door de waarde. Gekende sleutel met lege waarde → leeg; onbekende sleutel → ongewijzigd.
@@ -14,15 +17,16 @@ function escHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
-// Bouwt een HTML-mail uit hetzelfde tekstsjabloon. {videolink} wordt een knop als er een link (knop) is.
-// knop = { url, label } of null. Statische tekst en waarden worden ge-escaped; regeleindes worden <br>.
-function vulHtml(tekst, waarden, knop) {
+function knopHtml(url, label) {
+  return '<a href="' + escHtml(url) + '" style="display:inline-block;background:#2C6A4C;color:#ffffff;text-decoration:none;'
+    + 'padding:13px 24px;border-radius:10px;font-weight:600;font-size:15px;line-height:1;margin:4px 0">' + escHtml(label || 'Openen') + '</a>';
+}
+
+// Bouwt een HTML-mail uit hetzelfde tekstsjabloon. knoppen = { plaatshouder: {url,label} }; een plaatshouder zonder knop valt weg.
+// Statische tekst en waarden worden ge-escaped; regeleindes worden <br>.
+function vulHtml(tekst, waarden, knoppen = {}) {
   let s = escHtml(tekst).replace(/\{(\w+)\}/g, (m, k) => {
-    if (k === 'videolink') {
-      if (!knop || !knop.url) return '';
-      return '<a href="' + escHtml(knop.url) + '" style="display:inline-block;background:#2C6A4C;color:#ffffff;text-decoration:none;'
-        + 'padding:13px 24px;border-radius:10px;font-weight:600;font-size:15px;line-height:1">' + escHtml(knop.label || 'Deelnemen') + '</a>';
-    }
+    if (k in knoppen) { const b = knoppen[k]; return b && b.url ? knopHtml(b.url, b.label) : ''; }
     if (!(k in waarden)) return m;
     return escHtml(waarden[k]).replace(/\n/g, '<br>');
   });
@@ -37,4 +41,13 @@ function wrapMail(inner) {
     + '<div style="font-size:15px">' + inner + '</div></div></body></html>';
 }
 
-module.exports = { STANDAARD_MAILS, vul, vulHtml, escHtml };
+// Maakt tekst + HTML uit een sjabloon. Knoppen zonder plaatshouder in het sjabloon worden achteraan toegevoegd (behalve als `optioneel`).
+function bouwMail(sjabloon, waarden, knoppen = {}, optioneel = []) {
+  let t = String(sjabloon || '');
+  for (const k in knoppen) if (knoppen[k] && knoppen[k].url && !t.includes('{' + k + '}') && !optioneel.includes(k)) t += '\n\n{' + k + '}';
+  const w = Object.assign({}, waarden);
+  for (const k in knoppen) w[k] = knoppen[k] && knoppen[k].url ? (knoppen[k].label + ': ' + knoppen[k].url) : '';
+  return { text: vul(t, w), html: vulHtml(t, w, knoppen) };
+}
+
+module.exports = { STANDAARD_MAILS, vul, vulHtml, escHtml, bouwMail };

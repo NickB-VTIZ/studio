@@ -86,7 +86,7 @@ async function zetAfspraak(cfg, klant, duur, opts = {}) {
     location: { displayName: klant.locatie || '' },
     body: { contentType: 'text', content: regels.join('\n') },
   };
-  if (opts.teams) { body.isOnlineMeeting = true; body.onlineMeetingProvider = 'teamsForBusiness'; }
+  if (opts.teams && !klant.msEventId) { body.isOnlineMeeting = true; body.onlineMeetingProvider = 'teamsForBusiness'; } // enkel bij aanmaken; bij verplaatsen blijft de Teams-link bestaan
   const ev = klant.msEventId
     ? await graph('PATCH', '/me/events/' + encodeURIComponent(klant.msEventId), token, body)
     : await graph('POST', '/me/events', token, body);

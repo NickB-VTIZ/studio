@@ -38,6 +38,15 @@ async function maakMeeting(cfg, { topic, start, duur }) {
   return { joinUrl: j.join_url, id: j.id };
 }
 
+// Verplaatst een bestaande meeting (zelfde link blijft gelden).
+async function wijzigMeeting(cfg, id, { start, duur }) {
+  const t = await token(cfg);
+  const body = JSON.stringify({ start_time: start.slice(0, 16) + ':00', timezone: 'Europe/Brussels', duration: duur || 60 });
+  await req('api.zoom.us', '/v2/meetings/' + encodeURIComponent(id), 'PATCH',
+    { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }, body);
+  return true;
+}
+
 async function test(cfg) { await token(cfg); return true; }
 
-module.exports = { zoomConfig, maakMeeting, test };
+module.exports = { zoomConfig, maakMeeting, wijzigMeeting, test };

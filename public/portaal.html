@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="nl-BE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mijn pagina · justPIXIT</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Zelfde uitnodiging-stijl als de boekingspagina: één kaart op zacht papier, inktgroen accent, fijne haarlijnen. */
+:root{
+  --paper:#F2F4EF;--card:#FBFBF8;--ink:#1C2A24;--ink-soft:#56655D;--green:#2C5A4C;--green-ink:#F7FAF6;
+  --sage:#DDE7E0;--sage-deep:#C3D3C8;--line:#D2DBD3;--hair:#C8D2C9;
+  --warn-bg:#F7E6DD;--warn-ink:#8A4B2E;--ok-bg:#E3EFE7;--ok-ink:#2C6A4C;
+  --f-display:"Fraunces",Georgia,"Times New Roman",serif;--f-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:light;
+}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.55;padding-inline:18px;-webkit-font-smoothing:antialiased}
+::selection{background:var(--sage-deep)}h1,h2,h3{margin:0;font-weight:500}button,input,textarea,select{font:inherit;color:inherit}
+.wrap{max-width:860px;margin:0 auto;padding-block:40px 72px}@media (max-width:560px){.wrap{padding-block:26px 48px}}
+.mark{text-align:center;margin-bottom:30px}.mark .logo{font-family:var(--f-display);font-size:21px;letter-spacing:.01em}.mark .logo b{font-weight:500}
+.mark .tag{display:block;margin-top:3px;font-size:12.5px;color:var(--ink-soft);letter-spacing:.02em}
+.sheet{background:var(--card);border:1px solid var(--hair);border-radius:4px;box-shadow:0 1px 0 var(--hair),0 18px 40px -28px rgba(28,42,36,.4);padding:6px}
+.sheet-in{border:1px solid var(--line);border-radius:3px;padding:clamp(22px,4vw,44px)}
+.hero{text-align:center;max-width:34rem;margin:0 auto 6px}
+.hero h1{font-family:var(--f-display);font-weight:400;font-size:clamp(28px,5.5vw,42px);line-height:1.05;letter-spacing:-.01em}
+.hero p{margin:12px auto 0;color:var(--ink-soft);max-width:30rem}
+.rule{border:0;border-top:1px solid var(--line);max-width:70px;margin:26px auto}
+.topbar{display:flex;justify-content:flex-end;margin:-6px 0 6px}
+section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
+.bhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.bhead h2{font-family:var(--f-display);font-weight:400;font-size:22px}
+.bhead .meta{font-size:13px;color:var(--ink-soft)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:18px 20px}
+.recap{display:grid;gap:10px}.recap .row{display:grid;grid-template-columns:6rem 1fr;gap:14px;align-items:baseline}
+@media (max-width:420px){.recap .row{grid-template-columns:1fr;gap:2px}}
+.recap .k{font-size:12.5px;color:var(--ink-soft)}.recap .v{font-size:15.5px}.recap .v.big{font-family:var(--f-display);font-size:20px;line-height:1.2}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--card);padding:12px 20px;border-radius:3px;cursor:pointer;font-weight:500;font-size:15px;text-decoration:none;color:var(--ink);display:inline-block}
+.btn:hover{border-color:var(--green)}.btn.primary{background:var(--green);color:var(--green-ink);border-color:var(--green)}.btn.primary:hover{background:#244c40}
+.btn.primary:disabled,.btn:disabled{opacity:.55;cursor:default}
+.btn.ghost{border-color:transparent;background:none;color:var(--ink-soft);padding-inline:8px}.btn.ghost:hover{color:var(--green)}
+.btn.small{padding:8px 14px;font-size:14px}
+.err{color:var(--warn-ink);background:var(--warn-bg);padding:11px 14px;border-radius:3px;font-size:14.5px;margin-top:10px}
+.ok{color:var(--ok-ink);background:var(--ok-bg);padding:11px 14px;border-radius:3px;font-size:14.5px;margin-top:10px}
+.note{font-size:13.5px;color:var(--ink-soft)}
+/* stappen (traject) */
+.steps{list-style:none;margin:0;padding:0;display:grid}
+.steps li{position:relative;padding:0 0 18px 30px}
+.steps li::before{content:"";position:absolute;left:8px;top:22px;bottom:-2px;width:2px;background:var(--line)}
+.steps li:last-child::before{display:none}
+.steps .mk{position:absolute;left:0;top:4px;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);background:var(--card)}
+.steps li.done .mk{background:var(--green);border-color:var(--green)}
+.steps li.done .mk::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid var(--green-ink);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.steps li.done::before{background:var(--green)}
+.steps li.cur .mk{border-color:var(--green);box-shadow:0 0 0 4px var(--sage)}
+.steps .t{font-weight:500}.steps li.todo .t{color:var(--ink-soft);font-weight:400}
+.steps .d{font-size:12.5px;color:var(--ink-soft);margin-left:8px}
+.steps .u{display:block;font-size:14px;color:var(--ink-soft);margin-top:3px;max-width:48ch}
+.steps li.cur .u{color:var(--ink)}
+.steps li.cur{background:var(--sage);border-radius:3px;margin-left:-10px;padding-left:40px;padding-top:10px;padding-bottom:12px;margin-bottom:8px}
+.steps li.cur .mk{left:10px;top:14px}.steps li.cur::before{left:18px;top:32px}
+.offs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.offs li{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:8px}
+.offs li:last-child{border-bottom:0;padding-bottom:0}
+.pill{font-size:12.5px;padding:3px 9px;border-radius:999px;background:var(--sage);color:var(--ink)}
+/* kalender (zelfde als boekingspagina) */
+.booker{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,16rem);gap:30px;align-items:start;margin-top:16px}
+@media (max-width:620px){.booker{grid-template-columns:1fr;gap:26px}}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-head h3{font-family:var(--f-display);font-weight:400;font-size:19px;text-transform:capitalize}
+.nav{display:flex;gap:7px}.nav button{border:1px solid var(--line);background:var(--card);width:38px;height:38px;border-radius:50%;cursor:pointer;color:var(--ink);font-size:17px;display:grid;place-items:center;line-height:1}
+.nav button:hover:not(:disabled){border-color:var(--green);color:var(--green)}.nav button:disabled{opacity:.3;cursor:default}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.grid .wd{text-align:center;font-size:11px;color:var(--ink-soft);padding-bottom:7px;letter-spacing:.03em}
+.day{position:relative;aspect-ratio:1;max-width:46px;width:100%;margin:0 auto;border:0;background:none;border-radius:50%;color:var(--sage-deep);cursor:default;font-variant-numeric:tabular-nums;font-size:15px;display:grid;place-items:center}
+.day.free{background:var(--sage);color:var(--ink);cursor:pointer}.day.free:hover{background:var(--sage-deep)}.day.sel{background:var(--green);color:var(--green-ink);font-weight:500}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(5.4rem,1fr));gap:9px}
+.slot{border:1px solid var(--green);color:var(--green);background:var(--card);border-radius:3px;padding:12px 6px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:15px}
+.slot:hover,.slot.sel{background:var(--green);color:var(--green-ink)}
+.slotwrap .lead{font-size:13px;color:var(--ink-soft);margin:0 0 12px}.slotwrap .lead b{color:var(--ink);font-weight:600}
+.pick-first,.slot-empty{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:18px 16px;text-align:center}
+.chosen{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--card);border:1px solid var(--green);border-radius:3px;padding:14px 18px;margin-top:18px}
+.chosen .lab{font-size:12px;color:var(--ink-soft)}.chosen .when{font-family:var(--f-display);font-size:19px;margin-top:2px}
+/* formulier */
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}@media (max-width:560px){.form{grid-template-columns:1fr}}
+.full{grid-column:1/-1}.fld{display:grid;gap:6px;min-width:0}.fld>span{font-size:13.5px;color:var(--ink-soft)}
+.fld input,.fld textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:3px;padding:11px 13px;min-width:0}
+.fld input:focus,.fld textarea:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--sage)}
+.fld input[readonly]{background:var(--paper);color:var(--ink-soft)}
+.login{max-width:26rem;margin:0 auto;display:grid;gap:14px}
+.foot{text-align:center;color:var(--ink-soft);font-size:12.5px;margin-top:28px}
+.center-msg{text-align:center;color:var(--ink-soft);padding:40px 0}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.day,.slot,.btn,.nav button{transition:background .14s ease,color .14s ease,border-color .14s ease}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="mark"><div class="logo">just<b>PIXIT</b></div><span class="tag">jullie persoonlijke pagina</span></div>
+  <div class="sheet"><div class="sheet-in" id="main"><p class="center-msg">Even geduld…</p></div></div>
+  <p class="foot">justPIXIT · trouwuitnodigingen en geboortekaartjes</p>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const parseDay=s=>{const [y,m,d]=s.slice(0,10).split('-').map(Number);return new Date(y,m-1,d)};
+const isoDay=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const fmtLong=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long'});
+const fmtLongY=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+const fmtShort=s=>s?parseDay(s).toLocaleDateString('nl-BE',{day:'numeric',month:'short',year:'numeric'}):'';
+const eindUur=(slot,duur)=>{const [h,m]=slot.slice(11,16).split(':').map(Number);const t=h*60+m+duur;return pad(Math.floor(t/60)%24)+':'+pad(t%60)};
+const voornaam=n=>(n||'').split(/\s|&/)[0]||'';
+let me=null,verplaats=false,byDay={},month=null,selDay=null,selSlot=null,busy=false,msg={};
+
+async function api(path,body){const r=await fetch('/api/portaal/'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,credentials:'same-origin'});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw Object.assign(new Error(j.error||'Er liep iets mis'),{status:r.status});return j}
+
+async function init(){
+  try{me=await api('me')}catch(e){if(e.status===401){renderLogin();return}$('#main').innerHTML='<p class="err">De pagina kon niet geladen worden. Probeer het later opnieuw.</p>';return}
+  render();
+}
+function renderLogin(state){
+  const verlopen=new URLSearchParams(location.search).get('verlopen');
+  $('#main').innerHTML=`<div class="hero"><h1>Mijn pagina</h1><p>Bekijk jullie afspraak, verplaats ze als het moet en volg hoe ver we staan.</p></div><hr class="rule">
+   <div class="login">
+    ${state==='verzonden'?`<p class="ok">Als dit e-mailadres bij mij gekend is, zit er nu een inloglink in je mailbox. Kijk ook even bij ongewenste mail.</p><p class="note">Geen mail gekregen? Controleer het adres, of stuur me een berichtje.</p>`:`
+    ${verlopen?'<p class="err">Die inloglink is verlopen of al gebruikt. Vraag hieronder een nieuwe aan.</p>':''}
+    <form id="loginform" novalidate style="display:grid;gap:12px">
+      <label class="fld"><span>E-mailadres waarmee jullie boekten</span><input id="l-email" type="email" required autocomplete="email" placeholder="naam@voorbeeld.be"></label>
+      <div id="lerr"></div>
+      <button class="btn primary" type="submit" id="lsubmit">Stuur me een inloglink</button>
+      <p class="note">Je krijgt een link per e-mail; een wachtwoord hoef je niet te onthouden.</p>
+    </form>`}
+   </div>`;
+}
+function render(){
+  const n=voornaam(me.naam);
+  $('#main').innerHTML=`<div class="topbar"><button class="btn ghost small" id="logout">Afmelden</button></div>
+   <div class="hero"><h1>Hoi ${esc(n||'daar')}</h1><p>Hier vinden jullie alles over jullie ${esc((me.type||'').toLowerCase()==='geboorte'?'geboortekaartje':'project')} bij justPIXIT.</p></div><hr class="rule">
+   <section class="blok" id="afspraak">${renderAfspraak()}</section>
+   <section class="blok"><div class="bhead"><h2>Waar staan we?</h2></div>${renderTraject()}</section>
+   ${me.offertes&&me.offertes.length?`<section class="blok"><div class="bhead"><h2>Offertes</h2><span class="meta">de offertes zelf zitten in jullie mailbox</span></div><div class="card"><ul class="offs">${me.offertes.map(o=>`<li><span>${esc(o.titel||'Offerte')}${o.datum?` <span class="note">· ${esc(fmtShort(o.datum))}</span>`:''}</span><span class="pill">${esc(o.status)}</span></li>`).join('')}</ul></div></section>`:''}
+   <section class="blok"><div class="bhead"><h2>Jullie gegevens</h2></div>${renderGegevens()}</section>`;
+}
+function renderAfspraak(){
+  const k=me.kennismaking;
+  if(!k)return `<div class="bhead"><h2>Jullie afspraak</h2></div><div class="card"><p style="margin:0" class="note">Er staat nog geen kennismakingsgesprek gepland. <a href="/afspraak">Plan er hier een.</a></p></div>`;
+  const voorbij=k<me.nu;
+  if(verplaats)return renderVerplaats();
+  return `<div class="bhead"><h2>${voorbij?'Jullie kennismaking':'Jullie afspraak'}</h2><span class="meta">${esc(me.titel||'Kennismaking')}</span></div>
+   <div class="card"><div class="recap">
+    <div class="row"><span class="k">Wanneer</span><span class="v big">${esc(fmtLongY(k))}<br><span style="font-size:16px;font-family:var(--f-ui)">${k.slice(11,16)} – ${eindUur(k,me.duur)} (${me.duur} min)</span></span></div>
+    <div class="row"><span class="k">Waar</span><span class="v">${esc(me.locatie||'In overleg')}</span></div>
+    ${me.videolink?`<div class="row"><span class="k">Videocall</span><span class="v"><a class="btn primary small" href="${esc(me.videolink)}" target="_blank" rel="noopener">Deelnemen aan ${esc(me.videoprovider||'de videocall')}</a></span></div>`:''}
+   </div>
+   ${msg.afspraak?`<p class="${msg.afspraak.ok?'ok':'err'}">${esc(msg.afspraak.t)}</p>`:''}
+   <div class="actions">${me.verplaatsbaar?'<button class="btn" id="verplaats">Afspraak verplaatsen</button>':''}${!voorbij?`<a class="btn ghost" href="${icsLink(k)}" download="afspraak-justpixit.ics">Zet in mijn agenda</a>`:'<span class="note">Dit gesprek heeft al plaatsgevonden.</span>'}</div></div>`;
+}
+function renderVerplaats(){
+  return `<div class="bhead"><h2>Nieuw moment kiezen</h2><button class="btn ghost small" id="annuleer">Annuleer</button></div>
+   <p class="note" style="margin:0">Huidig moment: <b>${esc(fmtLong(me.kennismaking))} om ${me.kennismaking.slice(11,16)}</b>. Kies hieronder een nieuw moment; ${me.videolink?'de link voor de videocall blijft dezelfde.':'ik krijg automatisch een seintje.'}</p>
+   <div id="booker">${month?renderBooker():'<p class="center-msg">Vrije momenten ophalen…</p>'}</div>`;
+}
+function renderBooker(){
+  return `<div class="booker">
+    <div>${renderCalendar()}</div>
+    <div class="slotwrap" id="slotbox"><p class="lead">${selDay?`Vrije momenten op <b>${esc(fmtLong(selDay))}</b>`:'Kies eerst een dag'}</p>${selDay?renderSlots():'<p class="pick-first">Dagen met een zachte stip zijn vrij.</p>'}</div>
+   </div>
+   ${selSlot?`<div class="chosen"><div><div class="lab">Nieuw moment</div><div class="when">${esc(fmtLong(selSlot.slice(0,10)))} om ${selSlot.slice(11,16)}</div></div><button class="btn primary" id="bevestig" ${busy?'disabled':''}>${busy?'Even geduld…':'Bevestig nieuw moment'}</button></div>`:''}
+   ${msg.verplaats?`<p class="err">${esc(msg.verplaats)}</p>`:''}`;
+}
+function renderCalendar(){
+  const [y,mo]=month.split('-').map(Number);const first=new Date(y,mo-1,1);const start=(first.getDay()+6)%7;const days=new Date(y,mo,0).getDate();
+  const months=Object.keys(byDay).map(d=>d.slice(0,7));const minM=months[0]||month,maxM=months[months.length-1]||month;
+  let cells='';for(let i=0;i<start;i++)cells+='<span></span>';
+  for(let d=1;d<=days;d++){const ds=`${y}-${pad(mo)}-${pad(d)}`;const free=!!byDay[ds];
+    cells+=`<button class="day ${free?'free':''} ${ds===selDay?'sel':''}" ${free?`data-day="${ds}"`:'disabled'} aria-label="${esc(fmtLongY(ds))}${free?', '+byDay[ds].length+' momenten vrij':''}">${d}</button>`}
+  return `<div class="cal-head"><h3>${first.toLocaleDateString('nl-BE',{month:'long',year:'numeric'})}</h3><div class="nav"><button data-nav="-1" ${month<=minM?'disabled':''} aria-label="Vorige maand">‹</button><button data-nav="1" ${month>=maxM?'disabled':''} aria-label="Volgende maand">›</button></div></div>
+   <div class="grid">${['ma','di','wo','do','vr','za','zo'].map(w=>`<span class="wd">${w}</span>`).join('')}${cells}</div>`;
+}
+function renderSlots(){const slots=byDay[selDay]||[];return slots.length?`<div class="slots">${slots.map(s=>`<button class="slot ${s===selSlot?'sel':''}" data-slot="${s}">${s.slice(11,16)}</button>`).join('')}</div>`:'<p class="slot-empty">Geen vrije momenten meer op deze dag.</p>'}
+function renderTraject(){
+  if(me.gestopt)return `<div class="card"><p style="margin:0">${esc((me.fasen.find(f=>f.k==='geen_deal')||{}).uitleg||'')}</p></div>`;
+  return `<ol class="steps">${me.fasen.map(f=>`<li class="${f.status}"><span class="mk"></span><span class="t">${esc(f.l)}</span>${f.datum&&f.status!=='todo'?`<span class="d">${esc(fmtShort(f.datum))}</span>`:''}${f.status==='cur'?`<span class="u">${esc(f.uitleg)}</span>`:''}</li>`).join('')}</ol>`;
+}
+function renderGegevens(){
+  return `<form id="gform" class="card" novalidate><div class="form">
+    <label class="fld"><span>Naam</span><input value="${esc(me.naam)}" readonly></label>
+    <label class="fld"><span>E-mail</span><input value="${esc(me.email)}" readonly title="Wil je een ander e-mailadres? Stuur me een berichtje."></label>
+    <label class="fld"><span>Telefoon</span><input id="g-tel" type="tel" maxlength="40" value="${esc(me.telefoon)}"></label>
+    <label class="fld"><span>Datum van het feest</span><input id="g-event" type="date" value="${esc(me.datumEvent)}"></label>
+    <label class="fld"><span>Aantal gasten (ongeveer)</span><input id="g-gasten" inputmode="numeric" maxlength="40" value="${esc(me.gasten)}"></label>
+   </div>
+   ${msg.gegevens?`<p class="${msg.gegevens.ok?'ok':'err'}">${esc(msg.gegevens.t)}</p>`:''}
+   <div class="actions"><button class="btn primary" type="submit" id="gsave">Bewaar</button><span class="note">Naam of e-mail wijzigen? Stuur me gerust een berichtje.</span></div></form>`;
+}
+function icsLink(slot){
+  const start=parseDay(slot);const [h,mi]=slot.slice(11,16).split(':').map(Number);start.setHours(h,mi,0,0);const end=new Date(start.getTime()+me.duur*60000);
+  const f=d=>d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00';
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//justPIXIT//Studio//NL','BEGIN:VEVENT',`UID:${Date.now()}@justpixit`,`DTSTAMP:${f(new Date())}`,`DTSTART;TZID=Europe/Brussels:${f(start)}`,`DTEND;TZID=Europe/Brussels:${f(end)}`,`SUMMARY:${me.titel||'Kennismaking'} - justPIXIT`,`LOCATION:${(me.locatie||'').replace(/,/g,'\\,')}`,me.videolink?`URL:${me.videolink}`:null,'END:VEVENT','END:VCALENDAR'].filter(Boolean).join('\r\n');
+  return 'data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);
+}
+async function laadSlots(){
+  byDay={};selDay=null;selSlot=null;
+  try{const r=await api('slots');(r.dagen||[]).forEach(d=>byDay[d.datum]=d.slots);const first=(r.dagen||[])[0];month=first?first.datum.slice(0,7):isoDay(new Date()).slice(0,7);if(!r.actief||!first)msg.verplaats='Er zijn momenteel geen vrije momenten om naar te verplaatsen. Stuur me een berichtje, dan zoeken we samen iets.'}
+  catch(e){msg.verplaats='De vrije momenten konden niet geladen worden.';month=isoDay(new Date()).slice(0,7)}
+  render();
+}
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('#logout,#verplaats,#annuleer,[data-day],[data-nav],[data-slot],#bevestig');if(!t)return;
+  if(t.id==='logout'){await fetch('/api/portaal/logout',{method:'POST',credentials:'same-origin'});location.href='/mijn';return}
+  if(t.id==='verplaats'){verplaats=true;msg={};month=null;render();laadSlots();return}
+  if(t.id==='annuleer'){verplaats=false;msg={};render();return}
+  if(t.dataset.day){selDay=t.dataset.day;selSlot=null;render();if(window.innerWidth<=620){const sb=$('#slotbox');if(sb)sb.scrollIntoView({behavior:'smooth',block:'start'})}return}
+  if(t.dataset.nav){const [y,m]=month.split('-').map(Number);const d=new Date(y,m-1+Number(t.dataset.nav),1);month=d.getFullYear()+'-'+pad(d.getMonth()+1);render();return}
+  if(t.dataset.slot){selSlot=t.dataset.slot;render();return}
+  if(t.id==='bevestig'&&selSlot&&!busy){busy=true;msg.verplaats='';render();
+    try{const r=await api('verplaats',{slot:selSlot});me=await api('me');verplaats=false;msg={afspraak:{ok:true,t:'Jullie afspraak is verplaatst'+(r.gemaild?' — er is een bevestiging onderweg naar je mailbox.':'.')}};}
+    catch(err){msg.verplaats=err.message;if(err.status===409){await laadSlots();return}}
+    finally{busy=false}render();window.scrollTo({top:0,behavior:'smooth'});return}
+});
+document.addEventListener('submit',async e=>{
+  if(e.target.id==='loginform'){e.preventDefault();const email=$('#l-email').value.trim();const er=$('#lerr');er.innerHTML='';
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){er.innerHTML='<p class="err">Vul een geldig e-mailadres in.</p>';return}
+    $('#lsubmit').disabled=true;$('#lsubmit').textContent='Versturen…';
+    try{await api('login',{email});history.replaceState(null,'','/mijn');renderLogin('verzonden')}catch(err){er.innerHTML=`<p class="err">${esc(err.message)}</p>`;$('#lsubmit').disabled=false;$('#lsubmit').textContent='Stuur me een inloglink'}
+    return}
+  if(e.target.id==='gform'){e.preventDefault();const b={telefoon:$('#g-tel').value,datumEvent:$('#g-event').value,gasten:$('#g-gasten').value};
+    try{const r=await api('gegevens',b);me=await api('me');msg.gegevens={ok:true,t:r.gewijzigd&&r.gewijzigd.length?'Bewaard. Bedankt!':'Er was niets gewijzigd.'}}catch(err){msg.gegevens={ok:false,t:err.message}}
+    render();const g=$('#gform');if(g)g.scrollIntoView({behavior:'smooth',block:'nearest'})}
+});
+init();
+</script>
+</body>
+</html>
