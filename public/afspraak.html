@@ -3,86 +3,155 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Plan een kennismakingsgesprek · justPIXIT</title>
+<title>Plan een kennismaking · justPIXIT</title>
 <meta name="description" content="Plan een vrijblijvend kennismakingsgesprek met justPIXIT voor jullie trouwuitnodigingen of geboortekaartje.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Figtree:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Figtree:wght@400;500;600&display=swap">
 <style>
+/* Uitnodiging-stijl: een gecentreerde "kaart" op warm papier, met inktgroen en fijne haarlijnen.
+   Boven de sfeer en de drie feiten; daaronder de kalender en tijden naast elkaar; daarna het formulier. */
 :root{
-  --bg:#F5F6F3;--surface:#FFFFFF;--sunk:#EEF1EC;--ink:#1E2824;--muted:#5F6C66;--line:#DCE2DD;
-  --accent:#2C5A4C;--accent-ink:#FFFFFF;--accent-soft:#E2ECE7;--late:#B3261E;--late-soft:#FAE3E0;--ok:#2F7D5B;--ok-soft:#E1F1E8;
-  --f-display:"Fraunces",Georgia,serif;--f-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
-  color-scheme:light}
+  --paper:#F2F4EF;         /* zacht, licht groen-getint papier (geen cream-cliché) */
+  --card:#FBFBF8;          /* iets lichter kaartvlak */
+  --ink:#1C2A24;           /* diep groen-zwart, voor tekst */
+  --ink-soft:#56655D;      /* gedempt */
+  --green:#2C5A4C;         /* merkgroen, het accent */
+  --green-ink:#F7FAF6;
+  --sage:#DDE7E0;          /* zachte disc voor vrije dagen */
+  --sage-deep:#C3D3C8;
+  --line:#D2DBD3;          /* haarlijn */
+  --hair:#C8D2C9;
+  --warn-bg:#F7E6DD; --warn-ink:#8A4B2E;
+  --ok-bg:#E3EFE7; --ok-ink:#2C6A4C;
+  --f-display:"Fraunces",Georgia,"Times New Roman",serif;
+  --f-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.5;min-height:100%;padding-inline:16px}
+body{
+  background:var(--paper);
+  color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.55;
+  padding-inline:18px;-webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--sage-deep)}
+h1,h2,h3{margin:0;font-weight:500}
 button,input,textarea,select{font:inherit;color:inherit}
-h1,h2,h3{margin:0;text-wrap:balance}
-.page{max-width:980px;margin:0 auto;padding-block:32px 64px}
-.brand{font-family:var(--f-display);font-size:20px;font-weight:600;margin-bottom:28px}
-.brand small{font-family:var(--f-ui);font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-left:6px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);overflow:hidden}
-@media (max-width:760px){.card{grid-template-columns:1fr}}
-.info{padding:28px 26px;border-right:1px solid var(--line);display:grid;gap:14px;align-content:start;background:var(--sunk)}
-@media (max-width:760px){.info{border-right:0;border-bottom:1px solid var(--line)}}
-.info h1{font-family:var(--f-display);font-weight:400;font-size:30px;letter-spacing:-.015em;line-height:1.1}
-.info p{margin:0;color:var(--muted)}
-.meta{display:grid;gap:8px;font-size:14px}
-.meta div{display:flex;gap:10px;align-items:flex-start}
-.meta b{font-weight:600;min-width:64px;color:var(--muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding-top:3px}
-.main{padding:28px 26px;min-width:0}
-.step{display:grid;gap:18px}
-.steplabel{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
-.cal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.cal-head h2{font-family:var(--f-display);font-weight:400;font-size:22px;text-transform:capitalize}
-.nav{display:flex;gap:6px}
-.nav button{border:1px solid var(--line);background:var(--surface);width:36px;height:36px;border-radius:50%;cursor:pointer;display:grid;place-items:center}
-.nav button:disabled{opacity:.35;cursor:default}
-.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;text-align:center}
-.grid .wd{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;padding-bottom:4px}
-.day{aspect-ratio:1;border-radius:50%;border:0;background:none;color:var(--muted);cursor:default;display:grid;place-items:center;font-variant-numeric:tabular-nums;position:relative;width:100%;max-width:48px;margin:0 auto}
-.day.free{background:var(--accent-soft);color:var(--accent);font-weight:600;cursor:pointer}
-.day.free:hover{background:var(--accent);color:var(--accent-ink)}
-.day.sel{background:var(--accent);color:var(--accent-ink);font-weight:700}
-.day.today::after{content:"";position:absolute;bottom:5px;width:4px;height:4px;border-radius:50%;background:currentColor}
-.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
-.slot{border:1px solid var(--accent);color:var(--accent);background:var(--surface);border-radius:8px;padding:10px 6px;cursor:pointer;font-weight:600;font-variant-numeric:tabular-nums}
-.slot:hover,.slot.sel{background:var(--accent);color:var(--accent-ink)}
-.empty{color:var(--muted);font-size:14px}
-.fld{display:grid;gap:5px}
-.fld>span{font-size:13px;color:var(--muted);font-weight:500}
-.fld input,.fld textarea,.fld select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px 12px;min-width:0}
-.fld input:focus,.fld textarea:focus,.fld select:focus{outline:none;border-color:var(--accent);background:var(--surface)}
-.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-@media (max-width:600px){.form{grid-template-columns:1fr}}
+
+.wrap{max-width:860px;margin:0 auto;padding-block:40px 72px}
+@media (max-width:560px){.wrap{padding-block:26px 48px}}
+
+/* wordmerk */
+.mark{text-align:center;margin-bottom:30px}
+.mark .logo{font-family:var(--f-display);font-size:21px;letter-spacing:.01em}
+.mark .logo b{font-weight:500}
+.mark .tag{display:block;margin-top:3px;font-size:12.5px;color:var(--ink-soft);letter-spacing:.02em}
+
+/* de uitnodigingskaart met dubbele haarlijn-rand */
+.sheet{
+  background:var(--card);border:1px solid var(--hair);border-radius:4px;
+  box-shadow:0 1px 0 var(--hair), 0 18px 40px -28px rgba(28,42,36,.4);
+  padding:6px;
+}
+.sheet-in{border:1px solid var(--line);border-radius:3px;padding:clamp(22px,4vw,44px)}
+
+/* hero in de kaart */
+.hero{text-align:center;max-width:34rem;margin:0 auto 10px}
+.hero h1{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,6vw,46px);line-height:1.05;letter-spacing:-.01em;overflow-wrap:break-word;hyphens:auto}
+.hero p{margin:14px auto 0;color:var(--ink-soft);max-width:30rem}
+.facts{display:flex;justify-content:center;flex-wrap:wrap;gap:10px 28px;margin:22px 0 4px}
+.fact{display:flex;flex-direction:column;align-items:center;gap:1px}
+.fact .k{font-size:12px;color:var(--ink-soft)}
+.fact .v{font-family:var(--f-display);font-size:16px}
+.rule{border:0;border-top:1px solid var(--line);max-width:70px;margin:26px auto}
+
+/* stap-koppen (echte volgorde, dus genummerd, maar rustig gezet) */
+.stephead{display:flex;align-items:baseline;gap:10px;margin:0 0 16px}
+.stephead .no{font-family:var(--f-display);font-style:italic;font-size:18px;color:var(--green)}
+.stephead h2{font-family:var(--f-display);font-weight:400;font-size:21px}
+
+/* twee kolommen: kalender + tijden */
+.booker{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,16rem);gap:30px;align-items:start}
+@media (max-width:620px){.booker{grid-template-columns:1fr;gap:26px}}
+
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-head h3{font-family:var(--f-display);font-weight:400;font-size:19px;text-transform:capitalize}
+.nav{display:flex;gap:7px}
+.nav button{border:1px solid var(--line);background:var(--card);width:38px;height:38px;border-radius:50%;cursor:pointer;color:var(--ink);font-size:17px;display:grid;place-items:center;line-height:1}
+.nav button:hover:not(:disabled){border-color:var(--green);color:var(--green)}
+.nav button:disabled{opacity:.3;cursor:default}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.grid .wd{text-align:center;font-size:11px;color:var(--ink-soft);padding-bottom:7px;letter-spacing:.03em}
+.day{position:relative;aspect-ratio:1;max-width:46px;width:100%;margin:0 auto;border:0;background:none;border-radius:50%;color:var(--sage-deep);cursor:default;font-variant-numeric:tabular-nums;font-size:15px;display:grid;place-items:center}
+.day.free{background:var(--sage);color:var(--ink);cursor:pointer}
+.day.free:hover{background:var(--sage-deep)}
+.day.sel{background:var(--green);color:var(--green-ink);font-weight:500}
+.day.today::after{content:"";position:absolute;bottom:6px;width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.7}
+.legend{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12.5px;color:var(--ink-soft)}
+.legend i{width:13px;height:13px;border-radius:50%;background:var(--sage);display:inline-block}
+
+/* tijden */
+.slotwrap{min-width:0}
+.slotwrap .lead{font-size:13px;color:var(--ink-soft);margin:0 0 12px}
+.slotwrap .lead b{color:var(--ink);font-weight:600}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(5.4rem,1fr));gap:9px}
+@media (max-width:620px){.slots{grid-template-columns:repeat(auto-fill,minmax(5rem,1fr))}}
+.slot{border:1px solid var(--green);color:var(--green);background:var(--card);border-radius:3px;padding:12px 6px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:15px}
+.slot:hover{background:var(--green);color:var(--green-ink)}
+.slot-empty{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:16px;text-align:center}
+.pick-first{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:20px 16px;text-align:center}
+
+/* gekozen moment + formulier */
+.chosen{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:14px 18px;margin-bottom:26px}
+.chosen .lab{font-size:12px;color:var(--ink-soft)}
+.chosen .when{font-family:var(--f-display);font-size:19px;margin-top:2px}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:560px){.form{grid-template-columns:1fr}}
 .full{grid-column:1/-1}
-.btn{border:1px solid var(--line);background:var(--surface);padding:11px 18px;border-radius:9px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:8px}
-.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.btn.primary:disabled{opacity:.6;cursor:default}
-.btn.ghost{border-color:transparent;color:var(--muted);background:none}
-a.btn{text-decoration:none;color:var(--ink)}
-.chosen{background:var(--accent-soft);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
-.chosen b{font-family:var(--f-display);font-weight:600;font-size:17px}
-.err{color:var(--late);background:var(--late-soft);padding:10px 12px;border-radius:8px;font-size:14px}
-.done{display:grid;gap:16px;max-width:520px}
-.done .big{font-family:var(--f-display);font-weight:400;font-size:30px;line-height:1.15}
-.done .box{background:var(--ok-soft);border-radius:10px;padding:14px 16px;display:grid;gap:4px}
-.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
-.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--accent-soft);vertical-align:-2px;margin-right:5px}
-.foot{text-align:center;color:var(--muted);font-size:12px;margin-top:28px}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-@media (prefers-reduced-motion:no-preference){.day,.slot,.btn{transition:background .12s,color .12s}}
+.fld{display:grid;gap:6px;min-width:0}
+.fld>span{font-size:13.5px;color:var(--ink-soft)}
+.fld input,.fld textarea,.fld select{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:3px;padding:11px 13px;min-width:0}
+.fld input:focus,.fld textarea:focus,.fld select:focus{outline:none;border-color:var(--green);background:var(--card);box-shadow:0 0 0 3px var(--sage)}
+.fld textarea{resize:vertical;min-height:84px;font-family:inherit}
+
+.btn{border:1px solid var(--line);background:var(--card);padding:13px 22px;border-radius:3px;cursor:pointer;font-weight:500;font-size:15px}
+.btn:hover{border-color:var(--green)}
+.btn.primary{background:var(--green);color:var(--green-ink);border-color:var(--green)}
+.btn.primary:hover{background:#244c40}
+.btn.primary:disabled{opacity:.55;cursor:default}
+.btn.ghost{border-color:transparent;background:none;color:var(--ink-soft);padding-inline:8px}
+.btn.ghost:hover{color:var(--green)}
+a.btn{text-decoration:none;color:var(--ink);display:inline-block}
+.submitrow{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:22px}
+.submitrow .note{font-size:13.5px;color:var(--ink-soft)}
+.err{color:var(--warn-ink);background:var(--warn-bg);padding:11px 14px;border-radius:3px;font-size:14.5px;margin-top:4px}
+
+/* bevestiging */
+.done{text-align:center;max-width:32rem;margin:0 auto}
+.done .seal{width:58px;height:58px;border-radius:50%;background:var(--green);color:var(--green-ink);display:grid;place-items:center;margin:0 auto 20px;font-family:var(--f-display);font-size:30px}
+.done h2{font-family:var(--f-display);font-weight:400;font-size:clamp(26px,5vw,36px);line-height:1.1}
+.done .intro{color:var(--ink-soft);margin:14px auto 22px}
+.done .recap{text-align:left;display:inline-grid;gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:18px 22px;margin-bottom:22px}
+.done .recap .row{display:grid;grid-template-columns:5.5rem 1fr;gap:14px;align-items:baseline}
+.done .recap .k{font-size:12.5px;color:var(--ink-soft)}
+.done .recap .v{font-size:15px}
+.done .after{font-size:13.5px;color:var(--ink-soft);margin:0 0 20px}
+
+.foot{text-align:center;color:var(--ink-soft);font-size:12.5px;margin-top:28px}
+.center-msg{text-align:center;color:var(--ink-soft);padding:40px 0}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.day,.slot,.btn,.nav button{transition:background .14s ease,color .14s ease,border-color .14s ease}}
 </style>
 </head>
 <body>
-<div class="page">
-  <div class="brand">justPIXIT<small>afspraak</small></div>
-  <div class="card">
-    <aside class="info" id="info"><h1>Even laden…</h1></aside>
-    <main class="main" id="main"><p class="empty">Beschikbare momenten ophalen…</p></main>
-  </div>
-  <p class="foot">justPIXIT · gepersonaliseerde trouwuitnodigingen en geboortekaartjes</p>
+<div class="wrap">
+  <div class="mark"><div class="logo">just<b>PIXIT</b></div><span class="tag">gepersonaliseerd drukwerk voor jullie mooiste dag</span></div>
+  <div class="sheet"><div class="sheet-in">
+    <div id="hero"></div>
+    <div id="main"><p class="center-msg">Beschikbare momenten ophalen…</p></div>
+  </div></div>
+  <p class="foot">justPIXIT · trouwuitnodigingen en geboortekaartjes</p>
 </div>
 <script>
 const $=s=>document.querySelector(s);
@@ -90,79 +159,91 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const pad=n=>String(n).padStart(2,'0');
 const parseDay=s=>{const [y,m,d]=s.slice(0,10).split('-').map(Number);return new Date(y,m-1,d)};
 const isoDay=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
-const fmtLong=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+const fmtLong=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long'});
+const fmtLongY=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 let cfg=null,byDay={},month=null,selDay=null,selSlot=null,busy=false;
 
 async function init(){
-  let r;try{r=await (await fetch('/api/boeking/slots')).json()}catch(e){$('#main').innerHTML='<p class="err">De agenda kon niet geladen worden. Probeer later opnieuw.</p>';return}
-  cfg=r;
-  if(!r.actief){$('#info').innerHTML='<h1>Online boeken staat even uit</h1><p>Stuur gerust een berichtje via Instagram of mail, dan plannen we samen een moment.</p>';$('#main').innerHTML='';return}
+  let r;try{r=await (await fetch('/api/boeking/slots')).json()}catch(e){$('#main').innerHTML='<p class="err">De agenda kon niet geladen worden. Probeer het later opnieuw.</p>';return}
+  cfg=r;renderHero();
+  if(!r.actief){$('#main').innerHTML='<p class="center-msg">Online boeken staat even uit. Stuur gerust een berichtje via Instagram of mail, dan plannen we samen een moment.</p>';return}
   byDay={};r.dagen.forEach(d=>byDay[d.datum]=d.slots);
   const first=r.dagen[0]?r.dagen[0].datum:isoDay(new Date());
-  month=first.slice(0,7);
-  renderInfo();renderMain();
+  month=first.slice(0,7);selDay=null;selSlot=null;
+  renderMain();
 }
-function renderInfo(){
-  $('#info').innerHTML=`<h1>${esc(cfg.titel)}</h1><p>${esc(cfg.intro)}</p>
-   <div class="meta"><div><b>Duur</b><span>${cfg.duur} minuten</span></div><div><b>Waar</b><span>${esc(cfg.locatie)}</span></div><div><b>Kost</b><span>Gratis en vrijblijvend</span></div></div>`;
+function renderHero(){
+  $('#hero').innerHTML=`<div class="hero"><h1>${esc(cfg.titel||'Kennismaking')}</h1>
+    ${cfg.intro?`<p>${esc(cfg.intro)}</p>`:''}
+    <div class="facts">
+      <div class="fact"><span class="k">Duur</span><span class="v">${cfg.duur} min</span></div>
+      <div class="fact"><span class="k">Waar</span><span class="v">${esc((cfg.locatie||'').split(',')[0]||'In overleg')}</span></div>
+      <div class="fact"><span class="k">Kost</span><span class="v">Gratis</span></div>
+    </div></div><hr class="rule">`;
 }
 function renderMain(){
-  const m=$('#main');
-  if(selSlot){m.innerHTML=renderForm();return}
-  m.innerHTML=`<div class="step"><div><span class="steplabel">1 · Kies een dag</span>${renderCalendar()}</div>
-   <div id="slotbox">${selDay?renderSlots():''}</div></div>`;
+  if(selSlot){$('#main').innerHTML=renderForm();return}
+  $('#main').innerHTML=`<div class="booker">
+    <div><div class="stephead"><span class="no">1</span><h2>Kies een dag</h2></div>${renderCalendar()}</div>
+    <div class="slotwrap" id="slotbox"><div class="stephead"><span class="no">2</span><h2>Kies een uur</h2></div>${selDay?renderSlots():'<p class="pick-first">Kies eerst een dag met een zachte stip.</p>'}</div>
+  </div>`;
 }
 function renderCalendar(){
   const [y,mo]=month.split('-').map(Number);const first=new Date(y,mo-1,1);const start=(first.getDay()+6)%7;const days=new Date(y,mo,0).getDate();
   const today=isoDay(new Date());const months=Object.keys(byDay).map(d=>d.slice(0,7));const minM=months[0]||month,maxM=months[months.length-1]||month;
   let cells='';for(let i=0;i<start;i++)cells+='<span></span>';
   for(let d=1;d<=days;d++){const ds=`${y}-${pad(mo)}-${pad(d)}`;const free=!!byDay[ds];
-    cells+=`<button class="day ${free?'free':''} ${ds===selDay?'sel':''} ${ds===today?'today':''}" ${free?`data-day="${ds}"`:'disabled'} aria-label="${esc(fmtLong(ds))}${free?', '+byDay[ds].length+' momenten vrij':''}">${d}</button>`}
-  return `<div class="cal-head"><h2>${first.toLocaleDateString('nl-BE',{month:'long',year:'numeric'})}</h2><div class="nav"><button data-nav="-1" ${month<=minM?'disabled':''} aria-label="Vorige maand">‹</button><button data-nav="1" ${month>=maxM?'disabled':''} aria-label="Volgende maand">›</button></div></div>
-   <div class="grid" style="margin-top:12px">${['ma','di','wo','do','vr','za','zo'].map(w=>`<span class="wd">${w}</span>`).join('')}${cells}</div>
-   <div class="legend" style="margin-top:10px"><span><i></i>dag met vrije momenten</span></div>`;
+    cells+=`<button class="day ${free?'free':''} ${ds===selDay?'sel':''} ${ds===today?'today':''}" ${free?`data-day="${ds}"`:'disabled'} aria-label="${esc(fmtLongY(ds))}${free?', '+byDay[ds].length+' momenten vrij':', geen momenten'}">${d}</button>`}
+  return `<div class="cal-head"><h3>${first.toLocaleDateString('nl-BE',{month:'long',year:'numeric'})}</h3><div class="nav"><button data-nav="-1" ${month<=minM?'disabled':''} aria-label="Vorige maand">‹</button><button data-nav="1" ${month>=maxM?'disabled':''} aria-label="Volgende maand">›</button></div></div>
+   <div class="grid">${['ma','di','wo','do','vr','za','zo'].map(w=>`<span class="wd">${w}</span>`).join('')}${cells}</div>
+   <div class="legend"><i></i>dagen met een zachte stip zijn vrij</div>`;
 }
 function renderSlots(){
   const slots=byDay[selDay]||[];
-  return `<div><span class="steplabel">2 · Kies een moment op ${esc(fmtLong(selDay))}</span>
-   <div class="slots" style="margin-top:12px">${slots.map(s=>`<button class="slot" data-slot="${s}">${s.slice(11,16)}</button>`).join('')||'<p class="empty">Geen vrije momenten op deze dag.</p>'}</div></div>`;
+  return `<p class="lead">Vrije momenten op <b>${esc(fmtLong(selDay))}</b></p>
+   ${slots.length?`<div class="slots">${slots.map(s=>`<button class="slot" data-slot="${s}">${s.slice(11,16)}</button>`).join('')}</div>`:'<p class="slot-empty">Geen vrije momenten meer op deze dag.</p>'}`;
 }
 function renderForm(){
   const types=cfg.types||[];const vragen=cfg.vragen||[];
-  return `<form id="bform" class="step" novalidate>
-   <div class="chosen"><div><div class="steplabel" style="margin-bottom:2px">Jullie moment</div><b>${esc(fmtLong(selSlot.slice(0,10)))} om ${selSlot.slice(11,16)}</b></div><button type="button" class="btn ghost" id="back">Ander moment</button></div>
-   <span class="steplabel">3 · Jullie gegevens</span>
+  return `<form id="bform" novalidate>
+   <div class="chosen"><div><div class="lab">Jullie moment</div><div class="when">${esc(fmtLong(selSlot.slice(0,10)))} om ${selSlot.slice(11,16)}</div></div><button type="button" class="btn ghost" id="back">Ander moment kiezen</button></div>
+   <div class="stephead"><span class="no">3</span><h2>Jullie gegevens</h2></div>
    <div class="form">
-    <label class="fld full"><span>Naam / namen *</span><input id="f-naam" required maxlength="120" placeholder="bv. Lotte & Bram"></label>
-    <label class="fld"><span>E-mail *</span><input id="f-email" type="email" required maxlength="160"></label>
+    <label class="fld full"><span>Naam of namen</span><input id="f-naam" required maxlength="120" placeholder="bv. Lotte &amp; Bram"></label>
+    <label class="fld"><span>E-mail</span><input id="f-email" type="email" required maxlength="160" placeholder="naam@voorbeeld.be"></label>
     <label class="fld"><span>Telefoon</span><input id="f-tel" type="tel" maxlength="40"></label>
     ${types.length?`<label class="fld"><span>Waarvoor?</span><select id="f-type">${types.map(t=>`<option>${esc(t)}</option>`).join('')}</select></label>`:''}
     <label class="fld"><span>Datum van het feest (als die al vastligt)</span><input id="f-event" type="date"></label>
     ${vragen.map((v,i)=>`<label class="fld full"><span>${esc(v)}</span><input data-vraag="${esc(v)}" id="f-v${i}" maxlength="500"></label>`).join('')}
-    <label class="fld full"><span>Vertel al iets over jullie plannen (optioneel)</span><textarea id="f-bericht" rows="3" maxlength="2000"></textarea></label>
+    <label class="fld full"><span>Vertel al iets over jullie plannen (optioneel)</span><textarea id="f-bericht" maxlength="2000" placeholder="Stijl, aantal gasten, inspiratie…"></textarea></label>
    </div>
    <div id="ferr"></div>
-   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="submit" id="submit">Bevestig afspraak</button><span class="empty">Je krijgt meteen een bevestiging.</span></div>
+   <div class="submitrow"><button class="btn primary" type="submit" id="submit">Bevestig onze afspraak</button><span class="note">Je krijgt meteen een bevestiging.</span></div>
   </form>`;
 }
 function icsLink(slot){
   const start=parseDay(slot);const [h,mi]=slot.slice(11,16).split(':').map(Number);start.setHours(h,mi,0,0);const end=new Date(start.getTime()+cfg.duur*60000);
   const f=d=>d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00';
-  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//justPIXIT//Studio//NL','BEGIN:VEVENT',`UID:${Date.now()}@justpixit`,`DTSTAMP:${f(new Date())}`,`DTSTART;TZID=Europe/Brussels:${f(start)}`,`DTEND;TZID=Europe/Brussels:${f(end)}`,`SUMMARY:${cfg.titel} · justPIXIT`,`LOCATION:${cfg.locatie.replace(/,/g,'\\,')}`,'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//justPIXIT//Studio//NL','BEGIN:VEVENT',`UID:${Date.now()}@justpixit`,`DTSTAMP:${f(new Date())}`,`DTSTART;TZID=Europe/Brussels:${f(start)}`,`DTEND;TZID=Europe/Brussels:${f(end)}`,`SUMMARY:${cfg.titel} - justPIXIT`,`LOCATION:${(cfg.locatie||'').replace(/,/g,'\\,')}`,'END:VEVENT','END:VCALENDAR'].join('\r\n');
   return 'data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);
 }
-function renderDone(r){
-  $('#main').innerHTML=`<div class="done"><span class="steplabel">Afspraak bevestigd</span><div class="big">Tot ${esc(fmtLong(r.slot.slice(0,10)))} om ${r.slot.slice(11,16)}!</div>
-   <p style="margin:0">${esc(r.bevestiging)}</p>
-   <div class="box"><span><b>Wanneer</b> · ${esc(fmtLong(r.slot.slice(0,10)))}, ${r.slot.slice(11,16)} – ${eindUur(r.slot,r.duur)} (${r.duur} min)</span><span><b>Waar</b> · ${esc(r.locatie)}</span></div>
-   <p class="empty" style="margin:0">${r.mail?'Er is een bevestiging naar je mailbox onderweg.':'Noteer dit moment gerust in je agenda.'}</p>
-   <div><a class="btn" href="${icsLink(r.slot)}" download="afspraak-justpixit.ics">Zet in mijn agenda</a></div></div>`;
-}
 const eindUur=(slot,duur)=>{const [h,m]=slot.slice(11,16).split(':').map(Number);const t=h*60+m+duur;return pad(Math.floor(t/60)%24)+':'+pad(t%60)};
+function renderDone(r){
+  $('#hero').innerHTML='';
+  $('#main').innerHTML=`<div class="done"><div class="seal" aria-hidden="true">✓</div>
+   <h2>Tot ${esc(fmtLong(r.slot.slice(0,10)))}!</h2>
+   <p class="intro">${esc(r.bevestiging)}</p>
+   <div class="recap">
+     <div class="row"><span class="k">Wanneer</span><span class="v">${esc(fmtLongY(r.slot.slice(0,10)))}<br>${r.slot.slice(11,16)} – ${eindUur(r.slot,r.duur)} (${r.duur} min)</span></div>
+     <div class="row"><span class="k">Waar</span><span class="v">${esc(r.locatie)}</span></div>
+   </div>
+   <p class="after">${r.mail?'Er is een bevestiging naar je mailbox onderweg.':'Noteer dit moment gerust in je agenda.'}</p>
+   <a class="btn primary" href="${icsLink(r.slot)}" download="afspraak-justpixit.ics">Zet in mijn agenda</a></div>`;
+}
 
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-day],[data-nav],[data-slot],#back');if(!t)return;
-  if(t.dataset.day){selDay=t.dataset.day;renderMain();const sb=$('#slotbox');if(sb&&window.innerWidth<760)sb.scrollIntoView({behavior:'smooth',block:'start'});return}
+  if(t.dataset.day){selDay=t.dataset.day;renderMain();if(window.innerWidth<=620){const sb=$('#slotbox');if(sb)sb.scrollIntoView({behavior:'smooth',block:'start'})}return}
   if(t.dataset.nav){const [y,m]=month.split('-').map(Number);const d=new Date(y,m-1+Number(t.dataset.nav),1);month=d.getFullYear()+'-'+pad(d.getMonth()+1);renderMain();return}
   if(t.dataset.slot){selSlot=t.dataset.slot;renderMain();window.scrollTo({top:0,behavior:'smooth'});return}
   if(t.id==='back'){selSlot=null;renderMain();return}
@@ -170,7 +251,7 @@ document.addEventListener('click',e=>{
 document.addEventListener('submit',async e=>{
   if(e.target.id!=='bform')return;e.preventDefault();if(busy)return;
   const naam=$('#f-naam').value.trim(),email=$('#f-email').value.trim();const err=$('#ferr');err.innerHTML='';
-  if(naam.length<2){err.innerHTML='<p class="err">Vul je naam in.</p>';$('#f-naam').focus();return}
+  if(naam.length<2){err.innerHTML='<p class="err">Vul jullie naam in.</p>';$('#f-naam').focus();return}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){err.innerHTML='<p class="err">Vul een geldig e-mailadres in.</p>';$('#f-email').focus();return}
   const antwoorden={};document.querySelectorAll('[data-vraag]').forEach(i=>{if(i.value.trim())antwoorden[i.dataset.vraag]=i.value.trim()});
   const body={naam,email,telefoon:$('#f-tel').value.trim(),type:$('#f-type')?$('#f-type').value:'',datumEvent:$('#f-event').value,bericht:$('#f-bericht').value.trim(),slot:selSlot,antwoorden};
@@ -178,8 +259,8 @@ document.addEventListener('submit',async e=>{
   try{const r=await fetch('/api/boeking',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();
     if(!r.ok){err.innerHTML=`<p class="err">${esc(j.error||'Er liep iets mis.')}</p>`;if(r.status===409){selSlot=null;await init()}return}
     renderDone(j);window.scrollTo({top:0,behavior:'smooth'});
-  }catch(e2){err.innerHTML='<p class="err">Geen verbinding. Probeer opnieuw.</p>'}
-  finally{busy=false;const b=$('#submit');if(b){b.disabled=false;b.textContent='Bevestig afspraak'}}
+  }catch(e2){err.innerHTML='<p class="err">Geen verbinding. Probeer het opnieuw.</p>'}
+  finally{busy=false;const b=$('#submit');if(b){b.disabled=false;b.textContent='Bevestig onze afspraak'}}
 });
 init();
 </script>
