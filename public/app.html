@@ -1196,11 +1196,9 @@ setThemeBtn();
 /* ---------- koppelingen (aparte pagina) ---------- */
 let koppelOpen=false, koppelData=null;
 const KOPPEL_UI=[
-  {g:'mail',titel:'E-mail',sub:'Verstuurt de bevestigingsmails bij een online boeking. Kies Resend (aanbevolen) of SMTP.',velden:[
-    {f:'resendApiKey',l:'Resend API-sleutel',ph:'re_…'},{f:'resendFrom',l:'Afzender (Resend)',ph:'justPIXIT <info@justpixit.be>'},
-    {f:'smtpHost',l:'SMTP-server',ph:'smtp.hostinger.com'},{f:'smtpPort',l:'SMTP-poort',ph:'465'},
-    {f:'smtpUser',l:'SMTP-gebruiker',ph:'info@justpixit.be'},{f:'smtpPass',l:'SMTP-wachtwoord',ph:''},
-    {f:'smtpFrom',l:'Afzender (SMTP)',ph:'justPIXIT <info@justpixit.be>'},{f:'adminEmail',l:'Meldingen naar',ph:'info@justpixit.be'},
+  {g:'mail',titel:'E-mail (Resend)',sub:'Verstuurt de bevestigingsmails bij een online boeking via Resend. Maak een API-sleutel op resend.com en verifieer je afzender of domein.',velden:[
+    {f:'resendApiKey',l:'Resend API-sleutel',ph:'re_…'},{f:'resendFrom',l:'Afzender',ph:'justPIXIT <info@justpixit.be>'},
+    {f:'adminEmail',l:'Meldingen naar',ph:'info@justpixit.be'},
   ]},
   {g:'whatsapp',titel:'WhatsApp (Twilio)',sub:'Stuur klanten een WhatsApp vanaf hun klantpagina. WhatsApp vereist een goedgekeurde afzender en templates.',velden:[
     {f:'twilioSid',l:'Account SID',ph:'AC…'},{f:'twilioToken',l:'Auth token',ph:''},{f:'twilioFrom',l:'WhatsApp-afzender',ph:'+32470000000'},
