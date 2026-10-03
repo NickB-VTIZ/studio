@@ -946,16 +946,20 @@ function ofCard(o){
   <label class="fld"><span>Notitie bij deze offerte</span><textarea id="of-${o.id}-notitie" data-of="${o.id}" data-ok="notitie" rows="2">${esc(o.notitie)}</textarea></label>
   <div class="files"><div class="label">Bestanden</div>${(o.bestanden||[]).map(f=>fileHtml(o,f)).join('')}
    ${assets?`<label class="drop" data-ofdrop="${o.id}">Sleep je offerte (PDF of afbeelding) hierheen of <u>kies een bestand</u><input type="file" id="of-${o.id}-file" data-ofupload="${o.id}" accept="application/pdf,image/png,image/jpeg,image/webp" multiple hidden></label>`:'<p class="hint" style="margin:0">Bestanden opladen kan enkel als je de pagina opent als eigenaar in Claude.</p>'}</div>
-  ${o.factuur?`<div class="dlrow ok" style="margin:0"><b>Factuur aangemaakt${o.factuur.nummer?' · '+esc(o.factuur.nummer):''}</b>${o.factuur.uri?`<span><a href="${esc(o.factuur.uri)}" target="_blank" rel="noopener">Bekijk in EenvoudigFactureren</a></span>`:''}</div>`:''}
-  <div class="ofactions">${serverInfo.facturen?`<button class="btn small" data-factuur="${o.id}">${o.factuur?'Opnieuw factureren':'Maak factuur'}</button>`:''}<button class="btn small" data-ofcopy="${o.id}">Kopieer als tekst</button><button class="btn small" data-ofdup="${o.id}">Dupliceer als nieuwe optie</button><span class="spacer"></span>
+  ${o.factuur?`<div class="dlrow ok" style="margin:0"><b>E-factuur gemaakt${o.factuur.nummer?' · '+esc(o.factuur.nummer):''}</b><span>UBL gedownload${o.factuur.op?' op '+fmt(o.factuur.op):''}. Lees ze in sbbSLIM in of verstuur via Peppol.</span></div>`:''}
+  <div class="ofactions">${serverInfo.facturen?`<button class="btn small" data-factuur="${o.id}">${o.factuur?'E-factuur opnieuw downloaden':'Download e-factuur (UBL)'}</button>`:`<button class="btn small" data-v="koppelingen" title="Vul eerst je facturatiegegevens in">E-factuur instellen</button>`}<button class="btn small" data-ofcopy="${o.id}">Kopieer als tekst</button><button class="btn small" data-ofdup="${o.id}">Dupliceer als nieuwe optie</button><span class="spacer"></span>
    ${ofConfirm==='of:'+o.id?`<span class="confirm">Deze offerte verwijderen? <button class="btn small danger" data-ofdelyes="${o.id}">Ja, verwijder</button><button class="btn small ghost" data-ofcancel="1">Nee</button></span>`:`<button class="btn small ghost danger" data-ofdel="${o.id}">Verwijder offerte</button>`}</div>
   </section>`}
-async function maakFactuur(ofId){
+async function downloadUBL(ofId){
   const btn=document.querySelector(`[data-factuur="${ofId}"]`);if(btn){btn.disabled=true;btn.textContent='Bezig…'}
   flushSave();await new Promise(r=>setTimeout(r,300));
-  try{const r=await fetch('/api/klant/'+work.id+'/factuur',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({offerteId:ofId}),credentials:'same-origin'}).then(x=>x.json());
-    if(r.error){toast(r.error)}else{toast('Factuur aangemaakt'+(r.nummer?' · '+r.nummer:''));const o=findOf(ofId);if(o)o.factuur={nummer:r.nummer,uri:r.uri,op:today()};ofMounted=false;renderOffertes();renderSide()}}
-  catch(e){toast('Factuur maken mislukt')}
+  try{const r=await fetch('/api/klant/'+work.id+'/factuur-ubl',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({offerteId:ofId}),credentials:'same-origin'}).then(x=>x.json());
+    if(r.error){toast(r.error)}
+    else{
+      const blob=new Blob([r.xml],{type:'application/xml'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=r.filename||'factuur.xml';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+      toast('E-factuur '+r.nummer+' gedownload');const o=findOf(ofId);if(o)o.factuur={nummer:r.nummer,op:today(),ubl:true};ofMounted=false;renderOffertes();renderSide();
+    }}
+  catch(e){toast('E-factuur maken mislukt')}
   finally{if(btn&&btn.isConnected){btn.disabled=false}}
 }
 function renderOffertes(){
@@ -999,7 +1003,7 @@ document.addEventListener('click',e=>{
   if(D.ofcancel){ofConfirm=null;renderOffertes();return}
   if(D.ofdelyes){const o=findOf(D.ofdelyes);if(assets)(o.bestanden||[]).forEach(f=>assets.delete(f.id).catch(()=>{}));work.offertes=work.offertes.filter(x=>x.id!==D.ofdelyes);ofConfirm=null;ofChanged(true);toast('Offerte verwijderd');return}
   if(D.ofdup){const o=clone(findOf(D.ofdup));o.id=Math.random().toString(36).slice(2,9);o.titel=(o.titel||'Offerte')+' (kopie)';o.status='Concept';o.datum='';o.bestanden=[];work.offertes.push(o);ofChanged(true);toast('Gedupliceerd');return}
-  if(D.factuur){return maakFactuur(D.factuur)}
+  if(D.factuur){return downloadUBL(D.factuur)}
   if(D.ofcopy){const o=findOf(D.ofcopy),tt=ofTotals(o);const lines=(o.regels||[]).filter(r=>r.oms||num(r.prijs)).map(r=>`- ${r.oms}: ${num(r.aantal)} × ${euro(num(r.prijs))} = ${euro(num(r.aantal)*num(r.prijs))}`);
     copy(`${o.titel}\n${lines.join('\n')}\n\nSubtotaal excl. btw: ${euro(tt.sub)}${tt.kort?`\nKorting: − ${euro(tt.kort)}`:''}\nBtw ${num(o.btw)}%: ${euro(tt.btw)}\nTotaal incl. btw: ${euro(tt.tot)}`);return}
   if(D.ofphase){const o=findOf(D.of);zetFase(D.ofphase,D.ofphase==='offerte'&&o&&o.datum?o.datum:undefined);return}
@@ -1201,9 +1205,6 @@ const KOPPEL_UI=[
   {g:'whatsapp',titel:'WhatsApp (Twilio)',sub:'Stuur klanten een WhatsApp vanaf hun klantpagina. WhatsApp vereist een goedgekeurde afzender en templates.',velden:[
     {f:'twilioSid',l:'Account SID',ph:'AC…'},{f:'twilioToken',l:'Auth token',ph:''},{f:'twilioFrom',l:'WhatsApp-afzender',ph:'+32470000000'},
   ]},
-  {g:'facturen',titel:'Facturen (EenvoudigFactureren)',sub:'Maak vanuit een offerte een factuur aan in EenvoudigFactureren.',velden:[
-    {f:'efApiKey',l:'API-sleutel',ph:''},{f:'efAccount',l:'Account-ID (enkel bij meerdere)',ph:'C…'},
-  ]},
 ];
 function vKoppelingen(){
   return `<div class="vhead"><div><h1>Externe koppelingen</h1><p>Vul hier je sleutels in en zie de status. Ze worden veilig op je server bewaard en nooit volledig getoond.</p></div></div>
@@ -1230,6 +1231,37 @@ async function laadKoppelingen(){
        <span class="hint" id="kmsg-${sec.g}"></span></div>
      </div></section>`;
   }).join('');
+  await laadFacturatie();
+}
+const FACT_VELDEN=[
+  {f:'bedrijfsnaam',l:'Bedrijfsnaam',ph:'justPIXIT'},{f:'btw',l:'BTW-nummer',ph:'BE0123456789'},
+  {f:'straat',l:'Straat en nummer',ph:'Dorpsstraat 1'},{f:'postcode',l:'Postcode',ph:'3500'},
+  {f:'stad',l:'Gemeente',ph:'Hasselt'},{f:'land',l:'Landcode',ph:'BE'},
+  {f:'iban',l:'IBAN',ph:'BE68 5390 0754 7034'},{f:'email',l:'E-mail',ph:'info@justpixit.be'},
+  {f:'prefix',l:'Factuurnummer-prefix',ph:(new Date().getFullYear()+'-')},{f:'volgnummer',l:'Volgend nummer',ph:'1'},
+  {f:'betaaltermijn',l:'Betaaltermijn (dagen)',ph:'30'},
+];
+async function laadFacturatie(){
+  const box=$('#koppelBox');if(!box)return;
+  let d={verkoper:{},klaar:false};try{d=await (await fetch('/api/facturatie',{credentials:'same-origin'})).json()}catch(e){}
+  const v=d.verkoper||{};
+  const badge=d.klaar?'<span class="stt done">Actief</span>':'<span class="stt plan">Niet ingesteld</span>';
+  const velden=FACT_VELDEN.map(f=>`<label class="fld"><span>${esc(f.l)}</span><input data-fact="${f.f}" value="${esc(v[f.f]??'')}" placeholder="${esc(f.ph)}" autocomplete="off"></label>`).join('');
+  const html=`<section><h2>E-facturen (UBL) — voor sbbSLIM ${badge}</h2>
+    <p>sbbSLIM heeft geen koppeling om facturen binnen te halen via een sleutel. Wel kan je per offerte een <b>e-factuur (UBL)</b> downloaden en die in sbbSLIM inlezen of via Peppol versturen. Vul hiervoor je facturatiegegevens in.</p>
+    <div class="sec" style="display:grid;gap:14px"><div class="grid2">${velden}</div>
+     <p class="hint" style="margin:0">Het volgnummer loopt vanzelf op per gemaakte factuur. Kijk na dat je reeks niet botst met de nummers die je in sbbSLIM gebruikt.</p>
+     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="btn primary small" id="factSave">Bewaar</button><button class="btn small" data-ktest="facturen">Test</button><span class="hint" id="kmsg-facturen"></span><span class="hint" id="factmsg"></span></div>
+    </div></section>`;
+  box.insertAdjacentHTML('beforeend',html);
+}
+async function bewaarFacturatie(){
+  const msg=$('#factmsg');const data={};document.querySelectorAll('[data-fact]').forEach(i=>data[i.dataset.fact]=i.value);
+  if(msg){msg.style.color='';msg.textContent='Bewaren…'}
+  try{const r=await fetch('/api/facturatie',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),credentials:'same-origin'}).then(x=>x.json());
+    if(r.error){if(msg){msg.style.color='var(--late)';msg.textContent=r.error}return}
+    toast('Bewaard');koppelOpen=false;await refreshServerInfo();render();
+  }catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Bewaren mislukt'}}
 }
 async function bewaarKoppeling(g){
   const msg=$('#kmsg-'+g);const sec=KOPPEL_UI.find(x=>x.g===g);
@@ -1253,7 +1285,8 @@ async function wisKoppeling(g){
   catch(e){if(msg)msg.textContent='Wissen mislukt'}
 }
 async function refreshServerInfo(){try{serverInfo=await (await fetch('/api/me',{credentials:'same-origin'})).json();setVersieBadge()}catch(e){}}
-document.addEventListener('click',e=>{const t=e.target.closest('[data-ksave],[data-ktest],[data-kwis]');if(!t)return;
+document.addEventListener('click',e=>{const t=e.target.closest('[data-ksave],[data-ktest],[data-kwis],#factSave');if(!t)return;
+  if(t.id==='factSave')return bewaarFacturatie();
   if(t.dataset.ksave)return bewaarKoppeling(t.dataset.ksave);
   if(t.dataset.ktest)return testKoppeling(t.dataset.ktest);
   if(t.dataset.kwis)return wisKoppeling(t.dataset.kwis);

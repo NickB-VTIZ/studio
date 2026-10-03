@@ -113,12 +113,7 @@ TWILIO_WHATSAPP_FROM=+32470000000
 ```
 Op een klantpagina verschijnt dan een WhatsApp-venster waarmee je de klant een bericht stuurt (het nummer wordt automatisch naar +32-formaat gezet). Let op: WhatsApp staat een bedrijf enkel toe om ongevraagd te berichten met een vooraf goedgekeurde template, of binnen 24 uur nadat de klant zelf iets stuurde. Een vrij bericht buiten dat venster wordt door WhatsApp geweigerd — dat is een regel van WhatsApp, niet van de app.
 
-**Facturen via EenvoudigFactureren.** Maak een API-sleutel via *Toegangsbeheer* in EenvoudigFactureren en zet:
-```
-EF_API_KEY=xxxx
-EF_ACCOUNT_ID=Cxxxx      # enkel bij meerdere accounts
-```
-Op een offerte verschijnt dan de knop **Maak factuur**. De app maakt de klant aan in EenvoudigFactureren (als die er nog niet is) en zet de offerteregels om in een factuur. De link naar de factuur verschijnt bij de offerte.
+**E-facturen (UBL) voor sbbSLIM.** sbbSLIM (de facturatietool van SBB) heeft geen open API om facturen in te pushen. De ondersteunde en toekomstvaste weg — en vanaf 1 januari 2026 verplicht — is e-facturatie via **UBL/Peppol**. De app maakt daarom per offerte een **UBL-bestand** dat je in sbbSLIM inleest of via Peppol verstuurt. Vul je facturatiegegevens in bij **Koppelingen → E-facturen (UBL)** (bedrijfsnaam, BTW-nummer, adres, IBAN, nummerreeks). Op een offerte verschijnt dan de knop **Download e-factuur (UBL)**. Het factuurnummer loopt vanzelf op; stem je reeks af op wat je in sbbSLIM gebruikt.
 
 ## 6. Lokaal testen
 

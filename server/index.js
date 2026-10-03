@@ -13,13 +13,12 @@ const { Store } = require('./store');
 const { sendMail, smtpConfig } = require('./smtp');
 const { resendConfig, sendViaResend, testResend } = require('./resend');
 const { twilioConfig, sendWhatsApp, testTwilio } = require('./twilio');
-const { efConfig, maakFactuur, testEF } = require('./invoicing');
+const { maakUBL } = require('./ubl');
 
 // Instellingen van koppelingen: eerst uit .env (admin-override), anders uit de database (ingevuld via de pagina Koppelingen).
 const KOPPEL_VELDEN = {
   mail: { resendApiKey:'RESEND_API_KEY', resendFrom:'RESEND_FROM', smtpHost:'SMTP_HOST', smtpPort:'SMTP_PORT', smtpUser:'SMTP_USER', smtpPass:'SMTP_PASS', smtpFrom:'SMTP_FROM', adminEmail:'ADMIN_EMAIL' },
   whatsapp: { twilioSid:'TWILIO_ACCOUNT_SID', twilioToken:'TWILIO_AUTH_TOKEN', twilioFrom:'TWILIO_WHATSAPP_FROM' },
-  facturen: { efApiKey:'EF_API_KEY', efAccount:'EF_ACCOUNT_ID' },
 };
 const ENVMAP = Object.assign({}, KOPPEL_VELDEN.mail, KOPPEL_VELDEN.whatsapp, KOPPEL_VELDEN.facturen);
 const GEHEIM = new Set(['resendApiKey','smtpPass','twilioToken','efApiKey']);
@@ -27,6 +26,10 @@ function koppelDoc() { return store.get('instellingen', 'koppelingen') || {}; }
 function viaEnv(field) { const v = process.env[ENVMAP[field]]; return v !== undefined && v !== ''; }
 function kv(field) { if (viaEnv(field)) return process.env[ENVMAP[field]]; const d = koppelDoc(); return d[field] || ''; }
 function effEnv() { const o = {}; for (const f in ENVMAP) o[ENVMAP[f]] = kv(f); return o; }
+const vandaagBE = () => nuBrussel().slice(0, 10);
+function plusDagen(ymd, n) { const d = new Date(ymd + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + (Number(n) || 0)); return d.toISOString().slice(0, 10); }
+function verkoperDoc() { return store.get('instellingen', 'facturatie') || {}; }
+function verkoperKlaar() { const v = verkoperDoc(); return !!(v.btw && v.bedrijfsnaam); }
 
 const mailActief = () => !!(resendConfig(effEnv()) || smtpConfig(effEnv()));
 function verstuurMail(opts) {
@@ -204,7 +207,7 @@ async function api(req, res, url) {
   // --- vanaf hier: login vereist ---
   if (!authed(req)) return json(res, 401, { error: 'Niet aangemeld' });
 
-  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: !!efConfig(effEnv()), versie: VERSION.version });
+  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), versie: VERSION.version });
   if (p === '/api/version' && m === 'GET') {
     const latest = await nieuwsteVersie();
     return json(res, 200, { running: VERSION, latest, repo: REPO, updateBeschikbaar: latest ? cmpVersie(latest, VERSION.version) > 0 : false, updateEnabled: UPDATE_ENABLED });
@@ -225,29 +228,43 @@ async function api(req, res, url) {
     if (!tekst) return json(res, 400, { error: 'Leeg bericht' });
     try {
       const r = await sendWhatsApp({ to: klant.telefoon, body: tekst }, twilioConfig(effEnv()));
-      const t = today();
+      const t = vandaagBE();
       klant.logboek = (klant.logboek || []).concat([{ d: t, t: 'WhatsApp verstuurd: ' + tekst.slice(0, 200), s: 'telefoon', ts: new Date().toISOString() }]);
       store.set('klanten', klant.id, klant);
       return json(res, 200, { ok: true, status: r.status });
     } catch (e) { return json(res, 502, { error: 'Versturen mislukt: ' + e.message }); }
   }
-  const facMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/factuur$/);
+  const facMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/factuur-ubl$/);
   if (facMatch && m === 'POST') {
-    if (!efConfig(effEnv())) return json(res, 400, { error: 'De facturatiekoppeling is niet ingesteld. Vul je EenvoudigFactureren-sleutel in bij Koppelingen.' });
+    const v = verkoperDoc();
+    if (!verkoperKlaar()) return json(res, 400, { error: 'Vul eerst je facturatiegegevens in (minstens bedrijfsnaam en BTW-nummer) bij Koppelingen.' });
     const klant = store.get('klanten', facMatch[1]);
     if (!klant) return json(res, 404, { error: 'Klant niet gevonden' });
     const b = await readJson(req, 10e3).catch(() => ({}));
     const offerte = (klant.offertes || []).find(o => o.id === String(b.offerteId || ''));
     if (!offerte) return json(res, 400, { error: 'Offerte niet gevonden' });
     try {
-      const r = await maakFactuur(klant, offerte, efConfig(effEnv()));
-      klant.id = facMatch[1];
-      if (r.clientNieuw && r.clientId) klant.efClientId = r.clientId;
-      offerte.factuur = { nummer: r.number, uri: r.uri, invoiceId: r.invoiceId, op: today() };
-      klant.logboek = (klant.logboek || []).concat([{ d: today(), t: 'Factuur aangemaakt in EenvoudigFactureren' + (r.number ? ' (' + r.number + ')' : ''), s: 'notitie', ts: new Date().toISOString() }]);
-      const { id, ...rest } = klant; store.set('klanten', facMatch[1], rest);
-      return json(res, 200, { ok: true, nummer: r.number, uri: r.uri });
-    } catch (e) { return json(res, 502, { error: 'Factuur maken mislukt: ' + e.message }); }
+      const prefix = v.prefix || (new Date().getFullYear() + '-');
+      const n = Number(v.volgnummer) || 1;
+      const nummer = prefix + String(n).padStart(3, '0');
+      const datum = vandaagBE();
+      const verval = plusDagen(datum, Number(v.betaaltermijn) || 30);
+      const verkoper = { naam: v.bedrijfsnaam, straat: v.straat, postcode: v.postcode, stad: v.stad, land: v.land || 'BE', btw: v.btw, iban: v.iban, email: v.email };
+      const xml = maakUBL(verkoper, klant, offerte, nummer, { datum, vervaldatum: verval });
+      v.volgnummer = n + 1; store.set('instellingen', 'facturatie', v);
+      offerte.factuur = { nummer, op: datum, ubl: true };
+      klant.id = facMatch[1]; const { id, ...rest } = klant; store.set('klanten', facMatch[1], rest);
+      return json(res, 200, { ok: true, nummer, filename: ('factuur-' + nummer + '.xml').replace(/[^A-Za-z0-9.\-]/g, '_'), xml });
+    } catch (e) { return json(res, 500, { error: 'E-factuur maken mislukt: ' + e.message }); }
+  }
+  if (p === '/api/facturatie' && m === 'GET') return json(res, 200, { verkoper: verkoperDoc(), klaar: verkoperKlaar() });
+  if (p === '/api/facturatie' && m === 'POST') {
+    const b = await readJson(req, 20e3).catch(() => ({}));
+    const v = verkoperDoc();
+    for (const f of ['bedrijfsnaam', 'straat', 'postcode', 'stad', 'land', 'btw', 'iban', 'email', 'prefix', 'betaaltermijn']) if (f in b) v[f] = String(b[f] ?? '').trim();
+    if ('volgnummer' in b) { const nn = parseInt(b.volgnummer, 10); if (Number.isFinite(nn) && nn > 0) v.volgnummer = nn; }
+    store.set('instellingen', 'facturatie', v);
+    return json(res, 200, { ok: true });
   }
   if (p === '/api/koppelingen' && m === 'GET') {
     const velden = {};
@@ -255,7 +272,7 @@ async function api(req, res, url) {
       const env = viaEnv(f); const waarde = kv(f); const geheim = GEHEIM.has(f);
       velden[f] = { viaEnv: env, secret: geheim, set: !!waarde, value: geheim ? '' : waarde, hint: geheim && waarde ? '••••••' + waarde.slice(-4) : '' };
     }
-    const groepActief = { mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: !!efConfig(effEnv()) };
+    const groepActief = { mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar() };
     return json(res, 200, { velden, groepen: groepActief });
   }
   if (p === '/api/koppelingen' && m === 'POST') {
@@ -281,13 +298,13 @@ async function api(req, res, url) {
         return json(res, 400, { error: 'Nog geen e-mail ingesteld.' });
       }
       if (b.groep === 'whatsapp') { await testTwilio(twilioConfig(effEnv())); return json(res, 200, { ok: true, detail: 'Twilio-verbinding werkt.' }); }
-      if (b.groep === 'facturen') { await testEF(efConfig(effEnv())); return json(res, 200, { ok: true, detail: 'Verbinding met EenvoudigFactureren werkt.' }); }
+      if (b.groep === 'facturen') { return verkoperKlaar() ? json(res, 200, { ok: true, detail: 'Facturatiegegevens zijn ingevuld. Je kan e-facturen (UBL) maken.' }) : json(res, 400, { error: 'Vul minstens bedrijfsnaam en BTW-nummer in.' }); }
       return json(res, 400, { error: 'Onbekende koppeling' });
     } catch (e) { return json(res, 502, { error: e.message }); }
   }
   if (p === '/api/data' && m === 'GET') {
     const klanten = {}; for (const k of store.list('klanten')) { const { id, ...rest } = k; klanten[id] = rest; }
-    const instellingen = {}; for (const i of store.list('instellingen')) { const { id, ...rest } = i; instellingen[id] = rest; }
+    const instellingen = {}; for (const i of store.list('instellingen')) { if (i.id === 'koppelingen') continue; const { id, ...rest } = i; instellingen[id] = rest; }
     return json(res, 200, { klanten, instellingen });
   }
   const docMatch = p.match(/^\/api\/doc\/(klanten|instellingen)\/([A-Za-z0-9_\-.~:@+]{1,200})$/);
