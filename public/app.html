@@ -1304,13 +1304,13 @@ async function laadMS(){
   if(!d){return}
   const badge=d.verbonden?`<span class="stt done">Verbonden${d.account?' · '+esc(d.account):''}</span>`:'<span class="stt plan">Niet verbonden</span>';
   const html=`<section><h2>Agenda — Office 365 (direct) ${badge}</h2>
-    <p>Directe koppeling: nieuwe afspraken komen meteen in je Outlook-agenda. Dit vraagt eenmalig een app-registratie in Microsoft Entra (Azure). Zet daar de <b>Redirect URI</b> hieronder, en plak Client-ID en Client-secret. Zie de README voor de stappen.</p>
+    <p>Directe koppeling: nieuwe afspraken komen meteen in je Outlook-agenda. Dit vraagt eenmalig een app-registratie in Microsoft Entra (Azure). Zet daar de <b>Redirect URI</b> hieronder, en plak Client-ID, Client-secret en je <b>Tenant-ID</b> (de Directory-ID uit Azure — niet "common", tenzij je de app als multi-tenant registreerde). Zie de README voor de stappen.</p>
     <div class="sec" style="display:grid;gap:14px">
      <label class="fld"><span>Redirect URI (zet deze in Azure)</span><input readonly value="${esc(d.redirect)}" style="font-family:monospace;font-size:12.5px" onclick="this.select()"></label>
      <div class="grid2">
       <label class="fld"><span>Client-ID</span><input data-ms="clientId" value="${esc(d.clientIdSet&&!d.verbonden?'':'')}" placeholder="${d.clientIdSet?'ingesteld — laat leeg om te behouden':'00000000-0000-0000-0000-000000000000'}" autocomplete="off"></label>
       <label class="fld"><span>Client-secret</span><input type="password" data-ms="clientSecret" placeholder="${d.secretSet?'ingesteld — laat leeg om te behouden':''}" autocomplete="off"></label>
-      <label class="fld"><span>Tenant</span><input data-ms="tenant" value="${esc(d.tenant||'common')}" placeholder="common"></label>
+      <label class="fld"><span>Tenant-ID (Directory ID uit Azure)</span><input data-ms="tenant" value="${esc(d.tenant||'common')}" placeholder="bv. 00000000-0000-0000-0000-000000000000"></label>
      </div>
      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <button class="btn primary small" id="msSave">Bewaar</button>

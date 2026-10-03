@@ -134,7 +134,9 @@ Naast de ICS-feed is er een **directe** koppeling: nieuwe afspraken komen meteen
 3. Na het aanmaken: noteer de **Application (client) ID**.
 4. **Certificates & secrets → New client secret** → kopieer de **waarde** (niet de id).
 5. **API permissions → Add a permission → Microsoft Graph → Delegated → Calendars.ReadWrite** (en `offline_access`). "Grant admin consent" is niet nodig voor je eigen account.
-6. In de app, Koppelingen → Agenda Office 365: plak Client-ID en Client-secret (tenant mag `common` blijven), klik **Bewaar**, dan **Verbind met Office 365** en log in met je Microsoft-account.
+6. Op de **Overview**-pagina van de app-registratie vind je de **Directory (tenant) ID**. In de app (Koppelingen → Agenda Office 365) plak je Client-ID, Client-secret en die **Tenant-ID**, klik je **Bewaar**, dan **Verbind met Office 365** en log je in.
+
+> Laat je bij "Supported account types" de standaard **single tenant** staan, vul dan je Tenant-ID in (niet `common`). Fout AADSTS50194 betekent net dat: single-tenant app met `common`. Wil je toch `common` gebruiken, zet de app dan op *multitenant* in Authentication.
 
 Daarna maakt elke nieuwe boeking automatisch een afspraak in je agenda. Met **Zet bestaande afspraken in agenda** zet je de reeds geplande gesprekken er in één keer bij. Ontkoppelen kan met één knop.
 
