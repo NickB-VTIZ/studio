@@ -3,10 +3,11 @@
 Klantopvolging en online afspraken voor justPIXIT, als eigen webapp op https://studio.justpixit.be.
 
 - **`/app`** – jouw beheeromgeving (met wachtwoord): Vandaag, Pipeline, Klanten (fiche, planning, offerte, logboek), Beheer.
-- **`/`** – login voor bestaande klanten (= Mijn pagina), zonder het Studio-menu. Het beheer staat op `/app`.
+- **`/`** – één inlogpagina (e-mailadres + wachtwoord) voor zowel de beheerder als klanten; op basis van de rol kom je op het beheer (`/app`) of op Mijn pagina (`/mijn`).
 - **`/afspraak`** – publieke boekingspagina (je eigen "Calendly"). Een boeking maakt automatisch een klant aan in de fase *Kennismaking ingepland*.
-- **`/afspraak/wijzig?c=…`** – persoonlijke verzetlink (unieke code) die elke nieuwe lead in de bevestigingsmail krijgt: de kennismaking zelf verplaatsen zonder login.
-- **`/mijn`** (en `/`) – klantenportaal ("Mijn pagina"): bestaande klanten loggen in met een inloglink per e-mail (geen wachtwoord), bekijken en **keuren hun offerte goed** (of stellen een vraag), volgen de fase van hun project, zien hun afspraak en passen telefoon, feestdatum en aantal gasten aan.
+- **`/afspraak/wijzig?c=…`** – persoonlijke verzetlink (unieke code) die elke nieuwe lead in de bevestigingsmail krijgt: de kennismaking zelf verplaatsen zonder account.
+- **`/wachtwoord?t=…`** – een uitgenodigde klant stelt via deze link zijn wachtwoord in.
+- **`/mijn`** – klantenportaal ("Mijn pagina") voor gebruikers met de rol *klant*: offerte bekijken en **goedkeuren** (of een vraag stellen), fase volgen, afspraak zien en telefoon/feestdatum/aantal gasten aanpassen.
 - Een echte database (SQLite, ingebouwd in Node — geen database-server en geen externe pakketten). Alle data staat in de map `data/` naast de compose-file en is zo in één keer te back-uppen.
 
 ```
@@ -157,6 +158,14 @@ Bij het boeken kan de klant kiezen voor een videocall; de meeting wordt automati
 - **Zoom**: maak in de [Zoom App Marketplace](https://marketplace.zoom.us) een **Server-to-Server OAuth**-app met scope `meeting:write:admin`, en vul Account-ID, Client-ID en Client-secret in bij **Koppelingen → Videocall (Zoom)**. Zet daarna het vinkje "Zoom" aan bij Online afspraken.
 
 Staat er niets aangevinkt of is de koppeling er niet, dan toont de boekingspagina geen videokeuze (of enkel "In overleg"). De placeholder `{videolink}` in de bevestigingsmail wordt met de meetinglink ingevuld.
+
+## 5g-bis. Rollen, accounts en toegang
+
+- **Eén inlogpagina** op `/` (e-mailadres + wachtwoord). De rol bepaalt wat je ziet: **admin** → het beheer op `/app`; **klant** → Mijn pagina op `/mijn`.
+- Het **adminaccount** (`liesbeth@justpixit.be`) wordt bij de eerste start aangemaakt uit `ADMIN_LOGIN_EMAIL` + `ADMIN_PASSWORD`. Wijzig e-mail/wachtwoord in Beheer → Systeem → Mijn account.
+- Een **test-klantaccount** `klant@justpixit.be` (wachtwoord `klantpixit`, instelbaar via `TEST_KLANT_PASSWORD`) wordt geseed, gekoppeld aan een voorbeeldfiche. Zet `SEED_TEST_KLANT=false` in `.env` om dit niet te doen; verwijder het account in Beheer → Systeem → Portaalgebruikers.
+- **Wie een afspraak boekt is nog geen klant**: er wordt enkel een fiche aangemaakt, géén account. Pas als de klant doorgaat (offerte getekend + voorschot) geef je toegang: op de fiche (zijbalk) → **Toegang geven & mailen** of **Uitnodigingslink kopiëren**. De klant stelt dan via `/wachtwoord?t=…` een wachtwoord in en logt voortaan in op `/`.
+- **Wachtwoord vergeten** kan iedereen zelf via de inlogpagina (link per e-mail, 2 u geldig).
 
 ## 5h. De klantflow: boeken → verzetten → offerte goedkeuren
 

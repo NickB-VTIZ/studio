@@ -143,21 +143,28 @@ async function verplaatsAfspraak(id, slot, door, req, opts = {}) {
   return { ok: true, slot, vorig, problemen, gemaild };
 }
 
-// Stuurt (of maakt) een loginlink voor het portaal. Geeft {link, gemaild}.
-async function stuurPortaalLink(id, req, { mail = true } = {}) {
+// Geeft een fiche toegang tot het portaal: maakt (indien nodig) een klant-gebruiker en een uitnodigingslink
+// om een wachtwoord in te stellen. Geeft {link, gemaild, bestond, email}.
+async function geefPortaaltoegang(id, req, { mail = true } = {}) {
   const doc = store.get('klanten', id); if (!doc) throw Object.assign(new Error('Klant niet gevonden'), { status: 404 });
-  const token = maakLoginToken(id, mail ? 30 : 60 * 24 * 7); // gekopieerde link: een week geldig
-  const link = portaalUrl(req) + '?t=' + encodeURIComponent(token);
+  if (!doc.email) throw Object.assign(new Error('Deze klant heeft geen e-mailadres op de fiche.'), { status: 400 });
+  let u = gebruikerViaKlant(id) || gebruikerViaEmail(doc.email);
+  const bestond = !!u;
+  if (u && u.role !== 'klant') throw Object.assign(new Error('Dit e-mailadres hoort al bij een ander account.'), { status: 409 });
+  if (!u) { const uid = maakGebruiker(doc.email, 'klant', id); u = store.get('gebruikers', uid); u.id = uid; }
+  else if (u.klantId !== id) { u.klantId = id; store.set('gebruikers', u.id, u); }
+  const uid = u.id;
+  const token = maakInvite(uid, mail ? 72 : 24 * 7); // gekopieerde link: een week geldig
+  const link = publicBase(req) + '/wachtwoord?t=' + encodeURIComponent(token);
   let gemaild = false;
   if (mail) {
-    if (!doc.email) throw Object.assign(new Error('Deze klant heeft geen e-mailadres.'), { status: 400 });
     if (!mailActief()) throw Object.assign(new Error('E-mail is niet ingesteld (zie Koppelingen).'), { status: 400 });
-    const m = bouwMail(sjablonen().portaalLogin, mailBasis(doc, req), { loginlink: { url: link, label: 'Inloggen op mijn pagina' } });
-    const r = await verstuurMail({ to: doc.email, subject: 'Jullie persoonlijke pagina bij justPIXIT', text: m.text, html: m.html }, { soort: 'portaal loginlink' });
+    const m = bouwMail(sjablonen().portaalLogin, mailBasis(doc, req), { loginlink: { url: link, label: 'Stel mijn wachtwoord in' } });
+    const r = await verstuurMail({ to: doc.email, subject: 'Toegang tot jullie pagina bij justPIXIT', text: m.text, html: m.html }, { soort: 'portaaltoegang' });
     if (!r.ok) throw Object.assign(new Error('Mail versturen mislukt: ' + r.error), { status: 502 });
     gemaild = true;
   }
-  return { link, gemaild };
+  return { link, gemaild, bestond, email: doc.email };
 }
 
 const PORT = Number(process.env.PORT || 3000);
@@ -214,22 +221,46 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const store = new Store(DATA_DIR);
 seedIfEmpty();
 
-// Adminaccount (e-mail + wachtwoord) in de database; wachtwoord als PBKDF2-hash, nooit in klare tekst of in de code.
+// Gebruikers met een rol ('admin' of 'klant') en een PBKDF2-wachtwoord in de database — nooit in klare tekst of in de code.
+// Een klant-gebruiker is gekoppeld aan een fiche via klantId. Wie enkel een afspraak boekt, krijgt een fiche maar GEEN gebruiker.
 function hashPw(pw, salt) { return crypto.pbkdf2Sync(String(pw), salt, 120000, 32, 'sha256').toString('hex'); }
-function adminAccount() { return store.get('instellingen', 'admin') || null; }
-function zetAdminWachtwoord(email, pw) {
+const normEmail = e => String(e || '').trim().toLowerCase();
+function gebruikers() { return store.list('gebruikers'); }
+function gebruikerViaEmail(email) { const e = normEmail(email); return gebruikers().find(u => u.email === e) || null; }
+function gebruikerViaKlant(klantId) { return gebruikers().find(u => u.role === 'klant' && u.klantId === klantId) || null; }
+function maakGebruiker(email, role, klantId) {
+  const uid = crypto.randomBytes(8).toString('hex');
+  store.set('gebruikers', uid, { email: normEmail(email), role, klantId: klantId || '', hash: '', salt: '', aangemaakt: new Date().toISOString() });
+  return uid;
+}
+function zetWachtwoord(uid, pw) {
+  const u = store.get('gebruikers', uid); if (!u) return;
   const salt = crypto.randomBytes(16).toString('hex');
-  store.set('instellingen', 'admin', { email: String(email).trim().toLowerCase(), salt, hash: hashPw(pw, salt), gewijzigd: new Date().toISOString() });
+  u.salt = salt; u.hash = hashPw(pw, salt); delete u.invite; u.gewijzigd = new Date().toISOString();
+  store.set('gebruikers', uid, u);
 }
-function checkAdmin(email, pw) {
-  const a = adminAccount();
-  if (!a) return !!(ADMIN_PASSWORD && safeEq(pw, ADMIN_PASSWORD)); // nog niet geseed: val terug op .env
-  const e = String(email || '').trim().toLowerCase();
-  return safeEq(e, a.email) && safeEq(hashPw(pw, a.salt), a.hash);
+function checkLogin(email, pw) { const u = gebruikerViaEmail(email); if (!u || !u.hash) return null; return safeEq(hashPw(String(pw), u.salt), u.hash) ? u : null; }
+
+// Eerste start: zet het adminaccount klaar (migreer van instellingen/admin, anders uit .env) en een test-klantaccount.
+function seedGebruikers() {
+  const adminEmail = (store.get('instellingen', 'admin') || {}).email || process.env.ADMIN_LOGIN_EMAIL || 'liesbeth@justpixit.be';
+  if (!gebruikers().some(u => u.role === 'admin')) {
+    const uid = maakGebruiker(adminEmail, 'admin', '');
+    const oud = store.get('instellingen', 'admin');
+    if (oud && oud.hash && oud.salt) { const u = store.get('gebruikers', uid); u.hash = oud.hash; u.salt = oud.salt; store.set('gebruikers', uid, u); }
+    else if (ADMIN_PASSWORD && ADMIN_PASSWORD.length >= 8) zetWachtwoord(uid, ADMIN_PASSWORD);
+  }
+  // Test-klant (demo) gekoppeld aan een voorbeeldfiche. Zet SEED_TEST_KLANT=false om dit over te slaan/uit te schakelen in productie.
+  if (process.env.SEED_TEST_KLANT !== 'false' && !gebruikerViaEmail('klant@justpixit.be')) {
+    let demoId = store.get('klanten', 'vb-emma-jules') ? 'vb-emma-jules' : ((store.list('klanten')[0] || {}).id || '');
+    if (demoId) {
+      const demo = store.get('klanten', demoId); if (demo && !demo.email) { demo.email = 'klant@justpixit.be'; store.set('klanten', demoId, demo); }
+      const uid = maakGebruiker('klant@justpixit.be', 'klant', demoId);
+      zetWachtwoord(uid, process.env.TEST_KLANT_PASSWORD || 'klantpixit');
+    }
+  }
 }
-// Eerste keer: maak het account uit .env (ADMIN_LOGIN_EMAIL of standaard liesbeth@justpixit.be + ADMIN_PASSWORD).
-function seedAdmin() { if (adminAccount() || !ADMIN_PASSWORD || ADMIN_PASSWORD.length < 8) return; zetAdminWachtwoord((process.env.ADMIN_LOGIN_EMAIL || 'liesbeth@justpixit.be'), ADMIN_PASSWORD); }
-seedAdmin();
+seedGebruikers();
 
 /* ---------- helpers ---------- */
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.pdf': 'application/pdf', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8' };
@@ -246,47 +277,32 @@ function readBody(req, limit) {
 async function readJson(req, limit = 5 * 1024 * 1024) { const b = await readBody(req, limit); if (!b.length) return {}; return JSON.parse(b.toString('utf8')); }
 function cookies(req) { const out = {}; (req.headers.cookie || '').split(';').forEach(p => { const i = p.indexOf('='); if (i > 0) out[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim()); }); return out; }
 const sign = s => crypto.createHmac('sha256', SESSION_SECRET).update(s).digest('base64url');
-function makeSession() { const exp = Date.now() + 30 * 864e5; const payload = `${exp}.${crypto.randomBytes(8).toString('hex')}`; return `${payload}.${sign(payload)}`; }
-function validSession(token) {
-  if (!token) return false; const i = token.lastIndexOf('.'); if (i < 0) return false;
-  const payload = token.slice(0, i), sig = token.slice(i + 1);
-  const expected = sign(payload);
-  if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
-  return Number(payload.split('.')[0]) > Date.now();
+// Eén sessiecookie 'sid' = <uid>.<exp>.<sig>, voor zowel admin als klant; de rol zit in de gebruiker.
+function makeSession(uid) { const payload = `${uid}.${Date.now() + 30 * 864e5}`; return `${payload}.${sign('ses:' + payload)}`; }
+function sessieUid(req) {
+  const t = cookies(req).sid || ''; const i = t.lastIndexOf('.'); if (i < 0) return null;
+  const payload = t.slice(0, i), sig = t.slice(i + 1), exp = sign('ses:' + payload);
+  if (sig.length !== exp.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(exp))) return null;
+  const [uid, expAt] = payload.split('.'); if (Number(expAt) < Date.now()) return null; return uid;
 }
+function huidigeGebruiker(req) { const uid = sessieUid(req); return uid ? store.get('gebruikers', uid) : null; }
 const isHttps = req => (req.headers['x-forwarded-proto'] || '').split(',')[0] === 'https' || !!req.socket.encrypted;
-const authed = req => validSession(cookies(req).sid);
+const authedAdmin = req => { const u = huidigeGebruiker(req); return u && u.role === 'admin' ? u : null; };
+const sidCookie = (req, val, maxAge) => `sid=${val}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${isHttps(req) ? '; Secure' : ''}`;
 
-// Klantsessies (portaal): cookie kid = <id-base64url>.<exp>.<sig>; loginlinks: t = <id-base64url>.<exp>.<nonce>.<sig>, eenmalig.
-const b64u = s => Buffer.from(String(s), 'utf8').toString('base64url');
-const unb64u = s => { try { return Buffer.from(String(s), 'base64url').toString('utf8'); } catch (e) { return ''; } };
-function klantSessie(id) { const payload = `${b64u(id)}.${Date.now() + 30 * 864e5}`; return `${payload}.${sign('klant:' + payload)}`; }
-function klantAuthed(req) {
-  const t = cookies(req).kid || ''; const i = t.lastIndexOf('.'); if (i < 0) return null;
-  const payload = t.slice(0, i), sig = t.slice(i + 1), exp = sign('klant:' + payload);
-  if (sig.length !== exp.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(exp))) return null;
-  const [idB, expAt] = payload.split('.'); if (Number(expAt) < Date.now()) return null;
-  const id = unb64u(idB); return id && store.get('klanten', id) ? id : null;
+// Uitnodiging / wachtwoord-reset: token = <uid>.<exp>.<nonce>.<sig>; de nonce staat op de gebruiker (eenmalig).
+function maakInvite(uid, uren = 72) {
+  const u = store.get('gebruikers', uid); if (!u) return null;
+  const nonce = crypto.randomBytes(9).toString('hex'); u.invite = { nonce, exp: Date.now() + uren * 3600e3 }; store.set('gebruikers', uid, u);
+  const payload = `${uid}.${u.invite.exp}.${nonce}`; return `${payload}.${sign('inv:' + payload)}`;
 }
-function maakLoginToken(id, minuten = 30) {
-  const k = store.get('klanten', id); if (!k) return null;
-  const nonce = crypto.randomBytes(8).toString('hex');
-  k.portaalNonce = nonce; store.set('klanten', id, k);
-  const payload = `${b64u(id)}.${Date.now() + minuten * 60e3}.${nonce}`;
-  return `${payload}.${sign('login:' + payload)}`;
-}
-// Geeft het klant-id terug als de token klopt en nog niet gebruikt is; maakt de token meteen ongeldig.
-function verzilverLoginToken(t) {
+function leesInvite(t) {
   const i = String(t || '').lastIndexOf('.'); if (i < 0) return null;
-  const payload = t.slice(0, i), sig = t.slice(i + 1), exp = sign('login:' + payload);
+  const payload = t.slice(0, i), sig = t.slice(i + 1), exp = sign('inv:' + payload);
   if (sig.length !== exp.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(exp))) return null;
-  const [idB, expAt, nonce] = payload.split('.'); if (Number(expAt) < Date.now()) return null;
-  const id = unb64u(idB); const k = id && store.get('klanten', id);
-  if (!k || !k.portaalNonce || !safeEq(k.portaalNonce, nonce)) return null;
-  delete k.portaalNonce; k.portaalLaatstIngelogd = new Date().toISOString(); store.set('klanten', id, k);
-  return id;
+  const [uid, expAt, nonce] = payload.split('.'); if (Number(expAt) < Date.now()) return null;
+  const u = store.get('gebruikers', uid); if (!u || !u.invite || !safeEq(u.invite.nonce, nonce)) return null; return uid;
 }
-const klantCookie = (req, waarde, maxAge) => `kid=${waarde}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${isHttps(req) ? '; Secure' : ''}`;
 const clientIp = req => (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '';
 const safeEq = (a, b) => { const A = Buffer.from(String(a)), B = Buffer.from(String(b)); return A.length === B.length && crypto.timingSafeEqual(A, B); };
 
@@ -320,11 +336,43 @@ async function api(req, res, url) {
     const ip = clientIp(req);
     if (limited('login:' + ip, 10, 15 * 60e3)) return json(res, 429, { error: 'Te veel pogingen. Probeer over een kwartier opnieuw.' });
     const body = await readJson(req, 10e3).catch(() => ({}));
-    if (!checkAdmin(body.email, body.wachtwoord || '')) return json(res, 401, { error: 'Verkeerd e-mailadres of wachtwoord' });
-    res.setHeader('Set-Cookie', `sid=${makeSession()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 86400}${isHttps(req) ? '; Secure' : ''}`);
-    return json(res, 200, { ok: true });
+    const u = checkLogin(body.email, body.wachtwoord || '');
+    if (!u) return json(res, 401, { error: 'Verkeerd e-mailadres of wachtwoord' });
+    u.laatstIngelogd = new Date().toISOString(); store.set('gebruikers', u.id, u);
+    res.setHeader('Set-Cookie', sidCookie(req, makeSession(u.id), 30 * 86400));
+    return json(res, 200, { ok: true, role: u.role, redirect: u.role === 'admin' ? '/app' : '/mijn' });
   }
-  if (p === '/api/logout' && m === 'POST') { res.setHeader('Set-Cookie', 'sid=; Path=/; HttpOnly; Max-Age=0'); return json(res, 200, { ok: true }); }
+  if (p === '/api/logout' && m === 'POST') { res.setHeader('Set-Cookie', sidCookie(req, '', 0)); return json(res, 200, { ok: true }); }
+  if (p === '/api/wachtwoord-vergeten' && m === 'POST') {
+    const ip = clientIp(req);
+    if (limited('vergeten:' + ip, 8, 15 * 60e3)) return json(res, 429, { error: 'Te veel pogingen. Probeer later opnieuw.' });
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    const u = gebruikerViaEmail(b.email);
+    if (u && mailActief() && !limited('vergeten:' + u.email, 3, 15 * 60e3)) {
+      try {
+        const token = maakInvite(u.id, 2); const link = publicBase(req) + '/wachtwoord?t=' + encodeURIComponent(token);
+        const naam = u.role === 'klant' && u.klantId ? (store.get('klanten', u.klantId) || {}).naam : '';
+        const basis = Object.assign({ voornaam: (String(naam || '').split(/\s|&/)[0] || '').trim(), afzender: instellingen().afzender || 'justPIXIT' });
+        const m2 = bouwMail(sjablonen().wachtwoordReset, basis, { loginlink: { url: link, label: 'Nieuw wachtwoord instellen' } });
+        await verstuurMail({ to: u.email, subject: 'Nieuw wachtwoord instellen · justPIXIT', text: m2.text, html: m2.html }, { soort: 'wachtwoord reset' });
+      } catch (e) { console.error('[reset]', e.message); }
+    }
+    return json(res, 200, { ok: true }); // zelfde antwoord, of het adres nu bestaat of niet
+  }
+  if (p === '/api/invite' && (m === 'GET' || m === 'POST')) {
+    const b = m === 'POST' ? await readJson(req, 10e3).catch(() => ({})) : {};
+    const t = m === 'GET' ? url.searchParams.get('t') : b.t;
+    const uid = leesInvite(t);
+    if (!uid) return json(res, 400, { error: 'Deze link is verlopen of al gebruikt. Vraag een nieuwe aan via "Wachtwoord vergeten".' });
+    const u = store.get('gebruikers', uid);
+    if (m === 'GET') return json(res, 200, { email: u.email, nieuw: !u.hash });
+    const pw = String(b.wachtwoord || '');
+    if (pw.length < 8) return json(res, 400, { error: 'Kies een wachtwoord van minstens 8 tekens.' });
+    zetWachtwoord(uid, pw);
+    const u2 = store.get('gebruikers', uid); u2.laatstIngelogd = new Date().toISOString(); store.set('gebruikers', uid, u2);
+    res.setHeader('Set-Cookie', sidCookie(req, makeSession(uid), 30 * 86400));
+    return json(res, 200, { ok: true, role: u.role, redirect: u.role === 'admin' ? '/app' : '/mijn' });
+  }
 
   if (p === '/api/boeking/slots' && m === 'GET') {
     const cfg = boekingConfig();
@@ -418,24 +466,14 @@ async function api(req, res, url) {
     return json(res, 404, { error: 'Onbekende route' });
   }
 
-  // --- klantenportaal (eigen sessie via loginlink) ---
-  if (p === '/api/portaal/login' && m === 'POST') {
-    const ip = clientIp(req);
-    if (limited('plogin:' + ip, 10, 15 * 60e3)) return json(res, 429, { error: 'Te veel pogingen. Probeer over een kwartier opnieuw.' });
-    const b = await readJson(req, 10e3).catch(() => ({}));
-    const email = String(b.email || '').trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(res, 400, { error: 'Vul een geldig e-mailadres in.' });
-    if (!mailActief()) return json(res, 400, { error: 'Inloggen per e-mail is momenteel niet mogelijk. Stuur een berichtje, dan help ik je verder.' });
-    // Zelfde antwoord of het adres nu gekend is of niet (geen adressen prijsgeven). Meerdere dossiers → het recentste.
-    const kandidaten = store.list('klanten').filter(k => String(k.email || '').trim().toLowerCase() === email).sort((a, b) => String(b.aangemaakt || '').localeCompare(String(a.aangemaakt || '')));
-    if (kandidaten.length && !limited('plogin:' + email, 3, 15 * 60e3)) { try { await stuurPortaalLink(kandidaten[0].id, req, { mail: true }); } catch (e) { console.error('[portaal]', e.message); } }
-    return json(res, 200, { ok: true });
-  }
-  if (p === '/api/portaal/logout' && m === 'POST') { res.setHeader('Set-Cookie', klantCookie(req, '', 0)); return json(res, 200, { ok: true }); }
+  // --- klantenportaal (klant-sessie) ---
   if (p.startsWith('/api/portaal/')) {
-    const kid = klantAuthed(req);
-    if (!kid) return json(res, 401, { error: 'Niet aangemeld' });
-    const k = store.get('klanten', kid); const cfg = boekingConfig();
+    const gu = huidigeGebruiker(req);
+    if (!gu || gu.role !== 'klant') return json(res, 401, { error: 'Niet aangemeld' });
+    const kid = gu.klantId;
+    const k = kid && store.get('klanten', kid);
+    if (!k) return json(res, 404, { error: 'Geen dossier gekoppeld aan dit account.' });
+    const cfg = boekingConfig();
     const zichtbareOffertes = () => (k.offertes || []).filter(o => o.status && o.status !== 'Concept');
     if (p === '/api/portaal/me' && m === 'GET') {
       const offertes = zichtbareOffertes().map(o => { const t = offerteTotalen(o); return { id: o.id, titel: o.titel || 'Offerte', status: o.status, datum: o.datum || '', geldigTot: o.geldigTot || '', notitie: o.notitie || '', btw: num(o.btw),
@@ -502,21 +540,35 @@ async function api(req, res, url) {
     return json(res, 404, { error: 'Onbekende route' });
   }
 
-  // --- vanaf hier: login vereist ---
-  if (!authed(req)) return json(res, 401, { error: 'Niet aangemeld' });
+  // --- vanaf hier: beheer (admin) vereist ---
+  const admingu = authedAdmin(req);
+  if (!admingu) return json(res, 401, { error: 'Niet aangemeld' });
 
-  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), office365: msVerbonden(), zoom: zoomActief(), versie: VERSION.version, account: (adminAccount() || {}).email || '' });
-  if (p === '/api/account' && m === 'GET') return json(res, 200, { email: (adminAccount() || {}).email || '' });
+  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), office365: msVerbonden(), zoom: zoomActief(), versie: VERSION.version, account: admingu.email });
+  if (p === '/api/account' && m === 'GET') return json(res, 200, { email: admingu.email });
   if (p === '/api/account' && m === 'POST') {
     const b = await readJson(req, 10e3).catch(() => ({}));
-    if (!checkAdmin((adminAccount() || {}).email, b.huidig || '')) return json(res, 401, { error: 'Je huidige wachtwoord klopt niet.' });
-    const huidig = adminAccount() || {};
-    const email = ('email' in b) ? String(b.email || '').trim().toLowerCase() : huidig.email;
+    if (!safeEq(hashPw(String(b.huidig || ''), admingu.salt || ''), admingu.hash || '')) return json(res, 401, { error: 'Je huidige wachtwoord klopt niet.' });
+    const email = ('email' in b) ? normEmail(b.email) : admingu.email;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(res, 400, { error: 'Vul een geldig e-mailadres in.' });
+    const bestaat = gebruikerViaEmail(email); if (bestaat && bestaat.id !== admingu.id) return json(res, 409, { error: 'Dit e-mailadres is al in gebruik.' });
     const nieuw = String(b.nieuw || '');
     if (nieuw && nieuw.length < 8) return json(res, 400, { error: 'Kies een wachtwoord van minstens 8 tekens.' });
-    zetAdminWachtwoord(email, nieuw || b.huidig);
+    admingu.email = email; store.set('gebruikers', admingu.id, admingu);
+    if (nieuw) zetWachtwoord(admingu.id, nieuw);
     return json(res, 200, { ok: true, email });
+  }
+  // Portaalgebruikers beheren (lijst + verwijderen).
+  if (p === '/api/gebruikers' && m === 'GET') {
+    return json(res, 200, { gebruikers: gebruikers().map(u => ({ id: u.id, email: u.email, role: u.role, klantId: u.klantId || '', klant: u.klantId ? (store.get('klanten', u.klantId) || {}).naam || '' : '', actief: !!u.hash, laatstIngelogd: u.laatstIngelogd || '' })) });
+  }
+  const gebrMatch = p.match(/^\/api\/gebruikers\/([a-f0-9]{8,32})$/);
+  if (gebrMatch && m === 'DELETE') {
+    const u = store.get('gebruikers', gebrMatch[1]);
+    if (!u) return json(res, 404, { error: 'Niet gevonden' });
+    if (u.role === 'admin' && gebruikers().filter(x => x.role === 'admin').length <= 1) return json(res, 400, { error: 'Je kan het laatste beheerdersaccount niet verwijderen.' });
+    store.delete('gebruikers', gebrMatch[1]);
+    return json(res, 200, { ok: true });
   }
   if (p === '/api/version' && m === 'GET') {
     const latest = await nieuwsteVersie();
@@ -555,10 +607,14 @@ async function api(req, res, url) {
     const code = zorgWijzigCode(wijzigLinkMatch[1]);
     return code ? json(res, 200, { link: wijzigUrl(req, code) }) : json(res, 404, { error: 'Klant niet gevonden' });
   }
-  const portaalMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/portaallink$/);
+  const portaalMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/portaaltoegang$/);
+  if (portaalMatch && m === 'GET') {
+    const u = gebruikerViaKlant(portaalMatch[1]);
+    return json(res, 200, { heeftToegang: !!u, actief: !!(u && u.hash), email: u ? u.email : '', laatstIngelogd: (u && u.laatstIngelogd) || '' });
+  }
   if (portaalMatch && m === 'POST') {
     const b = await readJson(req, 10e3).catch(() => ({}));
-    try { const r = await stuurPortaalLink(portaalMatch[1], req, { mail: !!b.mail }); return json(res, 200, r); }
+    try { const r = await geefPortaaltoegang(portaalMatch[1], req, { mail: !!b.mail }); return json(res, 200, r); }
     catch (e) { return json(res, e.status || 500, { error: e.message }); }
   }
   const facMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/factuur-ubl$/);
@@ -747,17 +803,12 @@ nano .env        # ADMIN_PASSWORD en SESSION_SECRET invullen
     if (p === '/app' || p === '/app/') return serveFile(res, path.join(PUBLIC_DIR, 'app.html'), { 'Cache-Control': 'no-store' });
     if (p === '/afspraak' || p === '/afspraak/' || p === '/boek') return serveFile(res, path.join(PUBLIC_DIR, 'afspraak.html'), { 'Cache-Control': 'no-store' });
     if (p === '/afspraak/wijzig' || p === '/afspraak/wijzig/') return serveFile(res, path.join(PUBLIC_DIR, 'wijzig.html'), { 'Cache-Control': 'no-store' }); // verzetten met persoonlijke code
-    if (p === '/' || p === '/mijn' || p === '/mijn/') { // startpagina = login voor bestaande klanten (geen menu)
-      const t = url.searchParams.get('t');
-      if (t) { // loginlink: eenmalig verzilveren → cookie → zuivere URL
-        const kid = verzilverLoginToken(t);
-        res.writeHead(302, kid ? { 'Set-Cookie': klantCookie(req, klantSessie(kid), 30 * 86400), Location: '/mijn' } : { Location: '/mijn?verlopen=1' }); return res.end();
-      }
-      return serveFile(res, path.join(PUBLIC_DIR, 'portaal.html'), { 'Cache-Control': 'no-store' });
-    }
+    if (p === '/' || p === '/login' || p === '/login/') return serveFile(res, path.join(PUBLIC_DIR, 'login.html'), { 'Cache-Control': 'no-store' }); // één inlogpagina (admin of klant)
+    if (p === '/mijn' || p === '/mijn/') return serveFile(res, path.join(PUBLIC_DIR, 'portaal.html'), { 'Cache-Control': 'no-store' });
+    if (p === '/wachtwoord' || p === '/wachtwoord/') return serveFile(res, path.join(PUBLIC_DIR, 'wachtwoord.html'), { 'Cache-Control': 'no-store' }); // wachtwoord instellen via uitnodigingslink
     const blob = p.match(/^\/_blob\/([a-f0-9]{32})$/);
     if (blob) {
-      if (!authed(req)) return text(res, 401, 'Niet aangemeld');
+      if (!authedAdmin(req)) return text(res, 401, 'Niet aangemeld');
       const f = fs.readdirSync(UPLOAD_DIR).find(x => x.startsWith(blob[1]) && !x.endsWith('.json'));
       if (!f) return text(res, 404, 'Niet gevonden');
       return serveFile(res, path.join(UPLOAD_DIR, f), { 'Cache-Control': 'private, max-age=86400', 'Content-Disposition': 'inline' });

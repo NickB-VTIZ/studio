@@ -390,7 +390,8 @@ const DEFAULTS={
     boekingAdmin:'Nieuwe afspraak via de website.\n\nKlant: {naam}\nWanneer: {wanneer}\nE-mail: {email}\nTelefoon: {telefoon}\nType: {type}\nDatum feest: {datumEvent}\n\nBericht:\n{bericht}\n{videolink}\n\nOpen de fiche: {app}',
     verplaatstKlant:'Hoi {voornaam},\n\nJullie afspraak is verplaatst.\n\nNieuw moment: {wanneer} ({duur} min)\nVorig moment: {vorig}\nWaar: {locatie}\n{videolink}\n\nMoet het toch nog anders? Kies hier een ander moment:\n{wijziglink}\n\nTot dan!\n{afzender}',
     verplaatstAdmin:'Afspraak verplaatst door {door}.\n\nKlant: {naam}\nNieuw moment: {wanneer}\nVorig moment: {vorig}\nE-mail: {email}\n\nOpen de fiche: {app}',
-    portaalLogin:'Hoi {voornaam},\n\nMet de knop hieronder log je in op jullie persoonlijke pagina bij justPIXIT. Daar bekijken jullie de offerte en keuren ze goed, en volgen jullie hoe ver we staan.\n\n{loginlink}\n\nDe link werkt 30 minuten en is enkel voor jullie bedoeld.\n\n{afzender}',
+    portaalLogin:'Hoi {voornaam},\n\nJullie hebben nu toegang tot jullie persoonlijke pagina bij justPIXIT. Stel met de knop hieronder een wachtwoord in; daarna bekijken en bevestigen jullie de offerte en volgen jullie hoe ver we staan.\n\n{loginlink}\n\nDeze link is enkel voor jullie bedoeld. Daarna log je in op {app} met jullie e-mailadres en wachtwoord.\n\n{afzender}',
+    wachtwoordReset:'Hoi {voornaam},\n\nStel hieronder een nieuw wachtwoord in voor je justPIXIT-account. Heb je dit niet aangevraagd, dan mag je deze mail negeren.\n\n{loginlink}\n\nDe link werkt 2 uur.\n\n{afzender}',
     offerteReactie:'Reactie op een offerte via Mijn pagina.\n\nKlant: {naam}\nOfferte: {offerte} ({totaal})\nReactie: {reactie}\n\nBericht van de klant:\n{bericht}\n\nOpen de fiche: {app}',
     offerteGoedgekeurdKlant:'Hoi {voornaam},\n\nWat fijn — jullie hebben de offerte "{offerte}" ({totaal}) goedgekeurd. Bedankt voor het vertrouwen!\n\nIk stuur jullie binnenkort de vragenlijst en het onboardingspakket. Van zodra ik die ingevuld terugkrijg, plan ik jullie ontwerp in.\n\n{portaallink}\n\nTot snel!\n{afzender}'
   }
@@ -398,10 +399,11 @@ const DEFAULTS={
 const LIJST_LABELS={stopReden:'Reden niet doorgegaan',bron:'Hoe gevonden?',type:'Type klant',versies:'Uitnodiging · versies',opOfferte:'Uitnodiging · op offerte',formaat:'Uitnodiging · formaat',enveloppen:'Uitnodiging · enveloppen',foto:'Uitnodiging · foto',afwerking:'Uitnodiging · afwerking'};
 const TERMIJN_LABELS={offerte:['Offerte versturen','dagen na het kennismakingsgesprek'],opvolging:['Offerte opvolgen','dagen na het versturen van de offerte'],herhaling:['Tweede opvolging','dagen na de eerste opvolging'],vragenlijst:['Herinnering vragenlijst','dagen na goedkeuring'],proef:['Feedback digitale proef opvolgen','dagen na het versturen van de proef'],proefdruk:['Proefdruk nakijken','dagen na bestelling'],deadlineWaarschuwing:['Deadline tonen op Vandaag','dagen vooraf']};
 const PLAN_LABELS={beslissing:['Beslissing klant over offerte','dagen na versturen offerte'],wachttijdOntwerp:['Wachttijd tot start ontwerp','dagen na ontvangst vragenlijst'],ontwerpduur:['Ontwerpen tot digitale proef','dagen'],feedback:['Feedbackrondes tot proefdruk','dagen'],proefdrukDuur:['Proefdruk tot drukwerk besteld','dagen'],levering:['Drukwerk tot levering (afgerond)','dagen']};
-const MAIL_LABELS={boekingKlant:'Bevestiging afspraak (naar de klant)',boekingAdmin:'Melding nieuwe afspraak (naar jou)',verplaatstKlant:'Afspraak verplaatst (naar de klant)',verplaatstAdmin:'Afspraak verplaatst door de klant (naar jou)',portaalLogin:'Inloglink voor Mijn pagina (naar de klant)',offerteReactie:'Offerte goedgekeurd of vraag via Mijn pagina (naar jou)',offerteGoedgekeurdKlant:'Bevestiging offerte goedgekeurd (naar de klant)',opvolging:'Opvolging offerte',onboarding:'Onboarding (na goedkeuring)',vragenlijst:'Herinnering vragenlijst',proef:'Feedback digitale proef'};
-const MAIL_AUTO=['boekingKlant','boekingAdmin','verplaatstKlant','verplaatstAdmin','portaalLogin','offerteReactie','offerteGoedgekeurdKlant'];
+const MAIL_LABELS={boekingKlant:'Bevestiging afspraak (naar de klant)',boekingAdmin:'Melding nieuwe afspraak (naar jou)',verplaatstKlant:'Afspraak verplaatst (naar de klant)',verplaatstAdmin:'Afspraak verplaatst door de klant (naar jou)',portaalLogin:'Uitnodiging portaal (wachtwoord instellen, naar de klant)',wachtwoordReset:'Wachtwoord vergeten (naar de gebruiker)',offerteReactie:'Offerte goedgekeurd of vraag via Mijn pagina (naar jou)',offerteGoedgekeurdKlant:'Bevestiging offerte goedgekeurd (naar de klant)',opvolging:'Opvolging offerte',onboarding:'Onboarding (na goedkeuring)',vragenlijst:'Herinnering vragenlijst',proef:'Feedback digitale proef'};
+const MAIL_AUTO=['boekingKlant','boekingAdmin','verplaatstKlant','verplaatstAdmin','portaalLogin','wachtwoordReset','offerteReactie','offerteGoedgekeurdKlant'];
 const MAIL_PLACEHOLDERS={boekingKlant:'{voornaam} {naam} {wanneer} {duur} {locatie} {videolink} {wijziglink} {bevestiging} {afzender}',boekingAdmin:'{naam} {wanneer} {email} {telefoon} {type} {datumEvent} {bericht} {videolink} {app}',
-  verplaatstKlant:'{voornaam} {naam} {wanneer} {vorig} {duur} {locatie} {videolink} {wijziglink} {afzender}',verplaatstAdmin:'{naam} {wanneer} {vorig} {email} {door} {app}',portaalLogin:'{voornaam} {naam} {loginlink} {afzender}',
+  verplaatstKlant:'{voornaam} {naam} {wanneer} {vorig} {duur} {locatie} {videolink} {wijziglink} {afzender}',verplaatstAdmin:'{naam} {wanneer} {vorig} {email} {door} {app}',
+  portaalLogin:'{voornaam} {naam} {loginlink} {app} {afzender}',wachtwoordReset:'{voornaam} {loginlink} {afzender}',
   offerteReactie:'{naam} {offerte} {totaal} {reactie} {bericht} {email} {app}',offerteGoedgekeurdKlant:'{voornaam} {naam} {offerte} {totaal} {portaallink} {afzender}'};
 const KNOP_UITLEG={videolink:'knop “Deelnemen aan Teams/Zoom” (valt weg zonder videocall)',wijziglink:'knop “Afspraak verplaatsen” met de persoonlijke verzetlink van de klant',portaallink:'knop “Mijn pagina” (klantenportaal)',loginlink:'knop “Inloggen” met de persoonlijke inloglink'};
 let cfg=JSON.parse(JSON.stringify(DEFAULTS));
@@ -511,7 +513,7 @@ function render(){
   else if(view.v==='pipeline')app.innerHTML=vPipeline();
   else if(view.v==='klanten')app.innerHTML=vKlanten();
   else if(view.v==='nieuw')app.innerHTML=vNieuw();
-  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel();laadAgenda();laadMailtest()}}
+  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel();laadAgenda();laadMailtest();laadGebruikers()}}
   else if(view.v==='koppelingen'){if(!koppelOpen){app.innerHTML=vKoppelingen();koppelOpen=true;laadKoppelingen()}}
   else if(view.v==='klant'){
     const k=klanten.find(x=>x.id===view.id);
@@ -714,9 +716,9 @@ function afspraakPanel(k){
     ${vpMsg?`<div class="dlrow ${vpMsg.ok?'ok':'bad'}" style="margin:0"><b>${esc(vpMsg.t)}</b>${vpMsg.sub?`<span>${esc(vpMsg.sub)}</span>`:''}</div>`:''}
     ${form||`<div style="display:flex;gap:8px;flex-wrap:wrap">${k.kennismaking?`<button class="btn small" id="vpOpen">${toekomst?'Verplaatsen':'Nieuw moment plannen'}</button>`:'<button class="btn small" id="vpOpen">Kennismaking inplannen</button>'}</div>`}
     <div style="border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px">
-     <div class="label">Mijn pagina (klantenportaal)</div>
-     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="plMail" ${kanMailen?'':'disabled'} title="${kanMailen?'Stuurt een inloglink naar '+esc(k.email):'Vul een e-mailadres in en stel e-mail in bij Koppelingen'}">Inloglink mailen</button><button class="btn small ghost" id="plCopy" title="Een week geldig; handig voor WhatsApp">Inloglink kopiëren</button><button class="btn small ghost" id="wzCopy" title="De persoonlijke link waarmee de klant zelf de kennismaking verzet (staat ook in de bevestigingsmail)">Verzetlink kopiëren</button></div>
-     ${k.portaalLaatstIngelogd?`<span class="hint">Laatst ingelogd ${esc(fmtDT(k.portaalLaatstIngelogd.slice(0,16)))}</span>`:'<span class="hint">Op Mijn pagina bekijkt en bevestigt de klant de offerte en volgt het traject. De verzetlink werkt zonder login.</span>'}
+     <div class="label">Toegang tot Mijn pagina (klantenportaal)</div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="plMail" ${k.email?'':'disabled'} title="${k.email?'Maakt een portaalaccount en mailt een uitnodiging naar '+esc(k.email):'Vul eerst een e-mailadres in op de fiche'}">Toegang geven &amp; mailen</button><button class="btn small ghost" id="plCopy" ${k.email?'':'disabled'} title="Maakt een uitnodigingslink (een week geldig) om te kopiëren">Uitnodigingslink kopiëren</button><button class="btn small ghost" id="wzCopy" title="Persoonlijke link waarmee de lead zelf de kennismaking verzet (zonder account) — staat ook in de bevestigingsmail">Verzetlink kopiëren</button></div>
+     <span class="hint">Geef toegang zodra de klant doorgaat (offerte getekend + voorschot): hij stelt dan een wachtwoord in en kan op Mijn pagina de offerte bevestigen en het traject volgen. De verzetlink werkt zonder account.</span>
     </div></div></section>`;
 }
 async function herlaadKlant(){flushSave();mounted=null;await db.load().catch(()=>{});await new Promise(r=>setTimeout(r,30));render()}
@@ -733,8 +735,8 @@ document.addEventListener('click',async e=>{
     catch(err){vpMsg={ok:false,t:'Verplaatsen mislukt'}}
     finally{vpBusy=false}renderSide();return}
   if(t.id==='plMail'||t.id==='plCopy'||t.dataset.plmail){const mail=t.id!=='plCopy';t.disabled=true;
-    try{const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/portaallink',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mail}),credentials:'same-origin'}).then(x=>x.json());
-      if(r.error){toast(r.error)}else if(mail){toast('Inloglink gemaild naar '+work.email)}else{await copy(r.link)}}
+    try{const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/portaaltoegang',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mail}),credentials:'same-origin'}).then(x=>x.json());
+      if(r.error){toast(r.error)}else if(mail){toast((r.bestond?'Nieuwe uitnodiging gemaild naar ':'Toegang gegeven — uitnodiging gemaild naar ')+work.email)}else{await copy(r.link);toast('Uitnodigingslink gekopieerd')}}
     catch(err){toast('Mislukt')}finally{t.disabled=false}}
 });
 
@@ -975,7 +977,7 @@ function nudgeHtml(o){
   if(o.status==='Afgewezen'&&work.fase!=='geen_deal'){const open=(work.offertes||[]).some(x=>x.id!==o.id&&['Concept','Verstuurd'].includes(x.status));
     return `<div class="nudge">${open?'Deze optie werd geweigerd. Er staan nog andere offertes open.':'De klant weigerde deze offerte.'} <button class="btn small" data-ofnew="1">Nieuwe offerte maken</button><button class="btn small danger" data-ofstop="1">Klant gaat niet door</button></div>`}
   if(o.status==='Verstuurd'&&FI[work.fase]<FI.offerte)return `<div class="nudge">Deze offerte is verstuurd, maar de klant staat nog in "${esc(fase(work.fase).l)}". <button class="btn small primary" data-ofphase="offerte" data-of="${o.id}">Zet in fase "Offerte verstuurd"</button></div>`;
-  if(o.status==='Verstuurd')return `<div class="nudge">De klant kan deze offerte bekijken en goedkeuren op Mijn pagina. ${o.klantReactie?`<b>Laatste vraag van de klant:</b> “${esc(o.klantReactie)}” `:''}${serverInfo.mail&&work.email?`<button class="btn small primary" data-plmail="1">Inloglink mailen naar ${esc(work.email)}</button>`:'<span class="hint">(vul een e-mailadres in om een inloglink te mailen)</span>'}</div>`;
+  if(o.status==='Verstuurd')return `<div class="nudge">Geef de klant toegang tot Mijn pagina om de offerte te bekijken en goed te keuren. ${o.klantReactie?`<b>Laatste vraag van de klant:</b> “${esc(o.klantReactie)}” `:''}${serverInfo.mail&&work.email?`<button class="btn small primary" data-plmail="1">Toegang geven &amp; mailen naar ${esc(work.email)}</button>`:'<span class="hint">(vul een e-mailadres in om toegang te kunnen geven)</span>'}</div>`;
   if(o.status==='Goedgekeurd'&&o.goedgekeurdVia==='portaal'&&FI[work.fase]>=FI.goedgekeurd)return `<div class="nudge">Goedgekeurd door de klant via Mijn pagina op ${fmt(o.goedgekeurdOp)}. Volgende stap: vragenlijst en onboardingspack versturen.</div>`;
   if(o.status==='Goedgekeurd'&&FI[work.fase]<FI.goedgekeurd)return `<div class="nudge">Goedgekeurd! Volgende stap: vragenlijst en onboardingspack versturen. <button class="btn small primary" data-ofphase="goedgekeurd" data-of="${o.id}">Zet in fase "Goedgekeurd"</button></div>`;
   return ''}
@@ -1084,9 +1086,21 @@ function beheerSysteem(){
      <label class="fld"><span>Huidig wachtwoord <span class="hint">(ter bevestiging)</span></span><input id="acc-huidig" type="password" autocomplete="current-password"></label>
      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="accSave">Account bewaren</button><span class="hint" id="accMsg"></span></div>
     </div></section>
+   <section><h2>Portaalgebruikers</h2><p>Accounts die toegang hebben tot Mijn pagina. Klanten geef je toegang vanaf hun fiche (zijbalk → “Toegang geven”). Hier kan je accounts bekijken of verwijderen.</p>
+    <div class="sec" id="gebruikersBox" style="display:grid;gap:10px"><p class="hint" style="margin:0">Laden…</p></div></section>
    <section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
    <section><h2>Koppelingen</h2><p>E-mail (Resend), WhatsApp, Office 365, Zoom en facturatie stel je in op de aparte pagina.</p><button class="btn" data-v="koppelingen" data-gonav="1">Naar Koppelingen →</button></section>`;
 }
+async function laadGebruikers(){
+  const box=$('#gebruikersBox');if(!box)return;
+  let d={gebruikers:[]};try{d=await (await fetch('/api/gebruikers',{credentials:'same-origin'})).json()}catch(e){}
+  const rows=(d.gebruikers||[]).map(u=>{const rol=u.role==='admin'?'Beheerder':'Klant';const wie=u.role==='klant'?(u.klant||'(geen fiche)'):'';
+    return `<li class="dlrow" style="margin:0;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><span><b>${esc(u.email)}</b> <span class="chip">${rol}</span>${wie?` <span class="hint">· ${esc(wie)}</span>`:''}${u.actief?'':' <span class="hint">· nog niet geactiveerd</span>'}${u.laatstIngelogd?` <span class="hint">· laatst ${esc(fmtDT(u.laatstIngelogd.slice(0,16)))}</span>`:''}</span>${u.role==='admin'?'':`<button class="btn small ghost danger" data-deluser="${esc(u.id)}" data-email="${esc(u.email)}">Verwijderen</button>`}</li>`}).join('');
+  box.innerHTML=rows?`<ul style="list-style:none;margin:0;padding:0;display:grid;gap:8px">${rows}</ul>`:'<p class="hint" style="margin:0">Nog geen portaalgebruikers.</p>';
+}
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-deluser]');if(!t)return;
+  if(!confirm('Toegang voor '+t.dataset.email+' verwijderen? De fiche blijft bestaan.'))return;
+  try{const r=await fetch('/api/gebruikers/'+t.dataset.deluser,{method:'DELETE',credentials:'same-origin'}).then(x=>x.json());if(r.error)toast(r.error);else{toast('Toegang verwijderd');laadGebruikers()}}catch(err){toast('Mislukt')}});
 async function bewaarAccount(){
   const email=($('#acc-email')||{}).value.trim()||'',nieuw=($('#acc-nieuw')||{}).value||'',huidig=($('#acc-huidig')||{}).value||'';
   const msg=$('#accMsg');if(msg){msg.style.color='';msg.textContent='Bewaren…'}
@@ -1162,9 +1176,9 @@ function beheerAfspraken(){
    <section><h2>Agenda (Office 365 / Outlook)</h2><p>Zet je kennismakingsgesprekken automatisch in je Outlook-agenda. Voeg de onderstaande link toe in Outlook via <b>Agenda toevoegen → Abonneren vanaf internet</b>. Outlook ververst die daarna zelf (meestal elke paar uur). Heb je Office 365 gekoppeld (zie Koppelingen), dan komen afspraken ook rechtstreeks in je agenda.</p>
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
 }
-function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();window.scrollTo(0,y)}
+function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();laadGebruikers();window.scrollTo(0,y)}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-btab],[data-gonav],#copyPortaalLink');if(!t)return;
-  if(t.dataset.btab){beheerTab=t.dataset.btab;try{localStorage.setItem('jp-beheer',beheerTab)}catch(err){}$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();window.scrollTo(0,0);return}
+  if(t.dataset.btab){beheerTab=t.dataset.btab;try{localStorage.setItem('jp-beheer',beheerTab)}catch(err){}$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();laadGebruikers();window.scrollTo(0,0);return}
   if(t.dataset.gonav){go(t.dataset.v);return}
   if(t.id==='copyPortaalLink')copy(serverInfo.base+'/mijn');
 });
@@ -1270,7 +1284,7 @@ function apiAssets(){
   };
 }
 // Niet (meer) aangemeld → naar de gezamenlijke inlogpagina op /.
-function showLogin(){loaded=false;document.body.classList.remove('ingelogd');location.replace('/?beheer=1');}
+function showLogin(){loaded=false;document.body.classList.remove('ingelogd');location.replace('/');}
 document.addEventListener('click',async e=>{const t=e.target.closest('#logoutBtn,#copyBoekLink');if(!t)return;
   if(t.id==='logoutBtn'){await fetch('/api/logout',{method:'POST',credentials:'same-origin'});location.reload()}
   if(t.id==='copyBoekLink')copy(serverInfo.base+'/afspraak');});
@@ -1490,7 +1504,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-ksave],[da
 render();
 (async()=>{
   const me=await fetch('/api/me',{credentials:'same-origin'});
-  if(me.status===401){location.replace('/?beheer=1');return}
+  if(me.status===401){location.replace('/');return}
   if(!me.ok){document.body.classList.add('ingelogd');dbFailed=true;render();return}
   serverInfo=await me.json();
   document.body.classList.add('ingelogd');
