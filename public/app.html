@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<style>:root{color-scheme:light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<style>:root{color-scheme:light}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}body:not(.ingelogd) .top{display:none}body:not(.ingelogd) #app{visibility:hidden}</style>
 <script>try{document.documentElement.setAttribute("data-theme",localStorage.getItem("jp-theme")||"light")}catch(e){document.documentElement.setAttribute("data-theme","light")}</script>
 <title>justPIXIT Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1251,16 +1251,8 @@ function apiAssets(){
     list:async()=>({assets:[],usage:{}})
   };
 }
-function showLogin(msg){
-  loaded=false;
-  $('#app').innerHTML=`<div style="max-width:380px;margin:8vh auto 0"><section class="sec" style="display:grid;gap:14px">
-    <div><span class="label">justPIXIT Studio</span><h1 style="font-family:var(--f-display);font-weight:400;font-size:28px;margin-top:4px">Aanmelden</h1></div>
-    <form id="loginform" style="display:grid;gap:10px"><label class="fld"><span>Wachtwoord</span><input type="password" id="pw" autocomplete="current-password" autofocus required></label>
-    <button class="btn primary" type="submit">Aanmelden</button><span id="loginmsg" style="color:var(--late);font-size:13px;min-height:1.2em">${msg?esc(msg):''}</span></form></section></div>`;
-}
-document.addEventListener('submit',async e=>{if(e.target.id!=='loginform')return;e.preventDefault();
-  const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wachtwoord:$('#pw').value}),credentials:'same-origin'});
-  if(r.ok){location.reload();return}let j={};try{j=await r.json()}catch(_){}$('#loginmsg').textContent=j.error||'Aanmelden lukte niet';});
+// Niet (meer) aangemeld → naar de gezamenlijke inlogpagina op /.
+function showLogin(){loaded=false;document.body.classList.remove('ingelogd');location.replace('/?beheer=1');}
 document.addEventListener('click',async e=>{const t=e.target.closest('#logoutBtn,#copyBoekLink');if(!t)return;
   if(t.id==='logoutBtn'){await fetch('/api/logout',{method:'POST',credentials:'same-origin'});location.reload()}
   if(t.id==='copyBoekLink')copy(serverInfo.base+'/afspraak');});
@@ -1480,9 +1472,10 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-ksave],[da
 render();
 (async()=>{
   const me=await fetch('/api/me',{credentials:'same-origin'});
-  if(me.status===401){showLogin();return}
-  if(!me.ok){dbFailed=true;render();return}
+  if(me.status===401){location.replace('/?beheer=1');return}
+  if(!me.ok){document.body.classList.add('ingelogd');dbFailed=true;render();return}
   serverInfo=await me.json();
+  document.body.classList.add('ingelogd');
   setVersieBadge();
   db=apiDb();assets=apiAssets();sample=null;
   try{await db.load()}catch(e){if(e&&e.code!=='not_granted'){dbFailed=true;render()}return}

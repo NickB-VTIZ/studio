@@ -114,6 +114,7 @@ const fmtShort=s=>s?parseDay(s).toLocaleDateString('nl-BE',{day:'numeric',month:
 const eindUur=(slot,duur)=>{const [h,m]=slot.slice(11,16).split(':').map(Number);const t=h*60+m+duur;return pad(Math.floor(t/60)%24)+':'+pad(t%60)};
 const voornaam=n=>(n||'').split(/\s|&/)[0]||'';
 let me=null,verplaats=false,byDay={},month=null,selDay=null,selSlot=null,busy=false,msg={},vraagOpen=null,bevestigOpen=null;
+let loginMode=new URLSearchParams(location.search).get('beheer')?'admin':'klant';
 
 async function api(path,body){const r=await fetch('/api/portaal/'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,credentials:'same-origin'});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw Object.assign(new Error(j.error||'Er liep iets mis'),{status:r.status});return j}
 
@@ -123,6 +124,18 @@ async function init(){
 }
 function renderLogin(state){
   const verlopen=new URLSearchParams(location.search).get('verlopen');
+  if(loginMode==='admin'){
+    $('#main').innerHTML=`<div class="hero"><span style="font-family:var(--f-display);font-style:italic;color:var(--green);font-size:17px">justPIXIT Studio</span><h1 style="margin-top:8px">Beheer</h1><p>Meld je aan om het dashboard te openen.</p></div><hr class="rule">
+     <div class="login">
+      <form id="adminform" novalidate style="display:grid;gap:12px">
+        <label class="fld"><span>Wachtwoord</span><input id="a-pw" type="password" required autocomplete="current-password" autofocus></label>
+        <div id="aerr"></div>
+        <button class="btn primary" type="submit" id="asubmit">Aanmelden</button>
+      </form>
+      <p class="note" style="text-align:center;border-top:1px solid var(--line);padding-top:16px;margin-top:6px">Ben je een klant? <a href="#" data-mode="klant" style="color:var(--green)">Log in met je e-mailadres</a>.</p>
+     </div>`;
+    return;
+  }
   $('#main').innerHTML=`<div class="hero"><span style="font-family:var(--f-display);font-style:italic;color:var(--green);font-size:17px">welkom terug</span><h1 style="margin-top:8px">Mijn pagina</h1><p>Voor klanten van justPIXIT: bekijk en bevestig jullie offerte, volg hoe ver we staan en houd jullie gegevens up-to-date.</p></div><hr class="rule">
    <div class="login">
     ${state==='verzonden'?`<p class="ok">Als dit e-mailadres bij mij gekend is, zit er nu een inloglink in je mailbox. Kijk ook even bij ongewenste mail.</p><p class="note">Geen mail gekregen? Controleer het adres, of stuur me een berichtje.</p>`:`
@@ -134,6 +147,7 @@ function renderLogin(state){
       <p class="note">Je krijgt een link per e-mail; een wachtwoord hoef je niet te onthouden.</p>
     </form>`}
     <p class="note" style="text-align:center;border-top:1px solid var(--line);padding-top:16px;margin-top:6px">Nog geen klant? <a href="/afspraak" style="color:var(--green)">Plan een vrijblijvende kennismaking</a>.</p>
+    <p class="note" style="text-align:center;margin-top:2px">Ben je Liesbeth? <a href="#" data-mode="admin" style="color:var(--green)">Naar het beheer</a>.</p>
    </div>`;
 }
 function render(){
@@ -258,7 +272,14 @@ document.addEventListener('click',async e=>{
     catch(err){msg.verplaats=err.message;if(err.status===409){await laadSlots();return}}
     finally{busy=false}render();window.scrollTo({top:0,behavior:'smooth'});return}
 });
+document.addEventListener('click',e=>{const t=e.target.closest('[data-mode]');if(!t)return;e.preventDefault();loginMode=t.dataset.mode;const u=new URL(location);if(loginMode==='admin')u.searchParams.set('beheer','1');else u.searchParams.delete('beheer');history.replaceState(null,'',u);renderLogin()});
 document.addEventListener('submit',async e=>{
+  if(e.target.id==='adminform'){e.preventDefault();const pw=($('#a-pw')||{}).value||'';const er=$('#aerr');er.innerHTML='';
+    const btn=$('#asubmit');btn.disabled=true;btn.textContent='Aanmelden…';
+    try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wachtwoord:pw}),credentials:'same-origin'});
+      if(r.ok){location.href='/app';return}let j={};try{j=await r.json()}catch(_){}er.innerHTML=`<p class="err">${esc(j.error||'Aanmelden lukte niet')}</p>`}
+    catch(err){er.innerHTML='<p class="err">Geen verbinding. Probeer opnieuw.</p>'}
+    btn.disabled=false;btn.textContent='Aanmelden';return}
   if(e.target.id==='loginform'){e.preventDefault();const email=$('#l-email').value.trim();const er=$('#lerr');er.innerHTML='';
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){er.innerHTML='<p class="err">Vul een geldig e-mailadres in.</p>';return}
     $('#lsubmit').disabled=true;$('#lsubmit').textContent='Versturen…';
