@@ -525,7 +525,7 @@ function render(){
   if(view.v==='vandaag')app.innerHTML=vVandaag();
   else if(view.v==='pipeline')app.innerHTML=vPipeline();
   else if(view.v==='klanten')app.innerHTML=vKlanten();
-  else if(view.v==='nieuw')app.innerHTML=vNieuw();
+  else if(view.v==='nieuw'){if(!document.getElementById('newform'))app.innerHTML=vNieuw()}
   else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel();laadAgenda();laadMailtest()}}
   else if(view.v==='gebruikers'){app.innerHTML=vGebruikers();laadGebruikers()}
   else if(view.v==='koppelingen'){if(!koppelOpen){app.innerHTML=vKoppelingen();koppelOpen=true;laadKoppelingen()}}
