@@ -1077,9 +1077,27 @@ function vBeheer(){
   <div class="beheer">${({afspraken:beheerAfspraken,mails:beheerMails,fiche:beheerFiche,systeem:beheerSysteem})[beheerTab]()}</div>`;
 }
 function beheerSysteem(){
-  return `<section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
+  return `<section><h2>Mijn account</h2><p>Je inlogadres en wachtwoord voor dit beheer. Hiermee meld je je aan op de startpagina.</p>
+    <div class="sec" style="display:grid;gap:12px;max-width:460px">
+     <label class="fld"><span>E-mailadres</span><input id="acc-email" type="email" value="${esc(serverInfo.account||'')}" autocomplete="username"></label>
+     <label class="fld"><span>Nieuw wachtwoord <span class="hint">(laat leeg om te behouden)</span></span><input id="acc-nieuw" type="password" autocomplete="new-password" placeholder="minstens 8 tekens"></label>
+     <label class="fld"><span>Huidig wachtwoord <span class="hint">(ter bevestiging)</span></span><input id="acc-huidig" type="password" autocomplete="current-password"></label>
+     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="accSave">Account bewaren</button><span class="hint" id="accMsg"></span></div>
+    </div></section>
+   <section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
    <section><h2>Koppelingen</h2><p>E-mail (Resend), WhatsApp, Office 365, Zoom en facturatie stel je in op de aparte pagina.</p><button class="btn" data-v="koppelingen" data-gonav="1">Naar Koppelingen →</button></section>`;
 }
+async function bewaarAccount(){
+  const email=($('#acc-email')||{}).value.trim()||'',nieuw=($('#acc-nieuw')||{}).value||'',huidig=($('#acc-huidig')||{}).value||'';
+  const msg=$('#accMsg');if(msg){msg.style.color='';msg.textContent='Bewaren…'}
+  if(!huidig){if(msg){msg.style.color='var(--late)';msg.textContent='Vul je huidige wachtwoord in ter bevestiging.'}return}
+  try{const r=await fetch('/api/account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,nieuw,huidig}),credentials:'same-origin'}).then(x=>x.json());
+    if(r.error){if(msg){msg.style.color='var(--late)';msg.textContent=r.error}return}
+    serverInfo.account=r.email;if(msg){msg.style.color='var(--ok)';msg.textContent='Bewaard.'+(nieuw?' Je nieuwe wachtwoord is actief.':'')}
+    const n=$('#acc-nieuw'),h=$('#acc-huidig');if(n)n.value='';if(h)h.value='';
+  }catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Bewaren mislukt'}}
+}
+document.addEventListener('click',e=>{if(e.target.closest('#accSave'))bewaarAccount()});
 function beheerFiche(){
   const lists=Object.keys(LIJST_LABELS).map(key=>{const arr=cfg.lijsten[key];
     return `<div class="sec"><h3>${esc(LIJST_LABELS[key])}</h3>

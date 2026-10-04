@@ -46,7 +46,7 @@ docker compose -f compose.hostinger.yml ps
 
 Een goede `SESSION_SECRET` maak je met `openssl rand -hex 32`.
 
-Open daarna https://studio.justpixit.be/app en meld je aan met je `ADMIN_PASSWORD`. De boekingspagina staat op https://studio.justpixit.be/afspraak.
+Open daarna https://studio.justpixit.be/ en meld je aan. Bij de eerste start maakt de app automatisch een adminaccount aan met e-mailadres `liesbeth@justpixit.be` (aanpasbaar via `ADMIN_LOGIN_EMAIL` in `.env`) en als wachtwoord je `ADMIN_PASSWORD`. Je kan e-mailadres en wachtwoord daarna wijzigen in **Beheer → Systeem → Mijn account**. De boekingspagina staat op https://studio.justpixit.be/afspraak.
 
 **Alternatief zonder GHCR:** met de volledige repository op de server bouw je ter plekke: `docker compose -f compose.hostinger.yml up -d --build`.
 
@@ -179,7 +179,7 @@ Met Docker: `cp .env.example .env`, dan `docker compose -f compose.local.yml up 
 
 ## 7. Veelgestelde vragen
 
-- **Wachtwoord vergeten.** Pas `ADMIN_PASSWORD` in `.env` aan en voer `./restart.sh` uit.
+- **Wachtwoord vergeten.** Verwijder in de database het document `instellingen/admin` (of herstel een back-up) en herstart; de app maakt het account dan opnieuw aan met `ADMIN_LOGIN_EMAIL` + `ADMIN_PASSWORD` uit `.env`. Daarna kan je het wachtwoord weer wijzigen in Beheer → Systeem → Mijn account.
 - **De boekingspagina zegt "Online boeken staat even uit".** Zet in Studio → Beheer → Online afspraken het vinkje aan.
 - **Welke momenten staan open?** Beheer → Online afspraken: dagen, tijdsblokken, duur, pauze, hoeveel uur op voorhand en geblokkeerde dagen (bv. verlof `2027-07-01..2027-07-21`). Momenten die al bezet zijn door een geplande kennismaking worden automatisch verborgen; twee klanten kunnen nooit hetzelfde moment boeken.
 - **Een klant wil verzetten.** Pas in de klantfiche het veld *Kennismakingsgesprek* aan; het oude moment komt weer vrij.

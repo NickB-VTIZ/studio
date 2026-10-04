@@ -128,7 +128,8 @@ function renderLogin(state){
     $('#main').innerHTML=`<div class="hero"><span style="font-family:var(--f-display);font-style:italic;color:var(--green);font-size:17px">justPIXIT Studio</span><h1 style="margin-top:8px">Beheer</h1><p>Meld je aan om het dashboard te openen.</p></div><hr class="rule">
      <div class="login">
       <form id="adminform" novalidate style="display:grid;gap:12px">
-        <label class="fld"><span>Wachtwoord</span><input id="a-pw" type="password" required autocomplete="current-password" autofocus></label>
+        <label class="fld"><span>E-mailadres</span><input id="a-email" type="email" required autocomplete="username" placeholder="liesbeth@justpixit.be"></label>
+        <label class="fld"><span>Wachtwoord</span><input id="a-pw" type="password" required autocomplete="current-password"></label>
         <div id="aerr"></div>
         <button class="btn primary" type="submit" id="asubmit">Aanmelden</button>
       </form>
@@ -274,9 +275,9 @@ document.addEventListener('click',async e=>{
 });
 document.addEventListener('click',e=>{const t=e.target.closest('[data-mode]');if(!t)return;e.preventDefault();loginMode=t.dataset.mode;const u=new URL(location);if(loginMode==='admin')u.searchParams.set('beheer','1');else u.searchParams.delete('beheer');history.replaceState(null,'',u);renderLogin()});
 document.addEventListener('submit',async e=>{
-  if(e.target.id==='adminform'){e.preventDefault();const pw=($('#a-pw')||{}).value||'';const er=$('#aerr');er.innerHTML='';
+  if(e.target.id==='adminform'){e.preventDefault();const pw=($('#a-pw')||{}).value||'';const email=($('#a-email')||{}).value.trim()||'';const er=$('#aerr');er.innerHTML='';
     const btn=$('#asubmit');btn.disabled=true;btn.textContent='Aanmelden…';
-    try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wachtwoord:pw}),credentials:'same-origin'});
+    try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,wachtwoord:pw}),credentials:'same-origin'});
       if(r.ok){location.href='/app';return}let j={};try{j=await r.json()}catch(_){}er.innerHTML=`<p class="err">${esc(j.error||'Aanmelden lukte niet')}</p>`}
     catch(err){er.innerHTML='<p class="err">Geen verbinding. Probeer opnieuw.</p>'}
     btn.disabled=false;btn.textContent='Aanmelden';return}

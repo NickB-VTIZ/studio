@@ -214,6 +214,23 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const store = new Store(DATA_DIR);
 seedIfEmpty();
 
+// Adminaccount (e-mail + wachtwoord) in de database; wachtwoord als PBKDF2-hash, nooit in klare tekst of in de code.
+function hashPw(pw, salt) { return crypto.pbkdf2Sync(String(pw), salt, 120000, 32, 'sha256').toString('hex'); }
+function adminAccount() { return store.get('instellingen', 'admin') || null; }
+function zetAdminWachtwoord(email, pw) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  store.set('instellingen', 'admin', { email: String(email).trim().toLowerCase(), salt, hash: hashPw(pw, salt), gewijzigd: new Date().toISOString() });
+}
+function checkAdmin(email, pw) {
+  const a = adminAccount();
+  if (!a) return !!(ADMIN_PASSWORD && safeEq(pw, ADMIN_PASSWORD)); // nog niet geseed: val terug op .env
+  const e = String(email || '').trim().toLowerCase();
+  return safeEq(e, a.email) && safeEq(hashPw(pw, a.salt), a.hash);
+}
+// Eerste keer: maak het account uit .env (ADMIN_LOGIN_EMAIL of standaard liesbeth@justpixit.be + ADMIN_PASSWORD).
+function seedAdmin() { if (adminAccount() || !ADMIN_PASSWORD || ADMIN_PASSWORD.length < 8) return; zetAdminWachtwoord((process.env.ADMIN_LOGIN_EMAIL || 'liesbeth@justpixit.be'), ADMIN_PASSWORD); }
+seedAdmin();
+
 /* ---------- helpers ---------- */
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.pdf': 'application/pdf', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8' };
 const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
@@ -303,7 +320,7 @@ async function api(req, res, url) {
     const ip = clientIp(req);
     if (limited('login:' + ip, 10, 15 * 60e3)) return json(res, 429, { error: 'Te veel pogingen. Probeer over een kwartier opnieuw.' });
     const body = await readJson(req, 10e3).catch(() => ({}));
-    if (!safeEq(body.wachtwoord || '', ADMIN_PASSWORD)) return json(res, 401, { error: 'Verkeerd wachtwoord' });
+    if (!checkAdmin(body.email, body.wachtwoord || '')) return json(res, 401, { error: 'Verkeerd e-mailadres of wachtwoord' });
     res.setHeader('Set-Cookie', `sid=${makeSession()}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${30 * 86400}${isHttps(req) ? '; Secure' : ''}`);
     return json(res, 200, { ok: true });
   }
@@ -488,7 +505,19 @@ async function api(req, res, url) {
   // --- vanaf hier: login vereist ---
   if (!authed(req)) return json(res, 401, { error: 'Niet aangemeld' });
 
-  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), office365: msVerbonden(), zoom: zoomActief(), versie: VERSION.version });
+  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), office365: msVerbonden(), zoom: zoomActief(), versie: VERSION.version, account: (adminAccount() || {}).email || '' });
+  if (p === '/api/account' && m === 'GET') return json(res, 200, { email: (adminAccount() || {}).email || '' });
+  if (p === '/api/account' && m === 'POST') {
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    if (!checkAdmin((adminAccount() || {}).email, b.huidig || '')) return json(res, 401, { error: 'Je huidige wachtwoord klopt niet.' });
+    const huidig = adminAccount() || {};
+    const email = ('email' in b) ? String(b.email || '').trim().toLowerCase() : huidig.email;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(res, 400, { error: 'Vul een geldig e-mailadres in.' });
+    const nieuw = String(b.nieuw || '');
+    if (nieuw && nieuw.length < 8) return json(res, 400, { error: 'Kies een wachtwoord van minstens 8 tekens.' });
+    zetAdminWachtwoord(email, nieuw || b.huidig);
+    return json(res, 200, { ok: true, email });
+  }
   if (p === '/api/version' && m === 'GET') {
     const latest = await nieuwsteVersie();
     return json(res, 200, { running: VERSION, latest, repo: REPO, updateBeschikbaar: latest ? cmpVersie(latest, VERSION.version) > 0 : false, updateEnabled: UPDATE_ENABLED });
