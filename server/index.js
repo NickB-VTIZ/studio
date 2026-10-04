@@ -358,6 +358,8 @@ function maakGebruiker(email, role, klantId, extra = {}) {
 // Rollen: elke rol zegt tot welk deel ze toegang geeft (beheer = Studio, portaal = Mijn pagina). Ingebouwde rollen kan je niet verwijderen.
 const STANDAARD_ROLLEN = {
   admin: { label: 'Beheerder', beheer: true, portaal: false, ingebouwd: true, modules: standaardModules(true, false) },
+  beheer: { label: 'Beheer', beheer: true, portaal: false, ingebouwd: true, modules: ['beheer', 'koppelingen'] },
+  klantbeheerder: { label: 'Klantbeheerder', beheer: true, portaal: false, ingebouwd: true, modules: ['vandaag', 'pipeline', 'klanten', 'gebruikers'] },
   klant: { label: 'Klant', beheer: false, portaal: true, ingebouwd: true, modules: standaardModules(false, true) },
 };
 // Opgeslagen rollen overschrijven de standaard; bij ingebouwde rollen enkel label + modules (toegang blijft vast).
