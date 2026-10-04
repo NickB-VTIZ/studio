@@ -560,7 +560,7 @@ async function api(req, res, url) {
       naam, type: cfg.types.includes(type) ? type : (cfg.types[0] || ''), bron: 'Online afspraak', email, telefoon, straat: '', postcode: '', gemeente: '', gasten: '', budget: '',
       kennismaking: slot, datumEvent: /^\d{4}-\d{2}-\d{2}$/.test(datumEvent) ? datumEvent : '', deadline: '', ontwerpDatum: '',
       fase: 'ingepland', faseDatums: { ingepland: vandaag }, nieuw: true,
-      fiche: { producten: {}, stijl: {}, uitnodiging: {}, bedankjes: { actief: false, opties: [{ notities: '', aantal: '', verpakking: '', afwerking: '' }] }, offerte: {}, extras: '', notities: notitie },
+      fiche: { producten: {}, stijl: {}, uitnodiging: {}, bedankjes: { opties: [{ notities: '', aantal: '', verpakking: '', afwerking: '' }] }, offerte: {}, extras: '', notities: notitie },
       logboek: [{ d: vandaag, t: 'Afspraak geboekt via de website' + (bericht ? ': ' + bericht : ''), s: 'afspraak', ts: new Date().toISOString() }],
       aangemaakt: new Date().toISOString(), bijgewerkt: new Date().toISOString(),
     };
@@ -1158,7 +1158,7 @@ function seedIfEmpty() {
   const t = nuBrussel().slice(0, 10);
   const add = (s, n) => { const d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
   const a = n => add(t, n);
-  const base = () => ({ email: '', telefoon: '', straat: '', postcode: '', gemeente: '', gasten: '', budget: '', ontwerpDatum: '', voorbeeld: true, fiche: { producten: {}, stijl: {}, uitnodiging: {}, bedankjes: { actief: false, opties: [{ notities: '', aantal: '', verpakking: '', afwerking: '' }] }, offerte: {}, extras: '', notities: '' }, aangemaakt: new Date().toISOString(), bijgewerkt: new Date().toISOString() });
+  const base = () => ({ email: '', telefoon: '', straat: '', postcode: '', gemeente: '', gasten: '', budget: '', ontwerpDatum: '', voorbeeld: true, fiche: { producten: {}, stijl: {}, uitnodiging: {}, bedankjes: { opties: [{ notities: '', aantal: '', verpakking: '', afwerking: '' }] }, offerte: {}, extras: '', notities: '' }, aangemaakt: new Date().toISOString(), bijgewerkt: new Date().toISOString() });
   const vb = {
     'vb-lotte-bram': Object.assign(base(), { naam: 'Voorbeeld · Lotte & Bram', type: 'Huwelijk', bron: 'Online afspraak', gemeente: 'Gent', kennismaking: a(5) + 'T19:00', datumEvent: a(250), deadline: a(150), fase: 'ingepland', faseDatums: { ingepland: a(-2) }, logboek: [{ d: a(-2), t: 'Afspraak geboekt via de website', s: 'afspraak' }] }),
     'vb-emma-jules': Object.assign(base(), { naam: 'Voorbeeld · Emma & Jules', type: 'Huwelijk', bron: 'Instagram', gemeente: 'Brugge', kennismaking: a(-9) + 'T20:00', datumEvent: a(220), deadline: a(140), fase: 'gehad', faseDatums: { ingepland: a(-20), gehad: a(-9) }, logboek: [{ d: a(-9), t: 'Fase → Kennismaking gehad', s: 'fase' }] }),
