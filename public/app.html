@@ -1204,19 +1204,18 @@ function tekenGebruikers(){
 }
 function tekenRollen(){
   const box=$('#rollenBox');if(!box)return;
+  const groepen=gebrData.moduleGroepen||[];
   const rows=Object.keys(gebrData.rollen).map(k=>{const r=gebrData.rollen[k];const toeg=[r.beheer?'Beheer':'',r.portaal?'Mijn pagina':''].filter(Boolean).join(' + ')||'geen toegang';const aantal=(gebrData.gebruikers||[]).filter(u=>u.role===k).length;
-    const ml=gebrData.moduleLijst||{beheer:[],portaal:[]};const mods=r.modules||[];
+    const rg=r.moduleGroepen||[];
     if(rolEdit===k)return `<div class="todo-card" style="display:grid;gap:12px"><div class="grid2">
        <label class="fld"><span>Naam van de rol</span><input id="rl-label" value="${esc(r.label)}"></label></div>
        ${r.ingebouwd?`<span class="hint">Ingebouwde rol: de toegang (${esc(toeg)}) ligt vast; de zichtbare modules kies je hieronder.</span>`:`<div class="opts"><label><input type="checkbox" id="rl-beheer" ${r.beheer?'checked':''}>Toegang tot beheer (Studio)</label><label><input type="checkbox" id="rl-portaal" ${r.portaal?'checked':''}>Toegang tot Mijn pagina</label></div>`}
-       <div><div class="label" style="margin-bottom:6px">Zichtbare modules</div><div class="grid2" style="gap:14px">
-        <div><div class="hint" style="margin-bottom:4px"><b>Beheer (Studio)</b></div><div class="opts" style="flex-direction:column;align-items:stretch">${ml.beheer.map(m=>`<label title="${esc(m.uitleg)}"><input type="checkbox" data-rlmod="${esc(m.id)}" ${mods.includes(m.id)?'checked':''}>${esc(m.label)}</label>`).join('')}</div></div>
-        <div><div class="hint" style="margin-bottom:4px"><b>Mijn pagina (klantenportaal)</b></div><div class="opts" style="flex-direction:column;align-items:stretch">${ml.portaal.map(m=>`<label title="${esc(m.uitleg)}"><input type="checkbox" data-rlmod="${esc(m.id)}" ${mods.includes(m.id)?'checked':''}>${esc(m.label)}</label>`).join('')}</div></div>
-       </div><span class="hint">Zo stel je later pakketten samen (basis, complete, all-in): maak per pakket een rol met de modules die erbij horen.</span></div>
+       <div><div class="label" style="margin-bottom:6px">Modulegroepen</div><div class="opts" style="flex-direction:column;align-items:stretch;gap:10px">${groepen.map(g=>`<label title="${esc(g.uitleg)}"><input type="checkbox" data-rlgroep="${esc(g.id)}" ${rg.includes(g.id)?'checked':''}><b>${esc(g.label)}</b> <span class="hint">— ${esc(g.tabLabels.join(', '))}</span></label>`).join('')}</div>
+       <span class="hint">Elke modulegroep bundelt een set tabbladen. Zo stel je pakketten samen per rol.</span></div>
        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" data-rlsave="${esc(k)}">Bewaren</button><button class="btn small ghost" data-rlcancel="1">Annuleer</button></div></div>`;
-    const alle=ml.beheer.concat(ml.portaal);const modLabels=alle.filter(m=>mods.includes(m.id)).map(m=>m.label);
+    const groepLabels=groepen.filter(g=>rg.includes(g.id)).map(g=>g.label);
     return `<div class="dlrow" style="margin:0;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
-      <span><b>${esc(r.label)}</b> <span class="hint">${esc(toeg)}</span> <span class="chip">${aantal} ${aantal===1?'gebruiker':'gebruikers'}</span>${r.ingebouwd?' <span class="hint">· ingebouwd</span>':''}<br><span class="hint">Modules: ${modLabels.length?esc(modLabels.join(', ')):'<i>geen</i>'}</span></span>
+      <span><b>${esc(r.label)}</b> <span class="hint">${esc(toeg)}</span> <span class="chip">${aantal} ${aantal===1?'gebruiker':'gebruikers'}</span>${r.ingebouwd?' <span class="hint">· ingebouwd</span>':''}<br><span class="hint">Modules: ${groepLabels.length?esc(groepLabels.join(', ')):'<i>geen</i>'}</span></span>
       <span style="display:flex;gap:6px"><button class="btn small ghost" data-rledit="${esc(k)}">Wijzig</button>${r.ingebouwd?'':`<button class="btn small ghost danger" data-rldel="${esc(k)}">Verwijder</button>`}</span></div>`;
   }).join('');
   const nieuw=rolNieuw?`<div class="todo-card" style="display:grid;gap:10px"><b>Nieuwe rol</b><div class="grid2">
@@ -1243,8 +1242,8 @@ document.addEventListener('click',async e=>{
       gebrNieuw=false;await laadGebruikers();toast(r.gemaild?'Aangemaakt — uitnodiging gemaild':'Aangemaakt');if(!r.gemaild&&r.link)await copy(r.link)}catch(err){if(msg){msg.style.color='var(--late)';msg.textContent=err.message}}return}
   if(t.dataset.rledit){rolEdit=t.dataset.rledit;rolNieuw=false;tekenRollen();return}
   if(t.dataset.rlcancel){rolEdit=null;tekenRollen();return}
-  if(t.dataset.rlsave){const modules=[...document.querySelectorAll('[data-rlmod]')].filter(c=>c.checked).map(c=>c.dataset.rlmod);const r0=gebrData.rollen[t.dataset.rlsave]||{};
-    try{await apiGebr('/api/rollen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:t.dataset.rlsave,label:($('#rl-label')||{}).value||'',beheer:$('#rl-beheer')?$('#rl-beheer').checked:!!r0.beheer,portaal:$('#rl-portaal')?$('#rl-portaal').checked:!!r0.portaal,modules})});rolEdit=null;toast('Bewaard');await laadGebruikers();if(t.dataset.rlsave===serverInfo.rol){await refreshServerInfo();render()}}catch(err){toast(err.message)}return}
+  if(t.dataset.rlsave){const moduleGroepen=[...document.querySelectorAll('[data-rlgroep]')].filter(c=>c.checked).map(c=>c.dataset.rlgroep);const r0=gebrData.rollen[t.dataset.rlsave]||{};
+    try{await apiGebr('/api/rollen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:t.dataset.rlsave,label:($('#rl-label')||{}).value||'',beheer:$('#rl-beheer')?$('#rl-beheer').checked:!!r0.beheer,portaal:$('#rl-portaal')?$('#rl-portaal').checked:!!r0.portaal,moduleGroepen})});rolEdit=null;toast('Bewaard');await laadGebruikers();if(t.dataset.rlsave===serverInfo.rol){await refreshServerInfo();render()}}catch(err){toast(err.message)}return}
   if(t.dataset.rldel){if(!confirm('Rol verwijderen?'))return;try{await apiGebr('/api/rollen/'+t.dataset.rldel,{method:'DELETE'});toast('Verwijderd');await laadGebruikers()}catch(err){toast(err.message)}return}
   if(t.id==='rnOpen'){rolNieuw=true;rolEdit=null;tekenRollen();return}
   if(t.id==='rnCancel'){rolNieuw=false;tekenRollen();return}

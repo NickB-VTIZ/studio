@@ -17,7 +17,8 @@ const { twilioConfig, sendWhatsApp, testTwilio } = require('./twilio');
 const { maakUBL } = require('./ubl');
 const { STANDAARD_MAILS, vul, bouwMail } = require('./mails');
 const { fasenVoor, FASES, FI: FI_SERVER, GESTOPT } = require('./fases');
-const { BEHEER_MODULES, PORTAAL_MODULES, ALLE_MODULES, MODULE_IDS, standaardModules } = require('./modules');
+const { BEHEER_MODULES, BEHEER_TABS, PORTAAL_MODULES, ALLE_MODULES, MODULE_IDS,
+  MODULE_GROEPEN, GROEP_IDS, groepNaarTabs, TAB_MAP } = require('./modules');
 const { bouwFeed, nieuwToken } = require('./agenda');
 const graph = require('./graph');
 const zoom = require('./zoom');
@@ -355,23 +356,36 @@ function maakGebruiker(email, role, klantId, extra = {}) {
   store.set('gebruikers', uid, { email: normEmail(email), role, klantId: klantId || '', voornaam: extra.voornaam || '', naam: extra.naam || '', hash: '', salt: '', aangemaakt: new Date().toISOString() });
   return uid;
 }
-// Rollen: elke rol zegt tot welk deel ze toegang geeft (beheer = Studio, portaal = Mijn pagina). Ingebouwde rollen kan je niet verwijderen.
+// Rollen: elke rol zegt tot welk deel ze toegang geeft (beheer = Studio, portaal = Mijn pagina).
+// moduleGroepen bevat groep-IDs (bv. ['klantbeheer','beheer']); rolModules() vertaalt dat naar individuele tab-IDs.
 const STANDAARD_ROLLEN = {
-  admin: { label: 'Beheerder', beheer: true, portaal: false, ingebouwd: true, modules: standaardModules(true, false) },
-  beheer: { label: 'Beheer', beheer: true, portaal: false, ingebouwd: true, modules: ['beheer', 'koppelingen'] },
-  klantbeheerder: { label: 'Klantbeheerder', beheer: true, portaal: false, ingebouwd: true, modules: ['vandaag', 'pipeline', 'klanten', 'gebruikers'] },
-  klant: { label: 'Klant', beheer: false, portaal: true, ingebouwd: true, modules: standaardModules(false, true) },
+  admin: { label: 'Beheerder', beheer: true, portaal: false, ingebouwd: true, moduleGroepen: ['klantbeheer', 'beheer'] },
+  klantbeheerder: { label: 'Klantbeheerder', beheer: true, portaal: false, ingebouwd: true, moduleGroepen: ['klantbeheer'] },
+  klant: { label: 'Klant', beheer: false, portaal: true, ingebouwd: true, moduleGroepen: [] },
 };
-// Opgeslagen rollen overschrijven de standaard; bij ingebouwde rollen enkel label + modules (toegang blijft vast).
+// Opgeslagen rollen overschrijven de standaard; bij ingebouwde rollen enkel label + moduleGroepen (toegang blijft vast).
 function rollen() {
   const d = store.get('instellingen', 'rollen'); const opgeslagen = (d && d.rollen) || {}; const out = {};
-  for (const k in STANDAARD_ROLLEN) { const s = STANDAARD_ROLLEN[k], o = opgeslagen[k] || {}; out[k] = Object.assign({}, s, { label: o.label || s.label, modules: Array.isArray(o.modules) ? o.modules.filter(x => MODULE_IDS.has(x)) : s.modules.slice() }); }
-  for (const k in opgeslagen) if (!STANDAARD_ROLLEN[k]) { const o = opgeslagen[k]; out[k] = { label: o.label || k, beheer: !!o.beheer, portaal: !!o.portaal, ingebouwd: false, modules: Array.isArray(o.modules) ? o.modules.filter(x => MODULE_IDS.has(x)) : standaardModules(!!o.beheer, !!o.portaal) }; }
+  for (const k in STANDAARD_ROLLEN) {
+    const s = STANDAARD_ROLLEN[k], o = opgeslagen[k] || {};
+    out[k] = Object.assign({}, s, { label: o.label || s.label,
+      moduleGroepen: Array.isArray(o.moduleGroepen) ? o.moduleGroepen.filter(x => GROEP_IDS.has(x)) : s.moduleGroepen.slice() });
+  }
+  for (const k in opgeslagen) if (!STANDAARD_ROLLEN[k]) {
+    const o = opgeslagen[k];
+    out[k] = { label: o.label || k, beheer: !!o.beheer, portaal: !!o.portaal, ingebouwd: false,
+      moduleGroepen: Array.isArray(o.moduleGroepen) ? o.moduleGroepen.filter(x => GROEP_IDS.has(x)) : [] };
+  }
   return out;
 }
 function rolDef(key) { return rollen()[key] || null; }
 function rolHeeft(key, deel) { const r = rolDef(key); return !!(r && r[deel]); }
-function rolModules(key) { const r = rolDef(key); return r ? r.modules : []; }
+function rolModules(key) {
+  const r = rolDef(key); if (!r) return [];
+  // Beheer-rollen: vertaal moduleGroepen naar tab-IDs; klant-rollen: portaalmodules
+  if (r.portaal) return PORTAAL_MODULES.map(m => m.id);
+  return groepNaarTabs(r.moduleGroepen || []);
+}
 function bewaarRollen(map) { store.set('instellingen', 'rollen', { rollen: map }); }
 const gestopt = k => GESTOPT.has(k.fase);
 function zetWachtwoord(uid, pw) {
@@ -738,7 +752,7 @@ async function api(req, res, url) {
   if (p === '/api/gebruikers' && m === 'GET') {
     return json(res, 200, {
       gebruikers: gebruikers().map(u => ({ id: u.id, email: u.email, voornaam: u.voornaam || '', naam: u.naam || '', role: u.role, klantId: u.klantId || '', klant: u.klantId ? (store.get('klanten', u.klantId) || {}).naam || '' : '', actief: !!u.hash, laatstIngelogd: u.laatstIngelogd || '' })),
-      rollen: rollen(), moduleLijst: { beheer: BEHEER_MODULES, portaal: PORTAAL_MODULES },
+      rollen: rollen(), moduleGroepen: MODULE_GROEPEN.map(g => ({ ...g, tabLabels: g.tabs.map(t => (TAB_MAP.get(t) || {}).label || t) })),
     });
   }
   if (p === '/api/gebruikers' && m === 'POST') { // nieuwe gebruiker + uitnodiging om wachtwoord in te stellen
@@ -799,13 +813,13 @@ async function api(req, res, url) {
     if (!key) return json(res, 400, { error: 'Geef de rol een korte sleutel (letters/cijfers).' });
     if (STANDAARD_ROLLEN[key] && b.nieuw) return json(res, 409, { error: 'Deze rol bestaat al.' });
     const map = (store.get('instellingen', 'rollen') || {}).rollen || {};
-    const modules = Array.isArray(b.modules) ? b.modules.map(String).filter(x => MODULE_IDS.has(x)) : null;
-    if (STANDAARD_ROLLEN[key]) { // ingebouwd: toegang ligt vast, label en modules mag je aanpassen
+    const moduleGroepen = Array.isArray(b.moduleGroepen) ? b.moduleGroepen.map(String).filter(x => GROEP_IDS.has(x)) : null;
+    if (STANDAARD_ROLLEN[key]) { // ingebouwd: toegang ligt vast, label en moduleGroepen mag je aanpassen
       const s0 = STANDAARD_ROLLEN[key];
-      map[key] = { label: String(b.label || s0.label).trim().slice(0, 40) || s0.label, modules: modules || (map[key] && map[key].modules) || s0.modules };
+      map[key] = { label: String(b.label || s0.label).trim().slice(0, 40) || s0.label, moduleGroepen: moduleGroepen || (map[key] && map[key].moduleGroepen) || s0.moduleGroepen };
     } else {
       const beheer = !!b.beheer, portaal = !!b.portaal;
-      map[key] = { label: String(b.label || key).trim().slice(0, 40) || key, beheer, portaal, ingebouwd: false, modules: modules || (map[key] && map[key].modules) || standaardModules(beheer, portaal) };
+      map[key] = { label: String(b.label || key).trim().slice(0, 40) || key, beheer, portaal, ingebouwd: false, moduleGroepen: moduleGroepen || (map[key] && map[key].moduleGroepen) || [] };
     }
     bewaarRollen(map);
     return json(res, 200, { ok: true, key });

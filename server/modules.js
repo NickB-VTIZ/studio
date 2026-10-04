@@ -1,6 +1,5 @@
-// Modules van de applicatie. Elke rol krijgt een lijst van modules die ze mag zien; zo kan je later pakketten
-// (basis / complete / all-in) samenstellen door rollen met een andere moduleset te maken.
-const BEHEER_MODULES = [
+// Individuele tabs (beheer-kant en portaal-kant)
+const BEHEER_TABS = [
   { id: 'vandaag', label: 'Vandaag', uitleg: 'Dashboard met wat er vandaag moet gebeuren' },
   { id: 'pipeline', label: 'Pipeline', uitleg: 'Overzicht van alle klanten per fase' },
   { id: 'klanten', label: 'Klanten', uitleg: 'Klantenlijst en klantfiches' },
@@ -17,8 +16,33 @@ const PORTAAL_MODULES = [
   { id: 'p_bijlages', label: 'Bijlages', uitleg: 'Offerte, factuur, contract downloaden' },
   { id: 'p_gegevens', label: 'Gegevens', uitleg: 'Eigen gegevens aanpassen' },
 ];
-const ALLE_MODULES = BEHEER_MODULES.concat(PORTAAL_MODULES);
-const MODULE_IDS = new Set(ALLE_MODULES.map(m => m.id));
-const standaardModules = (beheer, portaal) => (beheer ? BEHEER_MODULES.map(m => m.id) : []).concat(portaal ? PORTAAL_MODULES.map(m => m.id) : []);
 
-module.exports = { BEHEER_MODULES, PORTAAL_MODULES, ALLE_MODULES, MODULE_IDS, standaardModules };
+// Modulegroepen: pakketten van tabs die aan rollen worden toegekend
+const MODULE_GROEPEN = [
+  { id: 'klantbeheer', label: 'Klantbeheer', uitleg: 'Klanten opvolgen: dagelijks overzicht, pipeline, klantenlijst en gebruikersbeheer',
+    tabs: ['vandaag', 'pipeline', 'klanten', 'gebruikers'] },
+  { id: 'beheer', label: 'Beheer', uitleg: 'Instellingen en koppelingen configureren',
+    tabs: ['beheer', 'koppelingen'] },
+];
+const GROEP_IDS = new Set(MODULE_GROEPEN.map(g => g.id));
+
+// Zet een lijst van groep-IDs om naar de individuele tab-IDs
+function groepNaarTabs(groepIds) {
+  const tabs = new Set();
+  for (const gid of groepIds) {
+    const g = MODULE_GROEPEN.find(m => m.id === gid);
+    if (g) g.tabs.forEach(t => tabs.add(t));
+  }
+  return [...tabs];
+}
+
+// Tab-labels opzoeken (voor weergave)
+const TAB_MAP = new Map(BEHEER_TABS.map(t => [t.id, t]));
+
+// Legacy exports (BEHEER_MODULES alias) + nieuwe groep-exports
+const BEHEER_MODULES = BEHEER_TABS;
+const ALLE_MODULES = BEHEER_TABS.concat(PORTAAL_MODULES);
+const MODULE_IDS = new Set(ALLE_MODULES.map(m => m.id));
+
+module.exports = { BEHEER_MODULES, BEHEER_TABS, PORTAAL_MODULES, ALLE_MODULES, MODULE_IDS,
+  MODULE_GROEPEN, GROEP_IDS, groepNaarTabs, TAB_MAP };
