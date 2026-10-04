@@ -1664,12 +1664,13 @@ render();
     if(view.v==='klant'&&mounted===view.id){const k=klanten.find(x=>x.id===view.id);
       if(!k)mounted=null;
       else if(work&&!saveTimer&&!Object.keys(pendingTop).length&&(k.rev||0)>(work.rev||0)){mounted=null;ofMounted=false}}
+    if(view.v==='nieuw'&&document.getElementById('newform'))return;
     render();
   });
   db.doc('instellingen/algemeen').onSnapshot(snap=>{
     if(cfgTimer||snap.metadata.hasPendingWrites)return;
     cfg=mergeCfg(snap.exists?snap.data():null);
-    if(view.v!=='beheer'&&view.v!=='klant'&&loaded)render();
+    if(view.v!=='beheer'&&view.v!=='klant'&&view.v!=='nieuw'&&loaded)render();
   });
 })();
 </script>
