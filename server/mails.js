@@ -1,11 +1,13 @@
 // Standaard mailteksten + placeholder-invuller. Templates zijn bewerkbaar in Beheer (instellingen/algemeen.mails).
 // Knop-plaatshouders ({videolink}, {loginlink}, {portaallink}) worden in de HTML-mail een knop en mogen overal in het sjabloon staan.
 const STANDAARD_MAILS = {
-  boekingKlant: 'Hoi {voornaam},\n\n{bevestiging}\n\nWanneer: {wanneer} ({duur} min)\nWaar: {locatie}\n{videolink}\n\nMoet je de afspraak verplaatsen, of wil je volgen hoe ver we staan? Dat kan op jullie persoonlijke pagina:\n{portaallink}\n\nTot dan!\n{afzender}',
+  boekingKlant: 'Hoi {voornaam},\n\n{bevestiging}\n\nWanneer: {wanneer} ({duur} min)\nWaar: {locatie}\n{videolink}\n\nKomt het toch niet uit? Met deze persoonlijke link kies je zelf een ander moment:\n{wijziglink}\n\nTot dan!\n{afzender}',
   boekingAdmin: 'Nieuwe afspraak via de website.\n\nKlant: {naam}\nWanneer: {wanneer}\nE-mail: {email}\nTelefoon: {telefoon}\nType: {type}\nDatum feest: {datumEvent}\n\nBericht:\n{bericht}\n{videolink}\n\nOpen de fiche: {app}',
-  verplaatstKlant: 'Hoi {voornaam},\n\nJullie afspraak is verplaatst.\n\nNieuw moment: {wanneer} ({duur} min)\nVorig moment: {vorig}\nWaar: {locatie}\n{videolink}\n\nTot dan!\n{afzender}',
+  verplaatstKlant: 'Hoi {voornaam},\n\nJullie afspraak is verplaatst.\n\nNieuw moment: {wanneer} ({duur} min)\nVorig moment: {vorig}\nWaar: {locatie}\n{videolink}\n\nMoet het toch nog anders? Kies hier een ander moment:\n{wijziglink}\n\nTot dan!\n{afzender}',
   verplaatstAdmin: 'Afspraak verplaatst door {door}.\n\nKlant: {naam}\nNieuw moment: {wanneer}\nVorig moment: {vorig}\nE-mail: {email}\n\nOpen de fiche: {app}',
-  portaalLogin: 'Hoi {voornaam},\n\nMet de knop hieronder log je in op jullie persoonlijke pagina bij justPIXIT. Daar zien jullie de afspraak, kunnen jullie ze verplaatsen en volgen jullie hoe ver we staan.\n\n{loginlink}\n\nDe link werkt 30 minuten en is enkel voor jullie bedoeld.\n\n{afzender}',
+  portaalLogin: 'Hoi {voornaam},\n\nMet de knop hieronder log je in op jullie persoonlijke pagina bij justPIXIT. Daar bekijken jullie de offerte en keuren ze goed, en volgen jullie hoe ver we staan.\n\n{loginlink}\n\nDe link werkt 30 minuten en is enkel voor jullie bedoeld.\n\n{afzender}',
+  offerteReactie: 'Reactie op een offerte via Mijn pagina.\n\nKlant: {naam}\nOfferte: {offerte} ({totaal})\nReactie: {reactie}\n\nBericht van de klant:\n{bericht}\n\nOpen de fiche: {app}',
+  offerteGoedgekeurdKlant: 'Hoi {voornaam},\n\nWat fijn — jullie hebben de offerte "{offerte}" ({totaal}) goedgekeurd. Bedankt voor het vertrouwen!\n\nIk stuur jullie binnenkort de vragenlijst en het onboardingspakket. Van zodra ik die ingevuld terugkrijg, plan ik jullie ontwerp in.\n\n{portaallink}\n\nTot snel!\n{afzender}',
 };
 
 // Vervangt {sleutel} door de waarde. Gekende sleutel met lege waarde → leeg; onbekende sleutel → ongewijzigd.

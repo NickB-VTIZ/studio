@@ -3,9 +3,10 @@
 Klantopvolging en online afspraken voor justPIXIT, als eigen webapp op https://studio.justpixit.be.
 
 - **`/app`** – jouw beheeromgeving (met wachtwoord): Vandaag, Pipeline, Klanten (fiche, planning, offerte, logboek), Beheer.
-- **`/`** – publieke startpagina zonder het Studio-menu: twee ingangen (kennismaking plannen, Mijn pagina) en een discreet "Studio"-linkje onderaan naar `/app`.
+- **`/`** – login voor bestaande klanten (= Mijn pagina), zonder het Studio-menu. Het beheer staat op `/app`.
 - **`/afspraak`** – publieke boekingspagina (je eigen "Calendly"). Een boeking maakt automatisch een klant aan in de fase *Kennismaking ingepland*.
-- **`/mijn`** – klantenportaal ("Mijn pagina"): klanten loggen in met een inloglink per e-mail (geen wachtwoord), zien hun afspraak met de videocall-knop, verplaatsen ze zelf, volgen de fase van hun project en passen telefoon, feestdatum en aantal gasten aan.
+- **`/afspraak/wijzig?c=…`** – persoonlijke verzetlink (unieke code) die elke nieuwe lead in de bevestigingsmail krijgt: de kennismaking zelf verplaatsen zonder login.
+- **`/mijn`** (en `/`) – klantenportaal ("Mijn pagina"): bestaande klanten loggen in met een inloglink per e-mail (geen wachtwoord), bekijken en **keuren hun offerte goed** (of stellen een vraag), volgen de fase van hun project, zien hun afspraak en passen telefoon, feestdatum en aantal gasten aan.
 - Een echte database (SQLite, ingebouwd in Node — geen database-server en geen externe pakketten). Alle data staat in de map `data/` naast de compose-file en is zo in één keer te back-uppen.
 
 ```
@@ -157,12 +158,14 @@ Bij het boeken kan de klant kiezen voor een videocall; de meeting wordt automati
 
 Staat er niets aangevinkt of is de koppeling er niet, dan toont de boekingspagina geen videokeuze (of enkel "In overleg"). De placeholder `{videolink}` in de bevestigingsmail wordt met de meetinglink ingevuld.
 
-## 5h. Klantenportaal (Mijn pagina) en afspraken verplaatsen
+## 5h. De klantflow: boeken → verzetten → offerte goedkeuren
 
-- Klanten komen op `https://studio.justpixit.be/mijn`. Ze vullen hun e-mailadres in en krijgen een inloglink (30 minuten geldig, eenmalig). De link staat ook als knop **Mijn pagina** in de bevestigingsmail.
-- Op een klantpagina (zijbalk *Afspraak & Mijn pagina*) kan je zelf een inloglink **mailen** of **kopiëren** (een week geldig, handig voor WhatsApp). Je ziet er ook wanneer de klant het laatst inlogde.
-- **Verplaatsen**: zowel jij (zijbalk, vrij tijdstip; enkel botsingen met een ander gesprek worden geweigerd) als de klant (enkel vrije momenten uit je boekingsblokken). De afspraak in Outlook/Teams en de Zoom-meeting schuiven mee; de videolink blijft dezelfde. De klant krijgt de mail *Afspraak verplaatst*; verplaatst de klant zelf, dan krijg jij een melding en een regel in het logboek.
-- De mailteksten (bevestiging, verplaatst, inloglink) pas je aan in **Beheer → E-mails**. Knop-plaatshouders zoals `{videolink}`, `{portaallink}` en `{loginlink}` worden knoppen; zet ze waar je wil.
+1. **Nieuwe lead boekt** via `/afspraak`. In de bevestigingsmail zit de knop *Afspraak verplaatsen* met een persoonlijke verzetlink (unieke code, `/afspraak/wijzig?c=…`). Daarmee verzet de lead de kennismaking zelf naar een vrij moment — zonder login. De link staat ook op de klantpagina (*Verzetlink kopiëren*).
+2. **Jij past het tijdstip aan** in de fiche (veld *Kennismakingsgesprek*) of via *Verplaatsen* in de zijbalk. In beide gevallen volgen Outlook/Teams en Zoom automatisch; via *Verplaatsen* kan je de klant meteen mailen.
+3. **Na het gesprek maak je de offerte** (tab Offerte) en zet je ze op *Verstuurd*. Mail de klant dan een **inloglink** (knop in de offerte-nudge of in de zijbalk). De klant logt in op `/` of `/mijn`, ziet de offerte met regels, totalen en bijlagen, en klikt **Offerte goedkeuren** of **Vraag of aanpassing**.
+4. Bij goedkeuring zet het systeem de offerte op *Goedgekeurd*, de klant in fase *Goedgekeurd · wacht op vragenlijst*, schrijft een logboekregel en mailt jou én de klant. Een vraag komt in het logboek, in de offerte-nudge en in je mailbox.
+
+Mailteksten voor al deze stappen pas je aan in **Beheer → E-mails**. Knop-plaatshouders: `{wijziglink}`, `{videolink}`, `{loginlink}`, `{portaallink}`.
 
 ## 6. Lokaal testen
 

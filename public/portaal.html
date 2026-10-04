@@ -113,7 +113,7 @@ const fmtLongY=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'nu
 const fmtShort=s=>s?parseDay(s).toLocaleDateString('nl-BE',{day:'numeric',month:'short',year:'numeric'}):'';
 const eindUur=(slot,duur)=>{const [h,m]=slot.slice(11,16).split(':').map(Number);const t=h*60+m+duur;return pad(Math.floor(t/60)%24)+':'+pad(t%60)};
 const voornaam=n=>(n||'').split(/\s|&/)[0]||'';
-let me=null,verplaats=false,byDay={},month=null,selDay=null,selSlot=null,busy=false,msg={};
+let me=null,verplaats=false,byDay={},month=null,selDay=null,selSlot=null,busy=false,msg={},vraagOpen=null,bevestigOpen=null;
 
 async function api(path,body){const r=await fetch('/api/portaal/'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,credentials:'same-origin'});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw Object.assign(new Error(j.error||'Er liep iets mis'),{status:r.status});return j}
 
@@ -123,30 +123,60 @@ async function init(){
 }
 function renderLogin(state){
   const verlopen=new URLSearchParams(location.search).get('verlopen');
-  $('#main').innerHTML=`<div class="hero"><h1>Mijn pagina</h1><p>Bekijk jullie afspraak, verplaats ze als het moet en volg hoe ver we staan.</p></div><hr class="rule">
+  $('#main').innerHTML=`<div class="hero"><span style="font-family:var(--f-display);font-style:italic;color:var(--green);font-size:17px">welkom terug</span><h1 style="margin-top:8px">Mijn pagina</h1><p>Voor klanten van justPIXIT: bekijk en bevestig jullie offerte, volg hoe ver we staan en houd jullie gegevens up-to-date.</p></div><hr class="rule">
    <div class="login">
     ${state==='verzonden'?`<p class="ok">Als dit e-mailadres bij mij gekend is, zit er nu een inloglink in je mailbox. Kijk ook even bij ongewenste mail.</p><p class="note">Geen mail gekregen? Controleer het adres, of stuur me een berichtje.</p>`:`
     ${verlopen?'<p class="err">Die inloglink is verlopen of al gebruikt. Vraag hieronder een nieuwe aan.</p>':''}
     <form id="loginform" novalidate style="display:grid;gap:12px">
-      <label class="fld"><span>E-mailadres waarmee jullie boekten</span><input id="l-email" type="email" required autocomplete="email" placeholder="naam@voorbeeld.be"></label>
+      <label class="fld"><span>Jullie e-mailadres</span><input id="l-email" type="email" required autocomplete="email" placeholder="naam@voorbeeld.be"></label>
       <div id="lerr"></div>
       <button class="btn primary" type="submit" id="lsubmit">Stuur me een inloglink</button>
       <p class="note">Je krijgt een link per e-mail; een wachtwoord hoef je niet te onthouden.</p>
     </form>`}
+    <p class="note" style="text-align:center;border-top:1px solid var(--line);padding-top:16px;margin-top:6px">Nog geen klant? <a href="/afspraak" style="color:var(--green)">Plan een vrijblijvende kennismaking</a>.</p>
    </div>`;
 }
 function render(){
   const n=voornaam(me.naam);
   $('#main').innerHTML=`<div class="topbar"><button class="btn ghost small" id="logout">Afmelden</button></div>
    <div class="hero"><h1>Hoi ${esc(n||'daar')}</h1><p>Hier vinden jullie alles over jullie ${esc((me.type||'').toLowerCase()==='geboorte'?'geboortekaartje':'project')} bij justPIXIT.</p></div><hr class="rule">
+   ${(me.offertes||[]).some(o=>o.status==='Verstuurd')?renderOffertes():''}
    <section class="blok" id="afspraak">${renderAfspraak()}</section>
    <section class="blok"><div class="bhead"><h2>Waar staan we?</h2></div>${renderTraject()}</section>
-   ${me.offertes&&me.offertes.length?`<section class="blok"><div class="bhead"><h2>Offertes</h2><span class="meta">de offertes zelf zitten in jullie mailbox</span></div><div class="card"><ul class="offs">${me.offertes.map(o=>`<li><span>${esc(o.titel||'Offerte')}${o.datum?` <span class="note">· ${esc(fmtShort(o.datum))}</span>`:''}</span><span class="pill">${esc(o.status)}</span></li>`).join('')}</ul></div></section>`:''}
+   ${(me.offertes||[]).length&&!(me.offertes||[]).some(o=>o.status==='Verstuurd')?renderOffertes():''}
    <section class="blok"><div class="bhead"><h2>Jullie gegevens</h2></div>${renderGegevens()}</section>`;
+}
+const euro=n=>(Number(n)||0).toLocaleString('nl-BE',{style:'currency',currency:'EUR'});
+function renderOffertes(){
+  const open=me.offertes.filter(o=>o.status==='Verstuurd').length;
+  return `<section class="blok" id="offertes"><div class="bhead"><h2>${open?'Jullie offerte':'Offertes'}</h2>${open>1?`<span class="meta">${open} opties — kies er één</span>`:''}</div>
+   <div style="display:grid;gap:16px">${me.offertes.map(offerteKaart).join('')}</div></section>`;
+}
+function offerteKaart(o){
+  const t=o.totalen||{};const st=o.status;const m=msg['of:'+o.id];const vraag=vraagOpen===o.id, bevestig=bevestigOpen===o.id;
+  const regels=o.regels.length?`<table style="width:100%;border-collapse:collapse;font-size:14.5px;margin-top:6px"><thead><tr style="color:var(--ink-soft);font-size:12px;text-align:left"><th style="font-weight:500;padding:4px 0">Omschrijving</th><th style="font-weight:500;text-align:right;padding:4px 0">Aantal</th><th style="font-weight:500;text-align:right;padding:4px 0">Prijs</th><th style="font-weight:500;text-align:right;padding:4px 0">Totaal</th></tr></thead>
+    <tbody>${o.regels.map(r=>`<tr style="border-top:1px solid var(--line)"><td style="padding:7px 0">${esc(r.oms||'—')}</td><td style="text-align:right;padding:7px 0 7px 10px;font-variant-numeric:tabular-nums">${r.aantal||''}</td><td style="text-align:right;padding:7px 0 7px 10px;font-variant-numeric:tabular-nums">${r.prijs?euro(r.prijs):''}</td><td style="text-align:right;padding:7px 0 7px 10px;font-variant-numeric:tabular-nums">${euro(r.totaal)}</td></tr>`).join('')}</tbody></table>`:'';
+  const totalen=`<div style="display:grid;grid-template-columns:1fr auto;gap:4px 18px;margin-top:12px;font-size:14.5px;border-top:1px solid var(--line);padding-top:10px"><span class="note">Subtotaal excl. btw</span><b style="font-variant-numeric:tabular-nums;text-align:right">${euro(t.sub)}</b>${t.kort?`<span class="note">Korting</span><b style="text-align:right">− ${euro(t.kort)}</b>`:''}<span class="note">Btw ${o.btw}%</span><b style="text-align:right;font-variant-numeric:tabular-nums">${euro(t.btw)}</b><span style="font-family:var(--f-display);font-size:18px">Totaal incl. btw</span><b style="font-family:var(--f-display);font-size:18px;text-align:right;font-variant-numeric:tabular-nums">${euro(t.tot)}</b></div>`;
+  const bestanden=o.bestanden.length?`<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${o.bestanden.map(f=>`<a class="btn small" href="/api/portaal/bestand/${esc(f.id)}" target="_blank" rel="noopener">${(f.type||'').startsWith('image/')?'Afbeelding':'PDF'} · ${esc(f.naam)}</a>`).join('')}</div>`:'';
+  let acties='';
+  if(st==='Verstuurd'){
+    if(bevestig)acties=`<div class="card" style="background:var(--card);border-color:var(--green);margin-top:14px"><p><b>Offerte "${esc(o.titel)}" goedkeuren voor ${euro(t.tot)}?</b></p><p class="note" style="margin-top:4px">Daarmee geven jullie me groen licht om verder te gaan. Ik stuur jullie daarna de vragenlijst en het onboardingspakket.</p><div class="actions"><button class="btn primary" data-goedkeur="${esc(o.id)}" ${busy?'disabled':''}>${busy?'Even geduld…':'Ja, goedkeuren'}</button><button class="btn ghost" data-ofannuleer="1">Toch niet</button></div></div>`;
+    else if(vraag)acties=`<form class="card" data-vraag="${esc(o.id)}" style="background:var(--card);margin-top:14px;display:grid;gap:10px"><label class="fld"><span>Wat willen jullie vragen of aanpassen?</span><textarea id="vraagtxt" rows="3" maxlength="2000" placeholder="bv. kunnen we 20 uitnodigingen extra bijbestellen?"></textarea></label><div class="actions" style="margin-top:0"><button class="btn primary" type="submit" ${busy?'disabled':''}>Verstuur</button><button class="btn ghost" type="button" data-ofannuleer="1">Annuleer</button></div></form>`;
+    else acties=`<div class="actions"><button class="btn primary" data-ofbevestig="${esc(o.id)}">Offerte goedkeuren</button><button class="btn" data-ofvraag="${esc(o.id)}">Vraag of aanpassing</button></div>`;
+  }
+  return `<div class="card">
+   <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 style="font-family:var(--f-display);font-weight:400;font-size:21px">${esc(o.titel)}</h3><span class="pill" style="${st==='Goedgekeurd'?'background:var(--ok-bg);color:var(--ok-ink)':''}">${esc(st==='Verstuurd'?'Wacht op jullie antwoord':st)}</span></div>
+   <p class="note">${o.datum?'Verstuurd op '+esc(fmtShort(o.datum)):''}${o.geldigTot?' · geldig tot '+esc(fmtShort(o.geldigTot)):''}${o.goedgekeurdOp?' · goedgekeurd op '+esc(fmtShort(o.goedgekeurdOp)):''}</p>
+   ${regels}${totalen}
+   ${o.notitie?`<p style="margin-top:12px;font-size:14.5px;white-space:pre-wrap">${esc(o.notitie)}</p>`:''}
+   ${bestanden}
+   ${o.reactie&&st==='Verstuurd'?`<p class="note" style="margin-top:12px">Jullie laatste vraag: “${esc(o.reactie)}” — ik kom hierop terug.</p>`:''}
+   ${m?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}
+   ${acties}</div>`;
 }
 function renderAfspraak(){
   const k=me.kennismaking;
-  if(!k)return `<div class="bhead"><h2>Jullie afspraak</h2></div><div class="card"><p style="margin:0" class="note">Er staat nog geen kennismakingsgesprek gepland. <a href="/afspraak">Plan er hier een.</a></p></div>`;
+  if(!k)return `<div class="bhead"><h2>Jullie afspraak</h2></div><div class="card"><p style="margin:0" class="note">Er staat momenteel geen gesprek gepland. Wil je er een? Stuur me gerust een berichtje.</p></div>`;
   const voorbij=k<me.nu;
   if(verplaats)return renderVerplaats();
   return `<div class="bhead"><h2>${voorbij?'Jullie kennismaking':'Jullie afspraak'}</h2><span class="meta">${esc(me.titel||'Kennismaking')}</span></div>
@@ -209,8 +239,15 @@ async function laadSlots(){
   render();
 }
 document.addEventListener('click',async e=>{
-  const t=e.target.closest('#logout,#verplaats,#annuleer,[data-day],[data-nav],[data-slot],#bevestig');if(!t)return;
+  const t=e.target.closest('#logout,#verplaats,#annuleer,[data-day],[data-nav],[data-slot],#bevestig,[data-ofbevestig],[data-ofvraag],[data-ofannuleer],[data-goedkeur]');if(!t)return;
   if(t.id==='logout'){await fetch('/api/portaal/logout',{method:'POST',credentials:'same-origin'});location.href='/mijn';return}
+  if(t.dataset.ofbevestig){bevestigOpen=t.dataset.ofbevestig;vraagOpen=null;render();return}
+  if(t.dataset.ofvraag){vraagOpen=t.dataset.ofvraag;bevestigOpen=null;render();const ta=$('#vraagtxt');if(ta)ta.focus();return}
+  if(t.dataset.ofannuleer){vraagOpen=null;bevestigOpen=null;render();return}
+  if(t.dataset.goedkeur&&!busy){const id=t.dataset.goedkeur;busy=true;render();
+    try{await api('offerte/'+encodeURIComponent(id)+'/goedkeuren',{});me=await api('me');bevestigOpen=null;msg['of:'+id]={ok:true,t:'Bedankt! Jullie goedkeuring is doorgegeven. Ik neem snel contact op voor de volgende stap.'}}
+    catch(err){msg['of:'+id]={ok:false,t:err.message}}
+    finally{busy=false}render();const el=$('#offertes');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
   if(t.id==='verplaats'){verplaats=true;msg={};month=null;render();laadSlots();return}
   if(t.id==='annuleer'){verplaats=false;msg={};render();return}
   if(t.dataset.day){selDay=t.dataset.day;selSlot=null;render();if(window.innerWidth<=620){const sb=$('#slotbox');if(sb)sb.scrollIntoView({behavior:'smooth',block:'start'})}return}
@@ -227,6 +264,12 @@ document.addEventListener('submit',async e=>{
     $('#lsubmit').disabled=true;$('#lsubmit').textContent='Versturen…';
     try{await api('login',{email});history.replaceState(null,'','/mijn');renderLogin('verzonden')}catch(err){er.innerHTML=`<p class="err">${esc(err.message)}</p>`;$('#lsubmit').disabled=false;$('#lsubmit').textContent='Stuur me een inloglink'}
     return}
+  if(e.target.dataset&&e.target.dataset.vraag){e.preventDefault();if(busy)return;const id=e.target.dataset.vraag;const bericht=($('#vraagtxt')||{}).value||'';
+    if(!bericht.trim()){msg['of:'+id]={ok:false,t:'Schrijf even wat je wil vragen of aanpassen.'};render();return}
+    busy=true;render();
+    try{await api('offerte/'+encodeURIComponent(id)+'/reactie',{bericht});me=await api('me');vraagOpen=null;msg['of:'+id]={ok:true,t:'Verstuurd! Ik kom er zo snel mogelijk op terug.'}}
+    catch(err){msg['of:'+id]={ok:false,t:err.message}}
+    finally{busy=false}render();return}
   if(e.target.id==='gform'){e.preventDefault();const b={telefoon:$('#g-tel').value,datumEvent:$('#g-event').value,gasten:$('#g-gasten').value};
     try{const r=await api('gegevens',b);me=await api('me');msg.gegevens={ok:true,t:r.gewijzigd&&r.gewijzigd.length?'Bewaard. Bedankt!':'Er was niets gewijzigd.'}}catch(err){msg.gegevens={ok:false,t:err.message}}
     render();const g=$('#gform');if(g)g.scrollIntoView({behavior:'smooth',block:'nearest'})}

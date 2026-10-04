@@ -386,21 +386,24 @@ const DEFAULTS={
     onboarding:'Hoi {voornaam},\n\nWat fijn dat jullie voor justPIXIT kiezen! In bijlage vinden jullie het onboardingspakket en een korte vragenlijst.\n\nVan zodra ik de ingevulde vragenlijst terug heb, plan ik jullie ontwerp in en laat ik weten wanneer jullie de eerste digitale proef mogen verwachten.\n\nTot snel!\n{afzender}',
     vragenlijst:'Hoi {voornaam},\n\nEven een vriendelijke herinnering: ik heb jullie vragenlijst nog niet ontvangen. Van zodra die binnen is, kan ik jullie ontwerp inplannen.\n\nLaat gerust weten als er iets onduidelijk is!\n\nGroetjes,\n{afzender}',
     proef:'Hoi {voornaam},\n\nHebben jullie de digitale proef al kunnen bekijken? Laat me gerust weten wat jullie ervan vinden of wat er nog aangepast mag worden.\n\nGroetjes,\n{afzender}',
-    boekingKlant:'Hoi {voornaam},\n\n{bevestiging}\n\nWanneer: {wanneer} ({duur} min)\nWaar: {locatie}\n{videolink}\n\nMoet je de afspraak verplaatsen, of wil je volgen hoe ver we staan? Dat kan op jullie persoonlijke pagina:\n{portaallink}\n\nTot dan!\n{afzender}',
+    boekingKlant:'Hoi {voornaam},\n\n{bevestiging}\n\nWanneer: {wanneer} ({duur} min)\nWaar: {locatie}\n{videolink}\n\nKomt het toch niet uit? Met deze persoonlijke link kies je zelf een ander moment:\n{wijziglink}\n\nTot dan!\n{afzender}',
     boekingAdmin:'Nieuwe afspraak via de website.\n\nKlant: {naam}\nWanneer: {wanneer}\nE-mail: {email}\nTelefoon: {telefoon}\nType: {type}\nDatum feest: {datumEvent}\n\nBericht:\n{bericht}\n{videolink}\n\nOpen de fiche: {app}',
-    verplaatstKlant:'Hoi {voornaam},\n\nJullie afspraak is verplaatst.\n\nNieuw moment: {wanneer} ({duur} min)\nVorig moment: {vorig}\nWaar: {locatie}\n{videolink}\n\nTot dan!\n{afzender}',
+    verplaatstKlant:'Hoi {voornaam},\n\nJullie afspraak is verplaatst.\n\nNieuw moment: {wanneer} ({duur} min)\nVorig moment: {vorig}\nWaar: {locatie}\n{videolink}\n\nMoet het toch nog anders? Kies hier een ander moment:\n{wijziglink}\n\nTot dan!\n{afzender}',
     verplaatstAdmin:'Afspraak verplaatst door {door}.\n\nKlant: {naam}\nNieuw moment: {wanneer}\nVorig moment: {vorig}\nE-mail: {email}\n\nOpen de fiche: {app}',
-    portaalLogin:'Hoi {voornaam},\n\nMet de knop hieronder log je in op jullie persoonlijke pagina bij justPIXIT. Daar zien jullie de afspraak, kunnen jullie ze verplaatsen en volgen jullie hoe ver we staan.\n\n{loginlink}\n\nDe link werkt 30 minuten en is enkel voor jullie bedoeld.\n\n{afzender}'
+    portaalLogin:'Hoi {voornaam},\n\nMet de knop hieronder log je in op jullie persoonlijke pagina bij justPIXIT. Daar bekijken jullie de offerte en keuren ze goed, en volgen jullie hoe ver we staan.\n\n{loginlink}\n\nDe link werkt 30 minuten en is enkel voor jullie bedoeld.\n\n{afzender}',
+    offerteReactie:'Reactie op een offerte via Mijn pagina.\n\nKlant: {naam}\nOfferte: {offerte} ({totaal})\nReactie: {reactie}\n\nBericht van de klant:\n{bericht}\n\nOpen de fiche: {app}',
+    offerteGoedgekeurdKlant:'Hoi {voornaam},\n\nWat fijn — jullie hebben de offerte "{offerte}" ({totaal}) goedgekeurd. Bedankt voor het vertrouwen!\n\nIk stuur jullie binnenkort de vragenlijst en het onboardingspakket. Van zodra ik die ingevuld terugkrijg, plan ik jullie ontwerp in.\n\n{portaallink}\n\nTot snel!\n{afzender}'
   }
 };
 const LIJST_LABELS={stopReden:'Reden niet doorgegaan',bron:'Hoe gevonden?',type:'Type klant',versies:'Uitnodiging · versies',opOfferte:'Uitnodiging · op offerte',formaat:'Uitnodiging · formaat',enveloppen:'Uitnodiging · enveloppen',foto:'Uitnodiging · foto',afwerking:'Uitnodiging · afwerking'};
 const TERMIJN_LABELS={offerte:['Offerte versturen','dagen na het kennismakingsgesprek'],opvolging:['Offerte opvolgen','dagen na het versturen van de offerte'],herhaling:['Tweede opvolging','dagen na de eerste opvolging'],vragenlijst:['Herinnering vragenlijst','dagen na goedkeuring'],proef:['Feedback digitale proef opvolgen','dagen na het versturen van de proef'],proefdruk:['Proefdruk nakijken','dagen na bestelling'],deadlineWaarschuwing:['Deadline tonen op Vandaag','dagen vooraf']};
 const PLAN_LABELS={beslissing:['Beslissing klant over offerte','dagen na versturen offerte'],wachttijdOntwerp:['Wachttijd tot start ontwerp','dagen na ontvangst vragenlijst'],ontwerpduur:['Ontwerpen tot digitale proef','dagen'],feedback:['Feedbackrondes tot proefdruk','dagen'],proefdrukDuur:['Proefdruk tot drukwerk besteld','dagen'],levering:['Drukwerk tot levering (afgerond)','dagen']};
-const MAIL_LABELS={boekingKlant:'Bevestiging afspraak (naar de klant)',boekingAdmin:'Melding nieuwe afspraak (naar jou)',verplaatstKlant:'Afspraak verplaatst (naar de klant)',verplaatstAdmin:'Afspraak verplaatst door de klant (naar jou)',portaalLogin:'Inloglink voor Mijn pagina (naar de klant)',opvolging:'Opvolging offerte',onboarding:'Onboarding (na goedkeuring)',vragenlijst:'Herinnering vragenlijst',proef:'Feedback digitale proef'};
-const MAIL_AUTO=['boekingKlant','boekingAdmin','verplaatstKlant','verplaatstAdmin','portaalLogin'];
-const MAIL_PLACEHOLDERS={boekingKlant:'{voornaam} {naam} {wanneer} {duur} {locatie} {videolink} {portaallink} {bevestiging} {afzender}',boekingAdmin:'{naam} {wanneer} {email} {telefoon} {type} {datumEvent} {bericht} {videolink} {app}',
-  verplaatstKlant:'{voornaam} {naam} {wanneer} {vorig} {duur} {locatie} {videolink} {portaallink} {afzender}',verplaatstAdmin:'{naam} {wanneer} {vorig} {email} {door} {app}',portaalLogin:'{voornaam} {naam} {loginlink} {afzender}'};
-const KNOP_UITLEG={videolink:'knop “Deelnemen aan Teams/Zoom” (valt weg zonder videocall)',portaallink:'knop “Mijn pagina” (klantenportaal)',loginlink:'knop “Inloggen” met de persoonlijke inloglink'};
+const MAIL_LABELS={boekingKlant:'Bevestiging afspraak (naar de klant)',boekingAdmin:'Melding nieuwe afspraak (naar jou)',verplaatstKlant:'Afspraak verplaatst (naar de klant)',verplaatstAdmin:'Afspraak verplaatst door de klant (naar jou)',portaalLogin:'Inloglink voor Mijn pagina (naar de klant)',offerteReactie:'Offerte goedgekeurd of vraag via Mijn pagina (naar jou)',offerteGoedgekeurdKlant:'Bevestiging offerte goedgekeurd (naar de klant)',opvolging:'Opvolging offerte',onboarding:'Onboarding (na goedkeuring)',vragenlijst:'Herinnering vragenlijst',proef:'Feedback digitale proef'};
+const MAIL_AUTO=['boekingKlant','boekingAdmin','verplaatstKlant','verplaatstAdmin','portaalLogin','offerteReactie','offerteGoedgekeurdKlant'];
+const MAIL_PLACEHOLDERS={boekingKlant:'{voornaam} {naam} {wanneer} {duur} {locatie} {videolink} {wijziglink} {bevestiging} {afzender}',boekingAdmin:'{naam} {wanneer} {email} {telefoon} {type} {datumEvent} {bericht} {videolink} {app}',
+  verplaatstKlant:'{voornaam} {naam} {wanneer} {vorig} {duur} {locatie} {videolink} {wijziglink} {afzender}',verplaatstAdmin:'{naam} {wanneer} {vorig} {email} {door} {app}',portaalLogin:'{voornaam} {naam} {loginlink} {afzender}',
+  offerteReactie:'{naam} {offerte} {totaal} {reactie} {bericht} {email} {app}',offerteGoedgekeurdKlant:'{voornaam} {naam} {offerte} {totaal} {portaallink} {afzender}'};
+const KNOP_UITLEG={videolink:'knop “Deelnemen aan Teams/Zoom” (valt weg zonder videocall)',wijziglink:'knop “Afspraak verplaatsen” met de persoonlijke verzetlink van de klant',portaallink:'knop “Mijn pagina” (klantenportaal)',loginlink:'knop “Inloggen” met de persoonlijke inloglink'};
 let cfg=JSON.parse(JSON.stringify(DEFAULTS));
 function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!stored)return c;
   if(stored.lijsten)for(const k in c.lijsten)if(Array.isArray(stored.lijsten[k]))c.lijsten[k]=stored.lijsten[k].map(String);
@@ -712,13 +715,14 @@ function afspraakPanel(k){
     ${form||`<div style="display:flex;gap:8px;flex-wrap:wrap">${k.kennismaking?`<button class="btn small" id="vpOpen">${toekomst?'Verplaatsen':'Nieuw moment plannen'}</button>`:'<button class="btn small" id="vpOpen">Kennismaking inplannen</button>'}</div>`}
     <div style="border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px">
      <div class="label">Mijn pagina (klantenportaal)</div>
-     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="plMail" ${kanMailen?'':'disabled'} title="${kanMailen?'Stuurt een inloglink naar '+esc(k.email):'Vul een e-mailadres in en stel e-mail in bij Koppelingen'}">Inloglink mailen</button><button class="btn small ghost" id="plCopy" title="Een week geldig; handig voor WhatsApp">Inloglink kopiëren</button></div>
-     ${k.portaalLaatstIngelogd?`<span class="hint">Laatst ingelogd ${esc(fmtDT(k.portaalLaatstIngelogd.slice(0,16)))}</span>`:'<span class="hint">De klant kan er de afspraak verplaatsen en het traject volgen.</span>'}
+     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="plMail" ${kanMailen?'':'disabled'} title="${kanMailen?'Stuurt een inloglink naar '+esc(k.email):'Vul een e-mailadres in en stel e-mail in bij Koppelingen'}">Inloglink mailen</button><button class="btn small ghost" id="plCopy" title="Een week geldig; handig voor WhatsApp">Inloglink kopiëren</button><button class="btn small ghost" id="wzCopy" title="De persoonlijke link waarmee de klant zelf de kennismaking verzet (staat ook in de bevestigingsmail)">Verzetlink kopiëren</button></div>
+     ${k.portaalLaatstIngelogd?`<span class="hint">Laatst ingelogd ${esc(fmtDT(k.portaalLaatstIngelogd.slice(0,16)))}</span>`:'<span class="hint">Op Mijn pagina bekijkt en bevestigt de klant de offerte en volgt het traject. De verzetlink werkt zonder login.</span>'}
     </div></div></section>`;
 }
 async function herlaadKlant(){flushSave();mounted=null;await db.load().catch(()=>{});await new Promise(r=>setTimeout(r,30));render()}
 document.addEventListener('click',async e=>{
-  const t=e.target.closest('#vpOpen,#vpCancel,#vpGo,#plMail,#plCopy,[data-copytext]');if(!t||!work)return;
+  const t=e.target.closest('#vpOpen,#vpCancel,#vpGo,#plMail,#plCopy,#wzCopy,[data-plmail],[data-copytext]');if(!t||!work)return;
+  if(t.id==='wzCopy'){t.disabled=true;try{const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/wijziglink',{method:'POST',credentials:'same-origin'}).then(x=>x.json());if(r.link)await copy(r.link);else toast(r.error||'Mislukt')}catch(err){toast('Mislukt')}finally{t.disabled=false}return}
   if(t.dataset.copytext){copy(t.dataset.copytext);return}
   if(t.id==='vpOpen'){vpOpen=true;vpMsg=null;renderSide();const i=$('#vpSlot');if(i)i.focus();return}
   if(t.id==='vpCancel'){vpOpen=false;vpMsg=null;renderSide();return}
@@ -728,7 +732,7 @@ document.addEventListener('click',async e=>{
       if(r.error){vpMsg={ok:false,t:r.error}}else{vpOpen=false;vpMsg={ok:true,t:'Verplaatst naar '+fmtDT(r.slot),sub:(r.gemaild?'De klant kreeg een mail. ':'')+(r.problemen&&r.problemen.length?r.problemen.join(' '):'')};toast('Afspraak verplaatst');await herlaadKlant();return}}
     catch(err){vpMsg={ok:false,t:'Verplaatsen mislukt'}}
     finally{vpBusy=false}renderSide();return}
-  if(t.id==='plMail'||t.id==='plCopy'){const mail=t.id==='plMail';t.disabled=true;
+  if(t.id==='plMail'||t.id==='plCopy'||t.dataset.plmail){const mail=t.id!=='plCopy';t.disabled=true;
     try{const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/portaallink',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mail}),credentials:'same-origin'}).then(x=>x.json());
       if(r.error){toast(r.error)}else if(mail){toast('Inloglink gemaild naar '+work.email)}else{await copy(r.link)}}
     catch(err){toast('Mislukt')}finally{t.disabled=false}}
@@ -971,6 +975,8 @@ function nudgeHtml(o){
   if(o.status==='Afgewezen'&&work.fase!=='geen_deal'){const open=(work.offertes||[]).some(x=>x.id!==o.id&&['Concept','Verstuurd'].includes(x.status));
     return `<div class="nudge">${open?'Deze optie werd geweigerd. Er staan nog andere offertes open.':'De klant weigerde deze offerte.'} <button class="btn small" data-ofnew="1">Nieuwe offerte maken</button><button class="btn small danger" data-ofstop="1">Klant gaat niet door</button></div>`}
   if(o.status==='Verstuurd'&&FI[work.fase]<FI.offerte)return `<div class="nudge">Deze offerte is verstuurd, maar de klant staat nog in "${esc(fase(work.fase).l)}". <button class="btn small primary" data-ofphase="offerte" data-of="${o.id}">Zet in fase "Offerte verstuurd"</button></div>`;
+  if(o.status==='Verstuurd')return `<div class="nudge">De klant kan deze offerte bekijken en goedkeuren op Mijn pagina. ${o.klantReactie?`<b>Laatste vraag van de klant:</b> “${esc(o.klantReactie)}” `:''}${serverInfo.mail&&work.email?`<button class="btn small primary" data-plmail="1">Inloglink mailen naar ${esc(work.email)}</button>`:'<span class="hint">(vul een e-mailadres in om een inloglink te mailen)</span>'}</div>`;
+  if(o.status==='Goedgekeurd'&&o.goedgekeurdVia==='portaal'&&FI[work.fase]>=FI.goedgekeurd)return `<div class="nudge">Goedgekeurd door de klant via Mijn pagina op ${fmt(o.goedgekeurdOp)}. Volgende stap: vragenlijst en onboardingspack versturen.</div>`;
   if(o.status==='Goedgekeurd'&&FI[work.fase]<FI.goedgekeurd)return `<div class="nudge">Goedgekeurd! Volgende stap: vragenlijst en onboardingspack versturen. <button class="btn small primary" data-ofphase="goedgekeurd" data-of="${o.id}">Zet in fase "Goedgekeurd"</button></div>`;
   return ''}
 function ofCard(o){
@@ -1129,10 +1135,11 @@ function beheerAfspraken(){
      </div>
      <p class="hint" style="margin:0">${serverInfo.mail?'Bevestigingsmails staan aan: de klant en jij krijgen een mail bij elke boeking.':'Bevestigingsmails staan uit. Stel Resend in bij Koppelingen om ze aan te zetten.'}</p>
     </div></section>
-   <section><h2>Mijn pagina (klantenportaal)</h2><p>Klanten loggen in met een link die ze per e-mail krijgen — geen wachtwoord nodig. Ze zien er hun afspraak (met de knop voor de videocall), kunnen ze zelf verplaatsen, volgen in welke fase hun project zit en passen telefoon, feestdatum en aantal gasten aan. Jij krijgt bij een verplaatsing een mail en een regel in het logboek.</p>
+   <section><h2>Mijn pagina (klantenportaal)</h2><p>De startpagina <code>${esc(serverInfo.base)}/</code> is de login voor bestaande klanten: ze vragen een inloglink per e-mail aan (geen wachtwoord). Ze zien er hun offerte en keuren ze goed (of stellen een vraag), volgen in welke fase hun project zit, zien hun afspraak en passen telefoon, feestdatum en aantal gasten aan. Jij krijgt een mail en een regel in het logboek bij elke goedkeuring, vraag of verplaatsing.</p>
+    <p><b>Nieuwe leads</b> hebben geen login nodig: in hun bevestigingsmail zit een persoonlijke verzetlink (unieke code) waarmee ze de kennismaking zelf verplaatsen. Pas jij het tijdstip aan in de fiche of via "Verplaatsen", dan volgen Outlook/Teams en Zoom automatisch.</p>
     <div class="sec" style="display:grid;gap:10px">
      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><code>${esc(serverInfo.base)}/mijn</code><button class="btn small ghost" id="copyPortaalLink">Kopieer</button><a class="btn small ghost" href="/mijn" target="_blank" rel="noopener">Bekijk ↗</a></div>
-     <p class="hint" style="margin:0">De link staat standaard in de bevestigingsmail (knop “Mijn pagina”). Op een klantpagina kan je ook een persoonlijke inloglink mailen of kopiëren, bv. voor in WhatsApp.${serverInfo.mail?'':' <b>Let op:</b> zonder e-mailkoppeling kunnen klanten zelf geen inloglink aanvragen; een gekopieerde link werkt wel.'}</p>
+     <p class="hint" style="margin:0">Na het versturen van een offerte mail je de klant een inloglink (knop op de klantpagina en in de offerte-nudge), of kopieer je er een voor WhatsApp.${serverInfo.mail?'':' <b>Let op:</b> zonder e-mailkoppeling kunnen klanten zelf geen inloglink aanvragen; een gekopieerde link werkt wel.'}</p>
     </div></section>
    <section><h2>Agenda (Office 365 / Outlook)</h2><p>Zet je kennismakingsgesprekken automatisch in je Outlook-agenda. Voeg de onderstaande link toe in Outlook via <b>Agenda toevoegen → Abonneren vanaf internet</b>. Outlook ververst die daarna zelf (meestal elke paar uur). Heb je Office 365 gekoppeld (zie Koppelingen), dan komen afspraken ook rechtstreeks in je agenda.</p>
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
