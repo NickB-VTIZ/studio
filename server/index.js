@@ -557,10 +557,10 @@ async function api(req, res, url) {
     const extra = Object.entries(b.antwoorden && typeof b.antwoorden === 'object' ? b.antwoorden : {}).map(([q, a]) => `${String(q).slice(0, 120)}: ${String(a).slice(0, 500)}`).join('\n');
     const notitie = [bericht, extra].filter(Boolean).join('\n\n');
     const doc = {
-      naam, type: cfg.types.includes(type) ? type : (cfg.types[0] || ''), bron: 'Online afspraak', email, telefoon, locatie: '', gasten: '', budget: '',
+      naam, type: cfg.types.includes(type) ? type : (cfg.types[0] || ''), bron: 'Online afspraak', email, telefoon, straat: '', postcode: '', gemeente: '', gasten: '', budget: '',
       kennismaking: slot, datumEvent: /^\d{4}-\d{2}-\d{2}$/.test(datumEvent) ? datumEvent : '', deadline: '', ontwerpDatum: '',
       fase: 'ingepland', faseDatums: { ingepland: vandaag }, nieuw: true,
-      fiche: { producten: {}, stijl: {}, uitnodiging: {}, bedankjes: {}, offerte: {}, extras: '', notities: notitie },
+      fiche: { producten: {}, stijl: {}, uitnodiging: {}, bedankjes: { actief: false, opties: [{ notities: '', aantal: '', verpakking: '', afwerking: '' }] }, offerte: {}, extras: '', notities: notitie },
       logboek: [{ d: vandaag, t: 'Afspraak geboekt via de website' + (bericht ? ': ' + bericht : ''), s: 'afspraak', ts: new Date().toISOString() }],
       aangemaakt: new Date().toISOString(), bijgewerkt: new Date().toISOString(),
     };
@@ -1158,12 +1158,12 @@ function seedIfEmpty() {
   const t = nuBrussel().slice(0, 10);
   const add = (s, n) => { const d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
   const a = n => add(t, n);
-  const base = () => ({ email: '', telefoon: '', gasten: '', budget: '', ontwerpDatum: '', voorbeeld: true, fiche: { producten: {}, stijl: {}, uitnodiging: {}, bedankjes: {}, offerte: {}, extras: '', notities: '' }, aangemaakt: new Date().toISOString(), bijgewerkt: new Date().toISOString() });
+  const base = () => ({ email: '', telefoon: '', straat: '', postcode: '', gemeente: '', gasten: '', budget: '', ontwerpDatum: '', voorbeeld: true, fiche: { producten: {}, stijl: {}, uitnodiging: {}, bedankjes: { actief: false, opties: [{ notities: '', aantal: '', verpakking: '', afwerking: '' }] }, offerte: {}, extras: '', notities: '' }, aangemaakt: new Date().toISOString(), bijgewerkt: new Date().toISOString() });
   const vb = {
-    'vb-lotte-bram': Object.assign(base(), { naam: 'Voorbeeld · Lotte & Bram', type: 'Huwelijk', bron: 'Online afspraak', locatie: 'Gent', kennismaking: a(5) + 'T19:00', datumEvent: a(250), deadline: a(150), fase: 'ingepland', faseDatums: { ingepland: a(-2) }, logboek: [{ d: a(-2), t: 'Afspraak geboekt via de website', s: 'afspraak' }] }),
-    'vb-emma-jules': Object.assign(base(), { naam: 'Voorbeeld · Emma & Jules', type: 'Huwelijk', bron: 'Instagram', locatie: 'Brugge', kennismaking: a(-9) + 'T20:00', datumEvent: a(220), deadline: a(140), fase: 'gehad', faseDatums: { ingepland: a(-20), gehad: a(-9) }, logboek: [{ d: a(-9), t: 'Fase → Kennismaking gehad', s: 'fase' }] }),
-    'vb-baby-noor': Object.assign(base(), { naam: 'Voorbeeld · Baby Noor', type: 'Geboorte', bron: 'Via via', locatie: '', kennismaking: a(-34) + 'T10:00', datumEvent: a(60), deadline: a(50), fase: 'offerte', faseDatums: { ingepland: a(-42), gehad: a(-34), offerte: a(-17) }, offertes: [{ id: 'vbof1', titel: 'Offerte', status: 'Verstuurd', datum: a(-17), geldigTot: '', btw: '21', korting: '', notitie: '', bestanden: [], regels: [{ oms: 'Geboortekaartje enkel, wild white', aantal: '120', prijs: '1,85' }, { oms: 'Ontwerp', aantal: '1', prijs: '150' }] }], logboek: [{ d: a(-17), t: 'Fase → Offerte verstuurd', s: 'fase' }] }),
-    'vb-sarah-tom': Object.assign(base(), { naam: 'Voorbeeld · Sarah & Tom', type: 'Huwelijk', bron: 'Website', locatie: 'Antwerpen', kennismaking: a(-120) + 'T19:00', datumEvent: a(200), deadline: a(100), ontwerpDatum: a(-16), fase: 'ontwerp_bezig', faseDatums: { ingepland: a(-130), gehad: a(-120), offerte: a(-110), goedgekeurd: a(-90), ontwerp_gepland: a(-70), ontwerp_bezig: a(-16) }, logboek: [{ d: a(-16), t: 'Fase → Ontwerp in progress', s: 'fase' }] }),
+    'vb-lotte-bram': Object.assign(base(), { naam: 'Voorbeeld · Lotte & Bram', type: 'Huwelijk', bron: 'Online afspraak', gemeente: 'Gent', kennismaking: a(5) + 'T19:00', datumEvent: a(250), deadline: a(150), fase: 'ingepland', faseDatums: { ingepland: a(-2) }, logboek: [{ d: a(-2), t: 'Afspraak geboekt via de website', s: 'afspraak' }] }),
+    'vb-emma-jules': Object.assign(base(), { naam: 'Voorbeeld · Emma & Jules', type: 'Huwelijk', bron: 'Instagram', gemeente: 'Brugge', kennismaking: a(-9) + 'T20:00', datumEvent: a(220), deadline: a(140), fase: 'gehad', faseDatums: { ingepland: a(-20), gehad: a(-9) }, logboek: [{ d: a(-9), t: 'Fase → Kennismaking gehad', s: 'fase' }] }),
+    'vb-baby-noor': Object.assign(base(), { naam: 'Voorbeeld · Baby Noor', type: 'Geboorte', bron: 'Via via', gemeente: '', kennismaking: a(-34) + 'T10:00', datumEvent: a(60), deadline: a(50), fase: 'offerte', faseDatums: { ingepland: a(-42), gehad: a(-34), offerte: a(-17) }, offertes: [{ id: 'vbof1', titel: 'Offerte', status: 'Verstuurd', datum: a(-17), geldigTot: '', btw: '21', korting: '', notitie: '', bestanden: [], regels: [{ oms: 'Geboortekaartje enkel, wild white', aantal: '120', prijs: '1,85' }, { oms: 'Ontwerp', aantal: '1', prijs: '150' }] }], logboek: [{ d: a(-17), t: 'Fase → Offerte verstuurd', s: 'fase' }] }),
+    'vb-sarah-tom': Object.assign(base(), { naam: 'Voorbeeld · Sarah & Tom', type: 'Huwelijk', bron: 'Website', gemeente: 'Antwerpen', kennismaking: a(-120) + 'T19:00', datumEvent: a(200), deadline: a(100), ontwerpDatum: a(-16), fase: 'ontwerp_bezig', faseDatums: { ingepland: a(-130), gehad: a(-120), offerte: a(-110), goedgekeurd: a(-90), ontwerp_gepland: a(-70), ontwerp_bezig: a(-16) }, logboek: [{ d: a(-16), t: 'Fase → Ontwerp in progress', s: 'fase' }] }),
   };
   for (const [id, d] of Object.entries(vb)) store.set('klanten', id, d);
   store.setMeta('geseed', '1');

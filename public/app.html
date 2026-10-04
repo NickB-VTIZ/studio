@@ -369,7 +369,7 @@ const PRODUCTEN=[
 ];
 const DEFAULTS={
   lijsten:{
-    bron:['Instagram','Via via','Website','Calendly','Ander'],
+    bron:['Instagram','Website','Via via','Huwelijksbeurs','Andere'],
     type:['Huwelijk','Geboorte','Ander'],
     versies:['1 versie','2 versies (eten & feest / enkel feest)'],
     opOfferte:['Alles in 1 uitnodiging','Aparte uitnodiging + aparte kaartjes','Beide opties'],
@@ -532,7 +532,12 @@ function render(){
   else if(view.v==='klant'){
     const k=klanten.find(x=>x.id===view.id);
     if(!k){app.innerHTML='<p class="empty">Deze klant bestaat niet meer.</p>';return}
-    if(mounted!==k.id){work=clone(k);mounted=k.id;app.innerHTML=vKlant();renderSide();if(work.nieuw){work.nieuw=false;queue('nieuw')}}
+    if(mounted!==k.id){work=clone(k);mounted=k.id;
+      /* migrate old locatie → gemeente (skip if it's a video provider name) */
+      if(work.locatie&&!work.gemeente&&!work.straat&&work.locatie!==work.videoprovider){work.gemeente=work.locatie;queue('gemeente')}
+      /* migrate old flat bedankjes → opties array */
+      if(work.fiche&&work.fiche.bedankjes&&!Array.isArray(work.fiche.bedankjes.opties)){const b=work.fiche.bedankjes;const o1={notities:b.ideeen||'',aantal:b.aantal||'',verpakking:'',afwerking:''};if(b.thema)o1.notities=(b.thema+(o1.notities?'\n'+o1.notities:'')); const opties=[o1];if(b.optie1)opties.push({notities:b.optie1,aantal:'',verpakking:'',afwerking:''});if(b.optie2)opties.push({notities:b.optie2,aantal:'',verpakking:'',afwerking:''});work.fiche.bedankjes={actief:opties.some(o=>Object.values(o).some(v=>v)),opties};queue('fiche')}
+      app.innerHTML=vKlant();renderSide();if(work.nieuw){work.nieuw=false;queue('nieuw')}}
     else renderSide();
   }
 }
@@ -616,12 +621,15 @@ function vKlant(){
       ${txt('kennismaking','Kennismakingsgesprek',{type:'datetime-local'})}
       ${txt('deadline','Deadline',{type:'date'})}
       ${txt('datumEvent','Datum event',{type:'date'})}
-      ${txt('locatie','Locatie')}
+      ${txt('straat','Straat + huisnummer',{full:true})}
+      ${txt('postcode','Postcode')}
+      ${txt('gemeente','Gemeente')}
       ${txt('email','E-mail',{type:'email'})}
       ${txt('telefoon','Telefoon',{type:'tel'})}
       ${txt('gasten','Aantal gasten')}
       ${txt('budget','Budget')}
       ${radio('bron','Hoe gevonden?',cfg.lijsten.bron)}
+      ${(()=>{const br=get(work,'bron')||'';const show=br==='Huwelijksbeurs'||br==='Andere';const lbl=br==='Huwelijksbeurs'?'Welke beurs?':'Hoe?';return `<label class="fld full" id="brondetail-wrap" style="display:${show?'':'none'}"><span>${esc(lbl)}</span><input id="${fid('bronDetail')}" data-f="bronDetail" value="${esc(get(work,'bronDetail')||'')}"></label>`})()}
     </div></section>
     <section class="sec"><h2>Producten &amp; diensten</h2><div class="tree">${tree}</div></section>
     <section class="sec"><h2>Stijl &amp; sfeer</h2><div class="grid2">
@@ -639,11 +647,20 @@ function vKlant(){
       ${txt('fiche.uitnodiging.papier','Papier')}${txt('fiche.uitnodiging.lettertype','Lettertype')}
       ${area('fiche.uitnodiging.extra','Extra wensen',{rows:2})}
     </div></section>
-    <section class="sec"><h2>Bedankjes</h2><div class="grid2">
-      ${txt('fiche.bedankjes.thema','Thema / naam')}${txt('fiche.bedankjes.aantal','Aantal')}
-      ${area('fiche.bedankjes.ideeen','Ideeën',{rows:2})}
-      <div class="full grid2">${area('fiche.bedankjes.optie1','Optie 1')}${area('fiche.bedankjes.optie2','Optie 2')}</div>
-    </div></section>
+    <section class="sec"><h2>Bedankjes</h2>
+      <label class="fld" style="margin-bottom:.5rem"><input type="checkbox" id="f-fiche-bedankjes-actief" data-f="fiche.bedankjes.actief" ${get(work,'fiche.bedankjes.actief')?'checked':''}> Bedankjes gewenst</label>
+      <div id="bedankjes-body" style="display:${get(work,'fiche.bedankjes.actief')?'':'none'}">
+      ${(()=>{const opties=get(work,'fiche.bedankjes.opties')||[{notities:'',aantal:'',verpakking:'',afwerking:''}];return opties.map((opt,i)=>`<div class="bedankje-optie" data-bi="${i}" style="border:1px solid var(--bdr);border-radius:8px;padding:.75rem;margin-bottom:.75rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem"><strong>Optie ${i+1}</strong>${opties.length>1?`<button type="button" class="btn ghost sm" data-del-bedankje="${i}" title="Verwijder optie" style="color:var(--danger)">✕</button>`:''}</div>
+        <div class="grid2">
+          <label class="fld full"><span>Notities</span><textarea data-f="fiche.bedankjes.opties.${i}.notities" rows="2">${esc(opt.notities||'')}</textarea></label>
+          <label class="fld"><span>Aantal</span><input data-f="fiche.bedankjes.opties.${i}.aantal" value="${esc(opt.aantal||'')}"></label>
+          <label class="fld"><span>Verpakking</span><input data-f="fiche.bedankjes.opties.${i}.verpakking" value="${esc(opt.verpakking||'')}"></label>
+          <label class="fld"><span>Afwerking</span><input data-f="fiche.bedankjes.opties.${i}.afwerking" value="${esc(opt.afwerking||'')}"></label>
+        </div></div>`).join('')})()}
+      <button type="button" class="btn ghost" id="addBedankje" style="margin-top:.25rem">+ Optie toevoegen</button>
+      </div>
+    </section>
     <section class="sec"><h2>Extra's &amp; ideeën</h2><div class="grid2">${area('fiche.extras','',{rows:3,ph:'bv. sticker met namen voor op de spiegel'})}</div></section>
     <section class="sec"><h2>Afspraken voor offerte &amp; planning</h2><div class="grid2">
       ${area('fiche.offerte.opties','Wat moet er op de offerte?',{rows:2,ph:'bv. beide opties: aparte uitnodiging + aparte kaartjes'})}
@@ -852,9 +869,12 @@ function vNieuw(){
     <label class="fld"><span>Datum event</span><input id="n-datumEvent" type="date"></label>
     <label class="fld"><span>E-mail</span><input id="n-email" type="email"></label>
     <label class="fld"><span>Telefoon</span><input id="n-telefoon" type="tel"></label>
-    <label class="fld"><span>Locatie</span><input id="n-locatie"></label>
+    <label class="fld full"><span>Straat + huisnummer</span><input id="n-straat"></label>
+    <label class="fld"><span>Postcode</span><input id="n-postcode"></label>
+    <label class="fld"><span>Gemeente</span><input id="n-gemeente"></label>
     <label class="fld"><span>Deadline</span><input id="n-deadline" type="date"></label>
-    <div class="radiorow full"><span>Hoe gevonden?</span><div class="opts">${cfg.lijsten.bron.map((t,i)=>`<label><input type="radio" name="n-bron" id="n-bron-${i}" value="${esc(t)}">${esc(t)}</label>`).join('')}</div></div>
+    <div class="radiorow full"><span>Hoe gevonden?</span><div class="opts">${cfg.lijsten.bron.map((t,i)=>`<label><input type="radio" name="n-bron" id="n-bron-${i}" value="${esc(t)}" onchange="document.getElementById('n-brondetail-wrap').style.display=(this.value==='Huwelijksbeurs'||this.value==='Andere')?'':'none';document.getElementById('n-brondetail-label').textContent=this.value==='Huwelijksbeurs'?'Welke beurs?':'Hoe?'">${esc(t)}</label>`).join('')}</div></div>
+    <label class="fld full" id="n-brondetail-wrap" style="display:none"><span id="n-brondetail-label">Detail</span><input id="n-brondetail"></label>
     <label class="fld full"><span>Eerste notitie</span><textarea id="n-notitie" rows="3"></textarea></label>
    </div><div style="margin-top:16px;display:flex;gap:10px"><button class="btn primary" type="submit">Klant aanmaken</button></div></form>
   </div>`;
@@ -864,18 +884,33 @@ async function createKlant(ev){
   const v=id=>$('#n-'+id).value.trim();
   const naam=v('naam'); if(!naam)return;
   const t=today(); const notitie=v('notitie');
-  const doc={naam,type:(document.querySelector('input[name="n-type"]:checked')||{}).value||'',bron:(document.querySelector('input[name="n-bron"]:checked')||{}).value||'',
-    email:v('email'),telefoon:v('telefoon'),locatie:v('locatie'),kennismaking:v('kennismaking'),datumEvent:v('datumEvent'),deadline:v('deadline'),gasten:'',budget:'',ontwerpDatum:'',
-    fase:'ingepland',faseDatums:{ingepland:t},fiche:{producten:{},stijl:{},uitnodiging:{},bedankjes:{},offerte:{},notities:notitie,extras:''},
+  const bron=(document.querySelector('input[name="n-bron"]:checked')||{}).value||'';
+  const bronDetail=(bron==='Huwelijksbeurs'||bron==='Andere')?v('brondetail'):'';
+  const doc={naam,type:(document.querySelector('input[name="n-type"]:checked')||{}).value||'',bron,bronDetail,
+    email:v('email'),telefoon:v('telefoon'),straat:v('straat'),postcode:v('postcode'),gemeente:v('gemeente'),kennismaking:v('kennismaking'),datumEvent:v('datumEvent'),deadline:v('deadline'),gasten:'',budget:'',ontwerpDatum:'',
+    fase:'ingepland',faseDatums:{ingepland:t},fiche:{producten:{},stijl:{},uitnodiging:{},bedankjes:{actief:false,opties:[{notities:'',aantal:'',verpakking:'',afwerking:''}]},offerte:{},notities:notitie,extras:''},
     logboek:[{d:t,t:'Klant aangemaakt'+(notitie?': '+notitie:'')}],aangemaakt:new Date().toISOString(),bijgewerkt:new Date().toISOString()};
   const slug=naam.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'klant';
   const id=slug+'-'+Math.random().toString(36).slice(2,6);
   try{await db.doc('klanten/'+id).set(doc);toast('Klant aangemaakt');go('klant',id)}catch(e){toast(e&&e.code==='quota_exceeded'?'Opslag vol':'Aanmaken lukte niet')}
 }
 
+function renderBedankjes(){
+  const body=document.getElementById('bedankjes-body');if(!body||!work)return;
+  const opties=get(work,'fiche.bedankjes.opties')||[{notities:'',aantal:'',verpakking:'',afwerking:''}];
+  body.innerHTML=opties.map((opt,i)=>`<div class="bedankje-optie" data-bi="${i}" style="border:1px solid var(--bdr);border-radius:8px;padding:.75rem;margin-bottom:.75rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem"><strong>Optie ${i+1}</strong>${opties.length>1?`<button type="button" class="btn ghost sm" data-del-bedankje="${i}" title="Verwijder optie" style="color:var(--danger)">✕</button>`:''}</div>
+    <div class="grid2">
+      <label class="fld full"><span>Notities</span><textarea data-f="fiche.bedankjes.opties.${i}.notities" rows="2">${esc(opt.notities||'')}</textarea></label>
+      <label class="fld"><span>Aantal</span><input data-f="fiche.bedankjes.opties.${i}.aantal" value="${esc(opt.aantal||'')}"></label>
+      <label class="fld"><span>Verpakking</span><input data-f="fiche.bedankjes.opties.${i}.verpakking" value="${esc(opt.verpakking||'')}"></label>
+      <label class="fld"><span>Afwerking</span><input data-f="fiche.bedankjes.opties.${i}.afwerking" value="${esc(opt.afwerking||'')}"></label>
+    </div></div>`).join('')+`<button type="button" class="btn ghost" id="addBedankje" style="margin-top:.25rem">+ Optie toevoegen</button>`;
+}
+
 /* ---------- events ---------- */
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-v],[data-open],[data-nav],[data-fase],[data-copy],#newBtn,#brand,#toggleEnded,#delAsk,#delNo,#delYes,#delVb');
+  const t=e.target.closest('[data-v],[data-open],[data-nav],[data-fase],[data-copy],[data-del-bedankje],#newBtn,#brand,#toggleEnded,#delAsk,#delNo,#delYes,#delVb,#addBedankje');
   if(!t)return;
   if(t.dataset.v)return go(t.dataset.v);
   if(t.dataset.open)return go('klant',t.dataset.open);
@@ -889,6 +924,8 @@ document.addEventListener('click',e=>{
   if(t.id==='delNo'){confirmDel=false;return renderSide()}
   if(t.id==='delYes'){const id=work.id;pendingTop={};clearTimeout(saveTimer);saveTimer=null;db.doc('klanten/'+id).delete().then(()=>{toast('Klant verwijderd');go('vandaag')});return}
   if(t.id==='delVb'){klanten.filter(k=>k.voorbeeld).forEach(k=>db.doc('klanten/'+k.id).delete());toast('Voorbeelden verwijderd');return}
+  if(t.id==='addBedankje'&&work){if(!work.fiche)work.fiche={};if(!work.fiche.bedankjes)work.fiche.bedankjes={actief:true,opties:[]};if(!work.fiche.bedankjes.opties)work.fiche.bedankjes.opties=[];work.fiche.bedankjes.opties.push({notities:'',aantal:'',verpakking:'',afwerking:''});queue('fiche');renderBedankjes();return}
+  if(t.dataset.delBedankje!=null&&work){const idx=parseInt(t.dataset.delBedankje);work.fiche.bedankjes.opties.splice(idx,1);queue('fiche');renderBedankjes();return}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('.card[data-open]'))go('klant',e.target.dataset.open)});
 document.addEventListener('input',e=>{
@@ -896,10 +933,19 @@ document.addEventListener('input',e=>{
   if(el.id==='q'){search=el.value;const pos=el.selectionStart;render();const q=$('#q');q.focus();q.setSelectionRange(pos,pos);return}
   if(!el.dataset.f||!work)return;
   const p=el.dataset.f; const val=el.type==='checkbox'?el.checked:el.value;
-  setp(work,p,val); queue(p.split('.')[0]);
+  /* handle array-index paths like fiche.bedankjes.opties.0.notities */
+  const m=p.match(/^fiche\.bedankjes\.opties\.(\d+)\.(\w+)$/);
+  if(m){const idx=parseInt(m[1]),field=m[2];if(!work.fiche)work.fiche={};if(!work.fiche.bedankjes)work.fiche.bedankjes={};if(!work.fiche.bedankjes.opties)work.fiche.bedankjes.opties=[];while(work.fiche.bedankjes.opties.length<=idx)work.fiche.bedankjes.opties.push({notities:'',aantal:'',verpakking:'',afwerking:''});work.fiche.bedankjes.opties[idx][field]=val;queue('fiche');}
+  else{setp(work,p,val); queue(p.split('.')[0]);}
+  if(p==='fiche.bedankjes.actief'){const bd=document.getElementById('bedankjes-body');if(bd)bd.style.display=val?'':'none'}
+  if(p==='bron'){const w=document.getElementById('brondetail-wrap');if(w){w.style.display=(val==='Huwelijksbeurs'||val==='Andere')?'':'none';const s=w.querySelector('span');if(s)s.textContent=val==='Huwelijksbeurs'?'Welke beurs?':'Hoe?'}}
   if(['naam','type','kennismaking','deadline','ontwerpDatum'].includes(p))renderSide();
 });
-document.addEventListener('change',e=>{if(e.target.id==='ft'){filterType=e.target.value;render()}});
+document.addEventListener('change',e=>{
+  if(e.target.id==='ft'){filterType=e.target.value;render()}
+  /* checkboxes and radios may not fire input in all browsers — dispatch to input handler */
+  if(e.target.dataset.f&&work&&(e.target.type==='checkbox'||e.target.type==='radio')){const ie=new Event('input',{bubbles:true});e.target.dispatchEvent(ie)}
+});
 document.addEventListener('submit',e=>{
   if(e.target.id==='newform')return createKlant(e);
   if(e.target.id==='logform'){e.preventDefault();const tx=$('#logtxt').value.trim();if(!tx||!work)return;
