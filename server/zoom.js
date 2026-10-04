@@ -47,6 +47,14 @@ async function wijzigMeeting(cfg, id, { start, duur }) {
   return true;
 }
 
+// Verwijdert een meeting (bv. bij annulatie). Een al verdwenen meeting telt als geslaagd.
+async function verwijderMeeting(cfg, id) {
+  if (!id) return false;
+  const t = await token(cfg);
+  try { await req('api.zoom.us', '/v2/meetings/' + encodeURIComponent(id), 'DELETE', { 'Authorization': 'Bearer ' + t, 'Content-Length': 0 }); return true; }
+  catch (e) { if (/404|3001|does not exist/i.test(e.message)) return true; throw e; }
+}
+
 async function test(cfg) { await token(cfg); return true; }
 
-module.exports = { zoomConfig, maakMeeting, wijzigMeeting, test };
+module.exports = { zoomConfig, maakMeeting, wijzigMeeting, verwijderMeeting, test };

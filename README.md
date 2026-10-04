@@ -167,14 +167,17 @@ Staat er niets aangevinkt of is de koppeling er niet, dan toont de boekingspagin
 - **Wie een afspraak boekt is nog geen klant**: er wordt enkel een fiche aangemaakt, géén account. Pas als de klant doorgaat (offerte getekend + voorschot) geef je toegang: op de fiche (zijbalk) → **Toegang geven & mailen** of **Uitnodigingslink kopiëren**. De klant stelt dan via `/wachtwoord?t=…` een wachtwoord in en logt voortaan in op `/`.
 - **Wachtwoord vergeten** kan iedereen zelf via de inlogpagina (link per e-mail, 2 u geldig).
 
-## 5h. De klantflow: boeken → verzetten → offerte goedkeuren
+## 5h. De klantflow van A tot Z
 
-1. **Nieuwe lead boekt** via `/afspraak`. In de bevestigingsmail zit de knop *Afspraak verplaatsen* met een persoonlijke verzetlink (unieke code, `/afspraak/wijzig?c=…`). Daarmee verzet de lead de kennismaking zelf naar een vrij moment — zonder login. De link staat ook op de klantpagina (*Verzetlink kopiëren*).
-2. **Jij past het tijdstip aan** in de fiche (veld *Kennismakingsgesprek*) of via *Verplaatsen* in de zijbalk. In beide gevallen volgen Outlook/Teams en Zoom automatisch; via *Verplaatsen* kan je de klant meteen mailen.
-3. **Na het gesprek maak je de offerte** (tab Offerte) en zet je ze op *Verstuurd*. Mail de klant dan een **inloglink** (knop in de offerte-nudge of in de zijbalk). De klant logt in op `/` of `/mijn`, ziet de offerte met regels, totalen en bijlagen, en klikt **Offerte goedkeuren** of **Vraag of aanpassing**.
-4. Bij goedkeuring zet het systeem de offerte op *Goedgekeurd*, de klant in fase *Goedgekeurd · wacht op vragenlijst*, schrijft een logboekregel en mailt jou én de klant. Een vraag komt in het logboek, in de offerte-nudge en in je mailbox.
+1. **Nieuwe lead boekt** via `/afspraak` → fiche met alle ingevulde gegevens, bevestigingsmail (met Teams/Zoom-knop als dat gekozen werd) en de persoonlijke **dossierlink**. Via die link verzet de lead zelf (vrije momenten) of **annuleert** hij: het agenda-item in Outlook/Teams en de Zoom-meeting worden verwijderd en de fiche gaat naar *Gesprek geannuleerd*. Jij kan dat ook vanuit de zijbalk (*Annuleer afspraak*). Een tijdstip dat jij aanpast in de fiche of via *Verplaatsen* volgt automatisch in je agenda.
+2. **Gesprek** → notities in de kennismakingsfiche.
+3. **Offerte**: Vandaag toont wanneer ze de deur uit moet. Je maakt de offerte buiten het systeem, laadt de **PDF** op bij de offerte (tab Offerte → Bestanden) en klikt **Verstuur per mail**: de PDF gaat als bijlage mee met de dossierlink. De klant klikt **Offerte goedkeuren** of **Niet akkoord / aanpassing** (feedback verplicht). Afkeuring + feedback zie je in de offerte-nudge, in het logboek en in je mailbox.
+4. **Goedgekeurd**: jij krijgt een mail, de fiche gaat naar *Goedgekeurd · wacht op vragenlijst*. Upload bij **Bijlages** de voorschotfactuur en het contract en klik in de zijbalk op **Mail voorschotfactuur, contract & vragenlijst** (beide als bijlage + dossierlink). De klant vult de **vragenlijst** in (eigen lijst per type: Huwelijk/Geboorte/Ander, aanpasbaar in Beheer → Fiche & planning) → tab **Vragenlijst**; en **tekent het contract** online (naam + handtekening + akkoord) → tab **Bijlages** (handtekening + tijdstip + IP). Markeer zelf **Voorschot betaald**; zodra voorschot én vragenlijst binnen zijn, verschijnt de nudge *Ontwerp ingepland*.
+5. **Portaaltoegang** (account met wachtwoord, rol *klant*) geef je daarna vanuit de zijbalk. Hoe dat portaal eruitziet werken we later uit.
 
-Mailteksten voor al deze stappen pas je aan in **Beheer → E-mails**. Knop-plaatshouders: `{wijziglink}`, `{videolink}`, `{loginlink}`, `{portaallink}`.
+## 5i. Modules en rollen (pakketten)
+
+Alles is opgedeeld in **modules** (beheer: Vandaag, Pipeline, Klanten, Gebruikersbeheer, Beheer, Koppelingen; portaal: Afspraak, Offertes, Traject, Vragenlijst, Contract, Bijlages, Gegevens). Per **rol** vink je in Gebruikersbeheer → Rollen → Wijzig aan welke modules zichtbaar zijn. Zo maak je later pakketten (basis / complete / all-in) als aparte rollen met elk hun eigen moduleset. De ingebouwde rollen Beheerder en Klant kan je niet verwijderen, maar hun modules wel aanpassen.
 
 ## 6. Lokaal testen
 

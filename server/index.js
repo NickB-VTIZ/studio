@@ -2,7 +2,7 @@
 // Routes:
 //   /  en /mijn  → klantenportaal: login voor bestaande klanten (geen menu); /app → beheer (login vereist)
 //   /afspraak    → publieke boekingspagina
-//   /afspraak/wijzig?c=… → nieuwe lead verzet zijn afspraak met persoonlijke code (zonder login)
+//   /dossier?c=…  → klantflow met persoonlijke code, zonder login: afspraak verzetten/annuleren, offerte goed-/afkeuren, vragenlijst, contract
 //   /api/...     → data (login vereist), /api/boeking/... publiek, /api/portaal/... klantsessie
 //   /_blob/:id   → opgeladen bestanden (login vereist)
 const http = require('http');
@@ -16,7 +16,8 @@ const { resendConfig, sendViaResend, testResend } = require('./resend');
 const { twilioConfig, sendWhatsApp, testTwilio } = require('./twilio');
 const { maakUBL } = require('./ubl');
 const { STANDAARD_MAILS, vul, bouwMail } = require('./mails');
-const { fasenVoor, FASES } = require('./fases');
+const { fasenVoor, FASES, FI: FI_SERVER, GESTOPT } = require('./fases');
+const { BEHEER_MODULES, PORTAAL_MODULES, ALLE_MODULES, MODULE_IDS, standaardModules } = require('./modules');
 const { bouwFeed, nieuwToken } = require('./agenda');
 const graph = require('./graph');
 const zoom = require('./zoom');
@@ -67,7 +68,7 @@ async function verstuurMail(opts, meta = {}) {
 const { slotsVoorPeriode, boekingDefaults, nuBrussel } = require('./boeking');
 
 const fmtWanneer = slot => `${slot.slice(8, 10)}/${slot.slice(5, 7)}/${slot.slice(0, 4)} om ${slot.slice(11, 16)}`;
-const bezetteSlots = (behalveId) => store.list('klanten').filter(k => k.kennismaking && k.fase !== 'geen_deal' && k.id !== behalveId).map(k => k.kennismaking);
+const bezetteSlots = (behalveId) => store.list('klanten').filter(k => k.kennismaking && !GESTOPT.has(k.fase) && k.id !== behalveId).map(k => k.kennismaking);
 const portaalUrl = req => publicBase(req) + '/mijn';
 function adminAdres() { const r2 = resendConfig(effEnv()), s2 = smtpConfig(effEnv()); return kv('adminEmail') || (r2 && r2.from) || (s2 && s2.from) || ''; }
 function mailBasis(doc, req, extra = {}) {
@@ -82,7 +83,7 @@ function sjablonen() { return Object.assign({}, STANDAARD_MAILS, instellingen().
 
 // Unieke wijzigcode per boeking: nieuwe leads verzetten hun afspraak via /afspraak/wijzig?c=… zonder login.
 function zorgWijzigCode(id) { const k = store.get('klanten', id); if (!k) return ''; if (!k.wijzigCode) { k.wijzigCode = crypto.randomBytes(9).toString('base64url'); store.set('klanten', id, k); } return k.wijzigCode; }
-const wijzigUrl = (req, code) => publicBase(req) + '/afspraak/wijzig?c=' + encodeURIComponent(code);
+const wijzigUrl = (req, code) => publicBase(req) + '/dossier?c=' + encodeURIComponent(code); // verzetlink = dossierlink
 const wijzigKnop = (req, doc) => doc.wijzigCode ? { url: wijzigUrl(req, doc.wijzigCode), label: 'Afspraak verplaatsen' } : null;
 function klantViaWijzigCode(code) { if (!code || code.length < 8) return null; return store.list('klanten').find(k => k.wijzigCode && safeEq(k.wijzigCode, code)) || null; }
 
@@ -94,7 +95,7 @@ const euro = n => (Number(n) || 0).toLocaleString('nl-BE', { style: 'currency', 
 // Agenda (Outlook/Teams) en Zoom laten volgen na een gewijzigd tijdstip. Gooit niet; geeft een lijst problemen terug.
 async function syncAgenda(id) {
   const doc = store.get('klanten', id); const problemen = [];
-  if (!doc || !doc.kennismaking || doc.fase === 'geen_deal') return problemen;
+  if (!doc || !doc.kennismaking || GESTOPT.has(doc.fase)) return problemen;
   const duur = boekingConfig().duur || 60;
   if (msVerbonden()) {
     try { const r = await graph.zetAfspraak(msDoc(), Object.assign({}, doc, { id }), duur, { teams: doc.videoprovider === 'Teams' }); const nw = graph.nieuwRefreshToken(); if (nw) { const mm = msDoc(); mm.refreshToken = nw; store.set('instellingen', 'ms', mm); } if (r.id && r.id !== doc.msEventId) { const k = store.get('klanten', id); if (k) { k.msEventId = r.id; store.set('klanten', id, k); } } }
@@ -113,7 +114,7 @@ async function verplaatsAfspraak(id, slot, door, req, opts = {}) {
   const doc = store.get('klanten', id);
   if (!doc) throw Object.assign(new Error('Klant niet gevonden'), { status: 404 });
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(slot)) throw Object.assign(new Error('Kies een geldig tijdstip.'), { status: 400 });
-  if (doc.fase === 'geen_deal') throw Object.assign(new Error('Dit traject is gestopt; de afspraak kan niet verplaatst worden.'), { status: 400 });
+  if (GESTOPT.has(doc.fase)) throw Object.assign(new Error('Dit traject is gestopt; de afspraak kan niet verplaatst worden.'), { status: 400 });
   if (slot === doc.kennismaking) throw Object.assign(new Error('Dat is al het huidige moment.'), { status: 400 });
   const cfg = boekingConfig(), duur = cfg.duur || 60;
   const bezet = bezetteSlots(id);
@@ -165,6 +166,124 @@ async function geefPortaaltoegang(id, req, { mail = true } = {}) {
     gemaild = true;
   }
   return { link, gemaild, bestond, email: doc.email };
+}
+
+// Dossierlink: dezelfde persoonlijke code als de verzetlink, maar voor de hele klantflow zonder login
+// (afspraak verzetten/annuleren, offerte goedkeuren of afkeuren, vragenlijst, contract).
+const dossierUrl = (req, code) => publicBase(req) + '/dossier?c=' + encodeURIComponent(code);
+const dossierKnop = (req, doc, label) => doc.wijzigCode ? { url: dossierUrl(req, doc.wijzigCode), label: label || 'Open mijn dossier' } : null;
+function bestandOpSchijf(id) { // {pad, naam, type} van een geüpload bestand
+  if (!/^[a-f0-9]{32}$/.test(String(id))) return null;
+  const f = fs.readdirSync(UPLOAD_DIR).find(x => x.startsWith(id) && !x.endsWith('.json')); if (!f) return null;
+  let meta = {}; try { meta = JSON.parse(fs.readFileSync(path.join(UPLOAD_DIR, id + '.json'), 'utf8')); } catch (e) {}
+  return { pad: path.join(UPLOAD_DIR, f), naam: meta.naam || f, type: meta.type || 'application/octet-stream' };
+}
+const bijlageVan = id => { const b = bestandOpSchijf(id); return b ? { filename: b.naam, content: fs.readFileSync(b.pad), contentType: b.type } : null; };
+// Vragenlijsten per type klant (bewerkbaar in Beheer → instellingen/algemeen.vragenlijsten). Eén vraag per regel.
+const STANDAARD_VRAGENLIJSTEN = {
+  Huwelijk: ['Jullie namen zoals ze op de uitnodiging moeten staan', 'Datum en uur van de ceremonie', 'Locatie(s): ceremonie, receptie, feest', 'Tot wanneer mogen gasten antwoorden (RSVP)?', 'Hoeveel uitnodigingen hebben jullie nodig?', 'Welke stijl of sfeer spreekt jullie aan? (kleuren, lettertypes, voorbeelden)', 'Is er een dresscode of thema?', 'Zijn er extra kaartjes nodig (menu, naamkaartjes, bedankjes)?', 'Hebben jullie een website of QR-code voor meer info?', 'Nog iets dat ik zeker moet weten?'],
+  Geboorte: ['Naam van de baby (en eventueel tweede naam)', 'Geboortedatum en -uur, gewicht en lengte', 'Namen van de ouders', 'Namen van broers/zussen, meter en peter', 'Hoeveel kaartjes hebben jullie nodig?', 'Welke stijl spreekt jullie aan? (kleuren, illustraties, voorbeelden)', 'Komt er een foto op het kaartje?', 'Welke tekst of quote willen jullie erbij?', 'Gegevens voor kraambezoek of een geboortelijst?', 'Nog iets dat ik zeker moet weten?'],
+  Ander: ['Wat wil je laten ontwerpen?', 'Voor wanneer heb je het nodig?', 'Hoeveel exemplaren?', 'Welke stijl of sfeer spreekt je aan?', 'Nog iets dat ik zeker moet weten?'],
+};
+function vragenlijstVoor(k) { const alg = instellingen(); const lijsten = Object.assign({}, STANDAARD_VRAGENLIJSTEN, alg.vragenlijsten || {}); const t = k.type && lijsten[k.type] ? k.type : (lijsten.Ander ? 'Ander' : Object.keys(lijsten)[0]); return (lijsten[t] || []).map(String).filter(Boolean); }
+function contractInfo(k) { const c = k.contract || {}; const b = c.bestandId ? bestandOpSchijf(c.bestandId) : null; return { bestandId: c.bestandId || '', naam: b ? b.naam : '', verstuurdOp: c.verstuurdOp || '', getekend: c.getekend ? { naam: c.getekend.naam, op: c.getekend.op } : null }; }
+// Schrijfactie vanuit de app samenvoegen met wat er intussen server-side veranderde (klant via dossier/portaal):
+// - PATCH: enkel de meegestuurde velden; PUT: hele fiche, maar server-velden blijven staan
+// - logboek: unie op tijdstempel; faseDatums: samengevoegd
+// - offertes: velden die de klant zette (status, goedkeuring, afwijzing, reactie) winnen van een oudere kopie uit de app
+const SERVER_VELDEN = ['wijzigCode', 'portaalNonce', 'msEventId', 'zoomMeetingId', 'vragenlijst', 'contract', 'voorschot', 'bijlages', 'geannuleerdeAfspraak', 'naGoedkeuringVerstuurdOp'];
+function mergeKlantSchrijf(oud, body, patch) {
+  const uit = patch ? Object.assign({}, oud, body) : Object.assign({}, body);
+  for (const f of SERVER_VELDEN) if (oud[f] && !(f in body)) uit[f] = oud[f];
+  if ('logboek' in body && Array.isArray(oud.logboek)) { const gezien = new Set((body.logboek || []).map(l => l.ts || (l.d + '|' + l.t))); uit.logboek = (body.logboek || []).concat(oud.logboek.filter(l => !gezien.has(l.ts || (l.d + '|' + l.t)))); }
+  if ('faseDatums' in body && oud.faseDatums) uit.faseDatums = Object.assign({}, oud.faseDatums, body.faseDatums || {});
+  if ('offertes' in body && Array.isArray(oud.offertes)) {
+    uit.offertes = (body.offertes || []).map(o => { const vorige = oud.offertes.find(x => x.id === o.id); if (!vorige || !vorige.klantTs || (o.klantTs && o.klantTs >= vorige.klantTs)) return o;
+      return Object.assign({}, o, { status: vorige.status, klantTs: vorige.klantTs, goedgekeurdOp: vorige.goedgekeurdOp, goedgekeurdVia: vorige.goedgekeurdVia, afgewezenOp: vorige.afgewezenOp, klantReactie: vorige.klantReactie, klantReactieOp: vorige.klantReactieOp }); });
+    if (!patch) for (const v of oud.offertes) if (v.klantTs && !uit.offertes.some(o => o.id === v.id) && !(body.offertes || []).length) uit.offertes.push(v);
+  }
+  // fase: als de klant intussen de offerte goedkeurde (fase goedgekeurd gezet door server) en de app een oudere fase terugstuurt zonder dat ze die bewust wijzigde
+  if (!patch && oud.fase === 'goedgekeurd' && body.fase && FI_SERVER[body.fase] < FI_SERVER.goedgekeurd && (oud.faseDatums || {}).goedgekeurd && !(body.faseDatums || {}).goedgekeurd) { uit.fase = oud.fase; }
+  return uit;
+}
+function logboek(doc, tekst, soort) { const ts = new Date().toISOString(); doc.logboek = (doc.logboek || []).concat([{ d: vandaagBE(), t: tekst, s: soort || 'afspraak', ts }]); doc.bijgewerkt = ts; }
+function meldAdmin(req, onderwerp, basisExtra, soort) { // korte melding naar Liesbeth (sjabloon dossierMelding)
+  if (!mailActief()) return; const admin = adminAdres(); if (!admin) return;
+  const mm = bouwMail(sjablonen().dossierMelding, Object.assign({ onderwerp, app: publicBase(req) + '/app', afzender: instellingen().afzender || 'justPIXIT' }, basisExtra), {});
+  verstuurMail({ to: admin, replyTo: basisExtra.email && basisExtra.email !== '-' ? basisExtra.email : undefined, subject: onderwerp, text: mm.text, html: mm.html }, { soort });
+}
+
+// Annuleert de kennismaking: agenda-item (Outlook/Teams) en Zoom-meeting weg, fase → Gesprek geannuleerd, mails.
+async function annuleerAfspraak(id, door, req, reden = '') {
+  const doc = store.get('klanten', id); if (!doc) throw Object.assign(new Error('Klant niet gevonden'), { status: 404 });
+  if (!doc.kennismaking) throw Object.assign(new Error('Er staat geen afspraak om te annuleren.'), { status: 400 });
+  if (GESTOPT.has(doc.fase)) throw Object.assign(new Error('Dit traject is al gestopt.'), { status: 400 });
+  const problemen = [], was = doc.kennismaking, wasFase = doc.fase;
+  if (doc.msEventId && msVerbonden()) { try { await graph.verwijderAfspraak(msDoc(), doc.msEventId); doc.msEventId = ''; const nw = graph.nieuwRefreshToken(); if (nw) { const mm = msDoc(); mm.refreshToken = nw; store.set('instellingen', 'ms', mm); } } catch (e) { problemen.push('Outlook-item verwijderen mislukt: ' + e.message); } }
+  if (doc.zoomMeetingId && zoomActief()) { try { await zoom.verwijderMeeting(zoomDoc(), doc.zoomMeetingId); doc.zoomMeetingId = ''; } catch (e) { problemen.push('Zoom-meeting verwijderen mislukt: ' + e.message); } }
+  doc.geannuleerdeAfspraak = was; doc.kennismaking = ''; doc.videolink = ''; doc.videoprovider = '';
+  doc.stopNa = wasFase; doc.fase = 'geannuleerd'; doc.faseDatums = Object.assign({}, doc.faseDatums, { geannuleerd: vandaagBE() });
+  logboek(doc, `Afspraak van ${fmtWanneer(was)} geannuleerd door ${door}` + (reden ? ': ' + reden : ''), 'afspraak');
+  for (const p of problemen) logboek(doc, p, 'afspraak');
+  store.set('klanten', id, doc);
+  let gemaild = false;
+  if (mailActief()) {
+    const sjab = sjablonen(); const basis = mailBasis(doc, req, { wanneer: fmtWanneer(was), reden: reden || '-', door: door === 'klant' ? 'de klant' : 'jou' });
+    if (doc.email) { const k = bouwMail(sjab.annulatieKlant, basis, { boeklink: { url: publicBase(req) + '/afspraak', label: 'Plan een nieuw moment' } }, ['boeklink']); verstuurMail({ to: doc.email, subject: `Afspraak geannuleerd: ${boekingConfig().titel} op ${fmtWanneer(was)}`, text: k.text, html: k.html }, { soort: 'afspraak geannuleerd (klant)' }); gemaild = true; }
+    if (door === 'klant') meldAdmin(req, `Afspraak geannuleerd: ${doc.naam} – ${fmtWanneer(was)}`, Object.assign(basis, { bericht: `De klant annuleerde het gesprek van ${fmtWanneer(was)}.` + (reden ? `\nReden: ${reden}` : '') }), 'afspraak geannuleerd (melding)');
+  }
+  return { ok: true, problemen, gemaild };
+}
+
+// Reactie van de klant op een offerte (zonder login via dossier, of via het portaal). actie: goedkeuren | afwijzen | vraag.
+function offerteReactie(id, k, o, actie, bericht, req, via) {
+  const vandaag = vandaagBE(), tot = euro(offerteTotalen(o).tot), titel = o.titel || 'Offerte';
+  let reactie, soort;
+  if (actie === 'goedkeuren') {
+    if (o.status === 'Goedgekeurd') return { ok: true, al: true, status: o.status };
+    if (o.status !== 'Verstuurd') return { error: 'Deze offerte kan niet (meer) goedgekeurd worden.', status: 400 };
+    o.status = 'Goedgekeurd'; o.goedgekeurdOp = vandaag; o.goedgekeurdVia = via; delete o.afgewezenOp; reactie = 'Goedgekeurd'; soort = 'offerte goedgekeurd';
+    logboek(k, `Offerte "${titel}" (${tot}) goedgekeurd door de klant` + (bericht ? ': ' + bericht : ''), 'offerte');
+    if (['gehad', 'offerte', 'opvolging'].includes(k.fase)) { k.fase = 'goedgekeurd'; k.faseDatums = Object.assign({}, k.faseDatums, { goedgekeurd: vandaag }); logboek(k, 'Fase → Goedgekeurd · wacht op vragenlijst', 'fase'); }
+  } else if (actie === 'afwijzen') {
+    if (!bericht) return { error: 'Laat even weten waarom, of wat er anders mag — dan kan ik een aangepast voorstel maken.', status: 400 };
+    if (o.status !== 'Verstuurd') return { error: 'Deze offerte kan niet (meer) afgekeurd worden.', status: 400 };
+    o.status = 'Afgewezen'; o.afgewezenOp = vandaag; o.klantReactie = bericht; o.klantReactieOp = vandaag; reactie = 'Afgekeurd'; soort = 'offerte afgekeurd';
+    logboek(k, `Offerte "${titel}" afgekeurd door de klant: ${bericht}`, 'offerte');
+  } else {
+    if (!bericht) return { error: 'Schrijf even wat je wil vragen of aanpassen.', status: 400 };
+    o.klantReactie = bericht; o.klantReactieOp = vandaag; reactie = 'Vraag / aanpassing gevraagd'; soort = 'offerte vraag';
+    logboek(k, `Vraag bij offerte "${titel}": ${bericht}`, 'offerte');
+  }
+  o.klantTs = new Date().toISOString(); k.offerteTs = o.klantTs; store.set('klanten', id, k);
+  if (mailActief()) {
+    const admin = adminAdres(), sjab = sjablonen();
+    const basis = mailBasis(k, req, { offerte: titel, totaal: tot, reactie, bericht: bericht || '(geen bericht)' });
+    if (admin) { const a = bouwMail(sjab.offerteReactie, basis, {}); verstuurMail({ to: admin, replyTo: k.email || undefined, subject: `${reactie}: ${k.naam} – ${titel}`, text: a.text, html: a.html }, { soort }); }
+    if (actie === 'goedkeuren' && k.email) { const c = bouwMail(sjab.offerteGoedgekeurdKlant, basis, { dossierlink: dossierKnop(req, k, 'Open mijn dossier') }, ['dossierlink']); verstuurMail({ to: k.email, subject: 'Bevestiging: offerte goedgekeurd – justPIXIT', text: c.text, html: c.html }, { soort: 'offerte goedgekeurd (bevestiging klant)' }); }
+  }
+  return { ok: true, status: o.status };
+}
+
+// Offerte (geüploade PDF's) per mail versturen met de bestanden als bijlage en een dossierlink om te reageren.
+async function verstuurOfferte(id, oid, req, opts = {}) {
+  const k = store.get('klanten', id); if (!k) throw Object.assign(new Error('Klant niet gevonden'), { status: 404 });
+  const o = (k.offertes || []).find(x => x.id === oid); if (!o) throw Object.assign(new Error('Offerte niet gevonden'), { status: 404 });
+  if (!k.email) throw Object.assign(new Error('Deze klant heeft geen e-mailadres op de fiche.'), { status: 400 });
+  if (!mailActief()) throw Object.assign(new Error('E-mail is niet ingesteld (zie Koppelingen).'), { status: 400 });
+  const bijlagen = (o.bestanden || []).map(f => bijlageVan(f.id)).filter(Boolean);
+  if (!bijlagen.length) throw Object.assign(new Error('Upload eerst de offerte als PDF bij deze offerte.'), { status: 400 });
+  if (!k.wijzigCode) k.wijzigCode = crypto.randomBytes(9).toString('base64url');
+  const vandaag = vandaagBE();
+  const basis = mailBasis(k, req, { offerte: o.titel || 'Offerte', totaal: euro(offerteTotalen(o).tot), geldigTot: o.geldigTot || '-', bericht: String(opts.bericht || '').trim() });
+  const mm = bouwMail(sjablonen().offerteVerstuurd, basis, { dossierlink: dossierKnop(req, k, 'Bekijk en bevestig de offerte') });
+  const r = await verstuurMail({ to: k.email, subject: `Offerte ${o.titel && o.titel !== 'Offerte' ? '"' + o.titel + '" ' : ''}van justPIXIT`, text: mm.text, html: mm.html, attachments: bijlagen }, { soort: 'offerte verstuurd' });
+  if (!r.ok) throw Object.assign(new Error('Mail versturen mislukt: ' + r.error), { status: 502 });
+  o.status = 'Verstuurd'; o.datum = o.datum || vandaag; o.verstuurdOp = vandaag; delete o.klantReactie; delete o.afgewezenOp;
+  logboek(k, `Offerte "${o.titel || 'Offerte'}" gemaild naar ${k.email} (${bijlagen.length} bijlage${bijlagen.length === 1 ? '' : 'n'})`, 'offerte');
+  if (['gehad', 'ingepland'].includes(k.fase)) { k.fase = 'offerte'; k.faseDatums = Object.assign({}, k.faseDatums, { offerte: vandaag }); logboek(k, 'Fase → Offerte verstuurd', 'fase'); }
+  k.offerteTs = new Date().toISOString(); store.set('klanten', id, k);
+  return { ok: true, bijlagen: bijlagen.length };
 }
 
 const PORT = Number(process.env.PORT || 3000);
@@ -219,6 +338,9 @@ if (SETUP_FOUTEN.length) console.error('[setup] ' + SETUP_FOUTEN.join('; ') + ' 
 
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const store = new Store(DATA_DIR);
+// Elke schrijfactie op een klant krijgt een oplopend revisienummer; de app gebruikt dat om een open fiche te verversen
+// wanneer er intussen iets veranderde (klant via dossier, agenda-sync, …) zonder eigen wijzigingen te verliezen.
+{ const _set = store.set.bind(store); store.set = (col, id, doc) => { if (col === 'klanten' && doc && typeof doc === 'object') { const oud = store.get('klanten', id); doc.rev = ((oud && oud.rev) || 0) + 1; } return _set(col, id, doc); }; }
 seedIfEmpty();
 
 // Gebruikers met een rol ('admin' of 'klant') en een PBKDF2-wachtwoord in de database — nooit in klare tekst of in de code.
@@ -234,11 +356,22 @@ function maakGebruiker(email, role, klantId, extra = {}) {
   return uid;
 }
 // Rollen: elke rol zegt tot welk deel ze toegang geeft (beheer = Studio, portaal = Mijn pagina). Ingebouwde rollen kan je niet verwijderen.
-const STANDAARD_ROLLEN = { admin: { label: 'Beheerder', beheer: true, portaal: false, ingebouwd: true }, klant: { label: 'Klant', beheer: false, portaal: true, ingebouwd: true } };
-function rollen() { const d = store.get('instellingen', 'rollen'); return Object.assign({}, STANDAARD_ROLLEN, (d && d.rollen) || {}); }
+const STANDAARD_ROLLEN = {
+  admin: { label: 'Beheerder', beheer: true, portaal: false, ingebouwd: true, modules: standaardModules(true, false) },
+  klant: { label: 'Klant', beheer: false, portaal: true, ingebouwd: true, modules: standaardModules(false, true) },
+};
+// Opgeslagen rollen overschrijven de standaard; bij ingebouwde rollen enkel label + modules (toegang blijft vast).
+function rollen() {
+  const d = store.get('instellingen', 'rollen'); const opgeslagen = (d && d.rollen) || {}; const out = {};
+  for (const k in STANDAARD_ROLLEN) { const s = STANDAARD_ROLLEN[k], o = opgeslagen[k] || {}; out[k] = Object.assign({}, s, { label: o.label || s.label, modules: Array.isArray(o.modules) ? o.modules.filter(x => MODULE_IDS.has(x)) : s.modules.slice() }); }
+  for (const k in opgeslagen) if (!STANDAARD_ROLLEN[k]) { const o = opgeslagen[k]; out[k] = { label: o.label || k, beheer: !!o.beheer, portaal: !!o.portaal, ingebouwd: false, modules: Array.isArray(o.modules) ? o.modules.filter(x => MODULE_IDS.has(x)) : standaardModules(!!o.beheer, !!o.portaal) }; }
+  return out;
+}
 function rolDef(key) { return rollen()[key] || null; }
 function rolHeeft(key, deel) { const r = rolDef(key); return !!(r && r[deel]); }
+function rolModules(key) { const r = rolDef(key); return r ? r.modules : []; }
 function bewaarRollen(map) { store.set('instellingen', 'rollen', { rollen: map }); }
+const gestopt = k => GESTOPT.has(k.fase);
 function zetWachtwoord(uid, pw) {
   const u = store.get('gebruikers', uid); if (!u) return;
   const salt = crypto.randomBytes(16).toString('hex');
@@ -383,7 +516,7 @@ async function api(req, res, url) {
   if (p === '/api/boeking/slots' && m === 'GET') {
     const cfg = boekingConfig();
     if (!cfg.actief) return json(res, 200, { actief: false });
-    const bezet = store.list('klanten').filter(k => k.kennismaking && k.fase !== 'geen_deal').map(k => k.kennismaking);
+    const bezet = bezetteSlots('');
     const slots = slotsVoorPeriode(cfg, bezet);
     return json(res, 200, { actief: true, titel: cfg.titel, intro: cfg.intro, locatie: cfg.locatie, duur: cfg.duur, bevestiging: cfg.bevestiging, types: cfg.types, vragen: cfg.vragen, video: videoBeschikbaar(), dagen: slots });
   }
@@ -399,7 +532,7 @@ async function api(req, res, url) {
     if (naam.length < 2) return json(res, 400, { error: 'Vul je naam in.' });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(res, 400, { error: 'Vul een geldig e-mailadres in.' });
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(slot)) return json(res, 400, { error: 'Kies een tijdstip.' });
-    const bezet = store.list('klanten').filter(k => k.kennismaking && k.fase !== 'geen_deal').map(k => k.kennismaking);
+    const bezet = bezetteSlots('');
     const vrij = slotsVoorPeriode(cfg, bezet).some(d => d.slots.includes(slot));
     if (!vrij) return json(res, 409, { error: 'Dit tijdstip is net ingenomen of niet meer beschikbaar. Kies een ander moment.' });
     const vandaag = nuBrussel().slice(0, 10);
@@ -450,24 +583,77 @@ async function api(req, res, url) {
     return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: doc.locatie || cfg.locatie, bevestiging: cfg.bevestiging, videolink: doc.videolink || '', videoprovider: doc.videoprovider || '', mail: mailActief() });
   }
 
-  // --- afspraak verzetten met persoonlijke code (nieuwe leads, zonder login) ---
-  const wzMatch = p.match(/^\/api\/wijzig\/([A-Za-z0-9_-]{8,64})(?:\/(slots|verplaats))?$/);
+  // --- dossier met persoonlijke code (klantflow zonder login): afspraak, offerte, vragenlijst, contract ---
+  const wzMatch = p.match(/^\/api\/(?:wijzig|dossier)\/([A-Za-z0-9_-]{8,64})(?:\/(.+))?$/);
   if (wzMatch) {
     const ip = clientIp(req);
-    if (limited('wijzig:' + ip, 60, 15 * 60e3)) return json(res, 429, { error: 'Te veel aanvragen. Probeer later opnieuw.' });
+    if (limited('dossier:' + ip, 120, 15 * 60e3)) return json(res, 429, { error: 'Te veel aanvragen. Probeer later opnieuw.' });
     const k = klantViaWijzigCode(wzMatch[1]);
-    if (!k) return json(res, 404, { error: 'Deze link is niet (meer) geldig. Stuur me gerust een berichtje, dan plannen we samen een moment.' });
-    const cfg = boekingConfig();
-    if (!wzMatch[2] && m === 'GET') {
-      return json(res, 200, { naam: k.naam, voornaam: (String(k.naam || '').split(/\s|&/)[0] || '').trim(), kennismaking: k.kennismaking || '', duur: cfg.duur, titel: cfg.titel, locatie: k.videoprovider || cfg.locatie || '',
-        videolink: k.videolink || '', videoprovider: k.videoprovider || '', gestopt: k.fase === 'geen_deal', verplaatsbaar: k.fase !== 'geen_deal' && !!k.kennismaking && k.kennismaking >= nuBrussel(), nu: nuBrussel(), actief: !!cfg.actief });
+    if (!k) return json(res, 404, { error: 'Deze link is niet (meer) geldig. Stuur me gerust een berichtje, dan help ik je verder.' });
+    const kid = k.id, sub = wzMatch[2] || '', cfg = boekingConfig();
+    const zichtbaar = (k.offertes || []).filter(o => o.status && o.status !== 'Concept');
+    const bijlagesVan = () => { const uit = []; for (const o of zichtbaar) for (const f of (o.bestanden || [])) uit.push({ id: f.id, naam: f.naam || 'bestand', type: f.type || '', soort: 'offerte', bron: o.titel || 'Offerte', d: f.d || '' }); for (const f of (k.bijlages || [])) uit.push({ id: f.id, naam: f.naam || 'bestand', type: f.type || '', soort: f.soort || 'ander', bron: '', d: f.d || '' }); return uit; };
+    if (!sub && m === 'GET') {
+      const vl = vragenlijstVoor(k);
+      return json(res, 200, { naam: k.naam, voornaam: (String(k.naam || '').replace(/^Voorbeeld\s*·\s*/, '').split(/\s|&/)[0] || '').trim(), type: k.type || '', email: k.email || '', telefoon: k.telefoon || '',
+        kennismaking: k.kennismaking || '', geannuleerdeAfspraak: k.geannuleerdeAfspraak || '', duur: cfg.duur, titel: cfg.titel, locatie: k.videoprovider || cfg.locatie || '', videolink: k.videolink || '', videoprovider: k.videoprovider || '',
+        fase: k.fase, fasen: fasenVoor(k), gestopt: GESTOPT.has(k.fase), verplaatsbaar: !GESTOPT.has(k.fase) && !!k.kennismaking && k.kennismaking >= nuBrussel(), nu: nuBrussel(), actief: !!cfg.actief,
+        offertes: zichtbaar.map(o => ({ id: o.id, titel: o.titel || 'Offerte', status: o.status, datum: o.datum || '', geldigTot: o.geldigTot || '', notitie: o.notitie || '', totaal: offerteTotalen(o).tot, bestanden: (o.bestanden || []).map(f => ({ id: f.id, naam: f.naam || 'bestand', type: f.type || '' })), reactie: o.klantReactie || '', goedgekeurdOp: o.goedgekeurdOp || '', afgewezenOp: o.afgewezenOp || '' })),
+        vragenlijst: { vragen: vl, antwoorden: (k.vragenlijst && k.vragenlijst.antwoorden) || {}, ingevuldOp: (k.vragenlijst && k.vragenlijst.ingevuldOp) || '', nodig: FI_SERVER[k.fase] >= FI_SERVER.goedgekeurd && !GESTOPT.has(k.fase) },
+        contract: contractInfo(k), voorschot: k.voorschot || { betaald: false }, bijlages: bijlagesVan(), naGoedkeuringVerstuurdOp: k.naGoedkeuringVerstuurdOp || '' });
     }
-    if (wzMatch[2] === 'slots' && m === 'GET') return json(res, 200, { actief: !!cfg.actief, duur: cfg.duur, dagen: cfg.actief ? slotsVoorPeriode(cfg, bezetteSlots(k.id)) : [] });
-    if (wzMatch[2] === 'verplaats' && m === 'POST') {
-      if (limited('wverplaats:' + k.id, 5, 60 * 60e3)) return json(res, 429, { error: 'Te vaak verplaatst. Stuur me een berichtje, dan regelen we het samen.' });
+    if (sub === 'slots' && m === 'GET') return json(res, 200, { actief: !!cfg.actief, duur: cfg.duur, dagen: cfg.actief ? slotsVoorPeriode(cfg, bezetteSlots(kid)) : [] });
+    if (sub === 'verplaats' && m === 'POST') {
+      if (limited('wverplaats:' + kid, 5, 60 * 60e3)) return json(res, 429, { error: 'Te vaak verplaatst. Stuur me een berichtje, dan regelen we het samen.' });
       const b = await readJson(req, 10e3).catch(() => ({}));
-      try { const r = await verplaatsAfspraak(k.id, String(b.slot || ''), 'klant', req); return json(res, 200, r); }
+      try { const r = await verplaatsAfspraak(kid, String(b.slot || ''), 'klant', req); return json(res, 200, r); }
       catch (e) { return json(res, e.status || 500, { error: e.message }); }
+    }
+    if (sub === 'annuleer' && m === 'POST') {
+      const b = await readJson(req, 10e3).catch(() => ({}));
+      try { const r = await annuleerAfspraak(kid, 'klant', req, String(b.reden || '').trim().slice(0, 500)); return json(res, 200, r); }
+      catch (e) { return json(res, e.status || 500, { error: e.message }); }
+    }
+    const bm = sub.match(/^bestand\/([a-f0-9]{32})$/);
+    if (bm && m === 'GET') {
+      if (!bijlagesVan().some(f => f.id === bm[1])) return text(res, 404, 'Niet gevonden');
+      const b = bestandOpSchijf(bm[1]); if (!b) return text(res, 404, 'Niet gevonden');
+      return serveFile(res, b.pad, { 'Cache-Control': 'private, max-age=3600', 'Content-Disposition': 'inline' });
+    }
+    const om = sub.match(/^offerte\/([A-Za-z0-9_-]{1,40})\/(goedkeuren|afwijzen|vraag)$/);
+    if (om && m === 'POST') {
+      const o = zichtbaar.find(x => x.id === om[1]); if (!o) return json(res, 404, { error: 'Offerte niet gevonden' });
+      const b = await readJson(req, 10e3).catch(() => ({}));
+      const r = offerteReactie(kid, k, o, om[2], String(b.bericht || '').trim().slice(0, 2000), req, 'dossier');
+      return r.error ? json(res, r.status || 400, { error: r.error }) : json(res, 200, r);
+    }
+    if (sub === 'vragenlijst' && m === 'POST') {
+      const b = await readJson(req, 50e3).catch(() => ({}));
+      const vragen = vragenlijstVoor(k); const ant = {};
+      for (const v of vragen) { const a = b.antwoorden && b.antwoorden[v]; if (a !== undefined) ant[v] = String(a).trim().slice(0, 2000); }
+      const al = !!(k.vragenlijst && k.vragenlijst.ingevuldOp);
+      k.vragenlijst = { type: k.type || '', antwoorden: ant, ingevuldOp: vandaagBE(), ts: new Date().toISOString() };
+      logboek(k, al ? 'Klant werkte de vragenlijst bij via het dossier' : 'Vragenlijst ingevuld door de klant via het dossier', 'vragenlijst');
+      store.set('klanten', kid, k);
+      if (!al) meldAdmin(req, `Vragenlijst ontvangen: ${k.naam}`, mailBasis(k, req, { bericht: `De klant vulde de vragenlijst (${k.type || 'algemeen'}) in. Bekijk ze in de fiche onder Vragenlijst.` }), 'vragenlijst ontvangen');
+      return json(res, 200, { ok: true });
+    }
+    if (sub === 'contract/teken' && m === 'POST') {
+      const b = await readJson(req, 400e3).catch(() => ({}));
+      const c = k.contract || {}; if (!c.bestandId) return json(res, 400, { error: 'Er staat nog geen contract klaar om te tekenen.' });
+      if (c.getekend) return json(res, 200, { ok: true, al: true });
+      const naam = String(b.naam || '').trim().slice(0, 120); const handtekening = String(b.handtekening || '');
+      if (naam.length < 3) return json(res, 400, { error: 'Vul je volledige naam in.' });
+      if (!b.akkoord) return json(res, 400, { error: 'Vink aan dat je akkoord gaat met het contract.' });
+      if (!/^data:image\/png;base64,[A-Za-z0-9+/=]{100,}$/.test(handtekening)) return json(res, 400, { error: 'Zet je handtekening in het vak.' });
+      let hid = ''; try { const buf = Buffer.from(handtekening.split(',')[1], 'base64'); hid = crypto.randomBytes(16).toString('hex'); fs.writeFileSync(path.join(UPLOAD_DIR, hid + '.png'), buf); fs.writeFileSync(path.join(UPLOAD_DIR, hid + '.json'), JSON.stringify({ naam: 'handtekening-' + naam.replace(/[^A-Za-z0-9]+/g, '-') + '.png', type: 'image/png', size: buf.length, d: new Date().toISOString() })); } catch (e) {}
+      const op = new Date().toISOString();
+      c.getekend = { naam, op, ip: clientIp(req), handtekeningId: hid }; k.contract = c;
+      k.bijlages = (k.bijlages || []).concat(hid ? [{ id: hid, naam: 'Handtekening ' + naam + '.png', type: 'image/png', soort: 'contract_getekend', d: vandaagBE() }] : []);
+      logboek(k, `Contract getekend door ${naam} via het dossier`, 'contract');
+      store.set('klanten', kid, k);
+      meldAdmin(req, `Contract getekend: ${k.naam}`, mailBasis(k, req, { bericht: `${naam} tekende het contract op ${op.slice(0, 16).replace('T', ' ')} (IP ${clientIp(req)}). De handtekening staat bij de bijlages.` }), 'contract getekend');
+      return json(res, 200, { ok: true });
     }
     return json(res, 404, { error: 'Onbekende route' });
   }
@@ -488,7 +674,7 @@ async function api(req, res, url) {
       const voornaam = gu.voornaam || (String(k.naam || '').replace(/^Voorbeeld\s*·\s*/, '').split(/\s|&/)[0] || '').trim();
       return json(res, 200, { naam: k.naam, voornaam, email: k.email || '', telefoon: k.telefoon || '', type: k.type || '', datumEvent: k.datumEvent || '', gasten: k.gasten || '',
         kennismaking: k.kennismaking || '', duur: cfg.duur, locatie: k.videoprovider || cfg.locatie || '', titel: cfg.titel, videolink: k.videolink || '', videoprovider: k.videoprovider || '',
-        fase: k.fase, fasen: fasenVoor(k), offertes, gestopt: k.fase === 'geen_deal', verplaatsbaar: k.fase !== 'geen_deal' && !!k.kennismaking && k.kennismaking >= nuBrussel(), nu: nuBrussel() });
+        fase: k.fase, fasen: fasenVoor(k), offertes, modules: rolModules(gu.role), gestopt: GESTOPT.has(k.fase), verplaatsbaar: !GESTOPT.has(k.fase) && !!k.kennismaking && k.kennismaking >= nuBrussel(), nu: nuBrussel() });
     }
     const bestandM = p.match(/^\/api\/portaal\/bestand\/([a-f0-9]{32})$/);
     if (bestandM && m === 'GET') {
@@ -497,33 +683,13 @@ async function api(req, res, url) {
       if (!f) return text(res, 404, 'Niet gevonden');
       return serveFile(res, path.join(UPLOAD_DIR, f), { 'Cache-Control': 'private, max-age=3600', 'Content-Disposition': 'inline' });
     }
-    const ofM = p.match(/^\/api\/portaal\/offerte\/([A-Za-z0-9_-]{1,40})\/(goedkeuren|reactie)$/);
+    const ofM = p.match(/^\/api\/portaal\/offerte\/([A-Za-z0-9_-]{1,40})\/(goedkeuren|afwijzen|reactie|vraag)$/);
     if (ofM && m === 'POST') {
       const o = zichtbareOffertes().find(x => x.id === ofM[1]);
       if (!o) return json(res, 404, { error: 'Offerte niet gevonden' });
       const b = await readJson(req, 10e3).catch(() => ({}));
-      const bericht = String(b.bericht || '').trim().slice(0, 2000);
-      const vandaag = vandaagBE(), ts = new Date().toISOString(), tot = euro(offerteTotalen(o).tot);
-      let reactie;
-      if (ofM[2] === 'goedkeuren') {
-        if (o.status === 'Goedgekeurd') return json(res, 200, { ok: true, al: true });
-        if (o.status !== 'Verstuurd') return json(res, 400, { error: 'Deze offerte kan niet meer goedgekeurd worden.' });
-        o.status = 'Goedgekeurd'; o.goedgekeurdOp = vandaag; o.goedgekeurdVia = 'portaal'; reactie = 'Goedgekeurd';
-        k.logboek = (k.logboek || []).concat([{ d: vandaag, t: `Offerte "${o.titel || 'Offerte'}" (${tot}) goedgekeurd door de klant via Mijn pagina` + (bericht ? ': ' + bericht : ''), s: 'offerte', ts }]);
-        if (['gehad', 'offerte', 'opvolging'].includes(k.fase)) { k.fase = 'goedgekeurd'; k.faseDatums = Object.assign({}, k.faseDatums, { goedgekeurd: vandaag }); k.logboek.push({ d: vandaag, t: 'Fase → Goedgekeurd · wacht op vragenlijst', s: 'fase', ts }); }
-      } else {
-        if (!bericht) return json(res, 400, { error: 'Schrijf even wat je wil vragen of aanpassen.' });
-        o.klantReactie = bericht; o.klantReactieOp = vandaag; reactie = 'Vraag / aanpassing gevraagd';
-        k.logboek = (k.logboek || []).concat([{ d: vandaag, t: `Vraag bij offerte "${o.titel || 'Offerte'}" via Mijn pagina: ${bericht}`, s: 'offerte', ts }]);
-      }
-      k.offerteTs = ts; k.bijgewerkt = ts; store.set('klanten', kid, k);
-      if (mailActief()) {
-        const admin = adminAdres(), sjab = sjablonen();
-        const basis = mailBasis(k, req, { offerte: o.titel || 'Offerte', totaal: tot, reactie, bericht: bericht || '(geen bericht)' });
-        if (admin) { const a = bouwMail(sjab.offerteReactie, basis, {}); verstuurMail({ to: admin, replyTo: k.email || undefined, subject: `${reactie}: ${k.naam} – ${o.titel || 'Offerte'}`, text: a.text, html: a.html }, { soort: 'offerte ' + (ofM[2] === 'goedkeuren' ? 'goedgekeurd' : 'vraag') }); }
-        if (ofM[2] === 'goedkeuren' && k.email) { const c = bouwMail(sjab.offerteGoedgekeurdKlant, basis, { portaallink: { url: portaalUrl(req), label: 'Mijn pagina' } }, ['portaallink']); verstuurMail({ to: k.email, subject: `Bevestiging: offerte goedgekeurd – justPIXIT`, text: c.text, html: c.html }, { soort: 'offerte goedgekeurd (bevestiging klant)' }); }
-      }
-      return json(res, 200, { ok: true, status: o.status });
+      const r = offerteReactie(kid, k, o, ofM[2] === 'reactie' ? 'vraag' : ofM[2], String(b.bericht || '').trim().slice(0, 2000), req, 'portaal');
+      return r.error ? json(res, r.status || 400, { error: r.error }) : json(res, 200, r);
     }
     if (p === '/api/portaal/slots' && m === 'GET') {
       if (!cfg.actief) return json(res, 200, { actief: false, dagen: [] });
@@ -551,7 +717,7 @@ async function api(req, res, url) {
   const admingu = authedAdmin(req);
   if (!admingu) return json(res, 401, { error: 'Niet aangemeld' });
 
-  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), office365: msVerbonden(), zoom: zoomActief(), versie: VERSION.version, account: admingu.email });
+  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), office365: msVerbonden(), zoom: zoomActief(), versie: VERSION.version, account: admingu.email, rol: admingu.role, modules: rolModules(admingu.role) });
   if (p === '/api/account' && m === 'GET') return json(res, 200, { email: admingu.email });
   if (p === '/api/account' && m === 'POST') {
     const b = await readJson(req, 10e3).catch(() => ({}));
@@ -570,7 +736,7 @@ async function api(req, res, url) {
   if (p === '/api/gebruikers' && m === 'GET') {
     return json(res, 200, {
       gebruikers: gebruikers().map(u => ({ id: u.id, email: u.email, voornaam: u.voornaam || '', naam: u.naam || '', role: u.role, klantId: u.klantId || '', klant: u.klantId ? (store.get('klanten', u.klantId) || {}).naam || '' : '', actief: !!u.hash, laatstIngelogd: u.laatstIngelogd || '' })),
-      rollen: rollen(),
+      rollen: rollen(), moduleLijst: { beheer: BEHEER_MODULES, portaal: PORTAAL_MODULES },
     });
   }
   if (p === '/api/gebruikers' && m === 'POST') { // nieuwe gebruiker + uitnodiging om wachtwoord in te stellen
@@ -631,11 +797,14 @@ async function api(req, res, url) {
     if (!key) return json(res, 400, { error: 'Geef de rol een korte sleutel (letters/cijfers).' });
     if (STANDAARD_ROLLEN[key] && b.nieuw) return json(res, 409, { error: 'Deze rol bestaat al.' });
     const map = (store.get('instellingen', 'rollen') || {}).rollen || {};
-    const bestaand = map[key] || STANDAARD_ROLLEN[key] || {};
-    if (bestaand.ingebouwd) { // enkel het label mag je bij ingebouwde rollen niet nodig; sta toegang niet aan te passen
-      return json(res, 400, { error: 'Ingebouwde rollen (Beheerder, Klant) kan je niet wijzigen.' });
+    const modules = Array.isArray(b.modules) ? b.modules.map(String).filter(x => MODULE_IDS.has(x)) : null;
+    if (STANDAARD_ROLLEN[key]) { // ingebouwd: toegang ligt vast, label en modules mag je aanpassen
+      const s0 = STANDAARD_ROLLEN[key];
+      map[key] = { label: String(b.label || s0.label).trim().slice(0, 40) || s0.label, modules: modules || (map[key] && map[key].modules) || s0.modules };
+    } else {
+      const beheer = !!b.beheer, portaal = !!b.portaal;
+      map[key] = { label: String(b.label || key).trim().slice(0, 40) || key, beheer, portaal, ingebouwd: false, modules: modules || (map[key] && map[key].modules) || standaardModules(beheer, portaal) };
     }
-    map[key] = { label: String(b.label || key).trim().slice(0, 40) || key, beheer: !!b.beheer, portaal: !!b.portaal, ingebouwd: false };
     bewaarRollen(map);
     return json(res, 200, { ok: true, key });
   }
@@ -679,10 +848,70 @@ async function api(req, res, url) {
     try { const r = await verplaatsAfspraak(verplaatsMatch[1], String(b.slot || ''), 'jou', req, { vrijKiezen: true, mail: b.mail !== false }); return json(res, 200, r); }
     catch (e) { return json(res, e.status || 500, { error: e.message }); }
   }
-  const wijzigLinkMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/wijziglink$/);
+  const wijzigLinkMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/(wijziglink|dossierlink)$/);
   if (wijzigLinkMatch && m === 'POST') {
     const code = zorgWijzigCode(wijzigLinkMatch[1]);
-    return code ? json(res, 200, { link: wijzigUrl(req, code) }) : json(res, 404, { error: 'Klant niet gevonden' });
+    return code ? json(res, 200, { link: dossierUrl(req, code) }) : json(res, 404, { error: 'Klant niet gevonden' });
+  }
+  const annuleerMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/annuleer$/);
+  if (annuleerMatch && m === 'POST') {
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    try { const r = await annuleerAfspraak(annuleerMatch[1], 'jou', req, String(b.reden || '').trim().slice(0, 500)); return json(res, 200, r); }
+    catch (e) { return json(res, e.status || 500, { error: e.message }); }
+  }
+  const ofVerstuurMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/offerte\/([A-Za-z0-9_-]{1,40})\/verstuur$/);
+  if (ofVerstuurMatch && m === 'POST') {
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    try { const r = await verstuurOfferte(ofVerstuurMatch[1], ofVerstuurMatch[2], req, { bericht: b.bericht }); return json(res, 200, r); }
+    catch (e) { return json(res, e.status || 500, { error: e.message }); }
+  }
+  // Bijlages op de fiche (factuur, contract, ander) — het bestand zelf komt binnen via /api/upload.
+  const bijlageMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/bijlage(?:\/([a-f0-9]{32}))?$/);
+  if (bijlageMatch && m === 'POST' && !bijlageMatch[2]) {
+    const k = store.get('klanten', bijlageMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    const best = bestandOpSchijf(String(b.id || '')); if (!best) return json(res, 400, { error: 'Bestand niet gevonden' });
+    const soort = ['factuur', 'contract', 'offerte', 'ander'].includes(b.soort) ? b.soort : 'ander';
+    k.bijlages = (k.bijlages || []).filter(f => f.id !== b.id).concat([{ id: b.id, naam: String(b.naam || best.naam).slice(0, 200), type: best.type, soort, d: vandaagBE() }]);
+    if (soort === 'contract') { k.contract = Object.assign({}, k.contract, { bestandId: b.id }); delete k.contract.getekend; }
+    logboek(k, `Bijlage toegevoegd (${soort}): ${b.naam || best.naam}`, 'bijlage'); store.set('klanten', bijlageMatch[1], k);
+    return json(res, 200, { ok: true });
+  }
+  if (bijlageMatch && m === 'DELETE' && bijlageMatch[2]) {
+    const k = store.get('klanten', bijlageMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    const f = (k.bijlages || []).find(x => x.id === bijlageMatch[2]);
+    if (k.contract && k.contract.bestandId === bijlageMatch[2]) { if (k.contract.getekend) return json(res, 400, { error: 'Dit contract is al getekend en kan niet verwijderd worden.' }); delete k.contract.bestandId; }
+    k.bijlages = (k.bijlages || []).filter(x => x.id !== bijlageMatch[2]);
+    if (f && f.soort !== 'contract_getekend') { for (const x of fs.readdirSync(UPLOAD_DIR)) if (x.startsWith(bijlageMatch[2])) try { fs.unlinkSync(path.join(UPLOAD_DIR, x)); } catch (e) {} }
+    store.set('klanten', bijlageMatch[1], k);
+    return json(res, 200, { ok: true });
+  }
+  const voorschotMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/voorschot$/);
+  if (voorschotMatch && m === 'POST') {
+    const k = store.get('klanten', voorschotMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    k.voorschot = { betaald: !!b.betaald, op: b.betaald ? (String(b.op || '').slice(0, 10) || vandaagBE()) : '', bedrag: String(b.bedrag || '').slice(0, 20) };
+    logboek(k, b.betaald ? `Voorschot betaald${k.voorschot.bedrag ? ' (' + k.voorschot.bedrag + ')' : ''}` : 'Voorschot op "niet betaald" gezet', 'betaling'); store.set('klanten', voorschotMatch[1], k);
+    return json(res, 200, { ok: true, voorschot: k.voorschot });
+  }
+  // Na goedkeuring: voorschotfactuur + contract als bijlage, met dossierlink voor vragenlijst en handtekening.
+  const naMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/na-goedkeuring$/);
+  if (naMatch && m === 'POST') {
+    const k = store.get('klanten', naMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    if (!k.email) return json(res, 400, { error: 'Deze klant heeft geen e-mailadres op de fiche.' });
+    if (!mailActief()) return json(res, 400, { error: 'E-mail is niet ingesteld (zie Koppelingen).' });
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    const factuur = (k.bijlages || []).filter(f => f.soort === 'factuur'), contract = k.contract && k.contract.bestandId ? [{ id: k.contract.bestandId }] : [];
+    const bijlagen = factuur.concat(contract).map(f => bijlageVan(f.id)).filter(Boolean);
+    if (!k.wijzigCode) k.wijzigCode = crypto.randomBytes(9).toString('base64url');
+    const basis = mailBasis(k, req, { bericht: String(b.bericht || '').trim(), heeftFactuur: factuur.length ? 'ja' : 'nee', heeftContract: contract.length ? 'ja' : 'nee' });
+    const mm = bouwMail(sjablonen().naGoedkeuringKlant, basis, { dossierlink: dossierKnop(req, k, 'Vragenlijst invullen & contract tekenen') });
+    const r = await verstuurMail({ to: k.email, subject: 'Volgende stap: voorschot, contract en vragenlijst – justPIXIT', text: mm.text, html: mm.html, attachments: bijlagen }, { soort: 'na goedkeuring (voorschot/contract/vragenlijst)' });
+    if (!r.ok) return json(res, 502, { error: 'Mail versturen mislukt: ' + r.error });
+    k.naGoedkeuringVerstuurdOp = vandaagBE(); if (contract.length) k.contract.verstuurdOp = vandaagBE();
+    logboek(k, `Voorschotfactuur, contract en vragenlijst gemaild naar ${k.email} (${bijlagen.length} bijlage${bijlagen.length === 1 ? '' : 'n'})`, 'offerte');
+    store.set('klanten', naMatch[1], k);
+    return json(res, 200, { ok: true, bijlagen: bijlagen.length });
   }
   const portaalMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/portaaltoegang$/);
   if (portaalMatch && m === 'GET') {
@@ -737,7 +966,7 @@ async function api(req, res, url) {
     if (!msVerbonden()) return json(res, 400, { error: 'Office 365 is niet verbonden.' });
     const vd = vandaagBE(); let n = 0, fouten = 0;
     for (const k of store.list('klanten')) {
-      if (k.fase === 'geen_deal' || !k.kennismaking || k.kennismaking.slice(0, 10) < vd) continue;
+      if (GESTOPT.has(k.fase) || !k.kennismaking || k.kennismaking.slice(0, 10) < vd) continue;
       try { const id = (await graph.zetAfspraak(msDoc(), k, boekingConfig().duur || 60)).id; const kk = store.get('klanten', k.id); if (kk) { kk.msEventId = id; store.set('klanten', k.id, kk); } n++; } catch (e) { fouten++; }
     }
     const nw = graph.nieuwRefreshToken(); if (nw) { const m2 = msDoc(); m2.refreshToken = nw; store.set('instellingen', 'ms', m2); }
@@ -819,16 +1048,19 @@ async function api(req, res, url) {
   const docMatch = p.match(/^\/api\/doc\/(klanten|instellingen)\/([A-Za-z0-9_\-.~:@+]{1,200})$/);
   if (docMatch) {
     const [, col, id] = docMatch;
-    if (m === 'PUT') {
+    if (m === 'PUT' || m === 'PATCH') {
       const body = await readJson(req).catch(() => null); if (!body || typeof body !== 'object' || Array.isArray(body)) return json(res, 400, { error: 'Ongeldig document' });
-      const oud = col === 'klanten' ? store.get(col, id) : null;
-      if (oud) { for (const f of ['wijzigCode', 'portaalNonce', 'msEventId', 'zoomMeetingId']) if (oud[f] && !body[f]) body[f] = oud[f]; } // server-velden nooit kwijtraken
-      store.set(col, id, body);
+      const oud = store.get(col, id);
+      let nieuw = body;
+      if (col === 'klanten' && oud) nieuw = mergeKlantSchrijf(oud, body, m === 'PATCH');
+      else if (m === 'PATCH') nieuw = Object.assign({}, oud || {}, body);
+      store.set(col, id, nieuw);
+      const rev = nieuw.rev;
       // Kennismaking manueel aangepast in de fiche → Outlook/Teams en Zoom laten volgen (achtergrond, resultaat in logboek).
-      if (oud && (oud.kennismaking || '') !== (body.kennismaking || '') && body.kennismaking && body.fase !== 'geen_deal') {
+      if (col === 'klanten' && oud && (oud.kennismaking || '') !== (nieuw.kennismaking || '') && nieuw.kennismaking && !GESTOPT.has(nieuw.fase)) {
         syncAgenda(id).then(problemen => { if (!problemen.length) return; const k2 = store.get('klanten', id); if (!k2) return; const ts = new Date().toISOString(); k2.logboek = (k2.logboek || []).concat(problemen.map(t => ({ d: vandaagBE(), t, s: 'afspraak', ts }))); store.set('klanten', id, k2); }).catch(e => console.error('[agenda]', e.message));
       }
-      return json(res, 200, { ok: true });
+      return json(res, 200, { ok: true, rev });
     }
     if (m === 'DELETE') { store.delete(col, id); return json(res, 200, { ok: true }); }
     if (m === 'GET') { const d = store.get(col, id); return d ? json(res, 200, d) : json(res, 404, { error: 'Niet gevonden' }); }
@@ -879,7 +1111,7 @@ nano .env        # ADMIN_PASSWORD en SESSION_SECRET invullen
     if (p.startsWith('/api/')) return await api(req, res, url);
     if (p === '/app' || p === '/app/') return serveFile(res, path.join(PUBLIC_DIR, 'app.html'), { 'Cache-Control': 'no-store' });
     if (p === '/afspraak' || p === '/afspraak/' || p === '/boek') return serveFile(res, path.join(PUBLIC_DIR, 'afspraak.html'), { 'Cache-Control': 'no-store' });
-    if (p === '/afspraak/wijzig' || p === '/afspraak/wijzig/') return serveFile(res, path.join(PUBLIC_DIR, 'wijzig.html'), { 'Cache-Control': 'no-store' }); // verzetten met persoonlijke code
+    if (p === '/dossier' || p === '/dossier/' || p === '/afspraak/wijzig' || p === '/afspraak/wijzig/') return serveFile(res, path.join(PUBLIC_DIR, 'dossier.html'), { 'Cache-Control': 'no-store' }); // klantflow met persoonlijke code (zonder login)
     if (p === '/' || p === '/login' || p === '/login/') return serveFile(res, path.join(PUBLIC_DIR, 'login.html'), { 'Cache-Control': 'no-store' }); // één inlogpagina (admin of klant)
     if (p === '/mijn' || p === '/mijn/') return serveFile(res, path.join(PUBLIC_DIR, 'portaal.html'), { 'Cache-Control': 'no-store' });
     if (p === '/wachtwoord' || p === '/wachtwoord/') return serveFile(res, path.join(PUBLIC_DIR, 'wachtwoord.html'), { 'Cache-Control': 'no-store' }); // wachtwoord instellen via uitnodigingslink

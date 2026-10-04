@@ -358,9 +358,11 @@ const FASES=[
  {k:'drukwerk',l:'Drukwerk besteld',g:'druk'},
  {k:'afgerond',l:'Afgerond',g:'klaar'},
  {k:'geen_deal',l:'Niet doorgegaan',g:'stop'},
+ {k:'geannuleerd',l:'Gesprek geannuleerd',g:'stop'},
 ];
+const GESTOPT=new Set(['geen_deal','geannuleerd']);const stopped=k=>GESTOPT.has(k.fase);
 const FI=Object.fromEntries(FASES.map((f,i)=>[f.k,i]));
-const ACTIVE=FASES.filter(f=>!['afgerond','geen_deal'].includes(f.k));
+const ACTIVE=FASES.filter(f=>!['afgerond','geen_deal','geannuleerd'].includes(f.k));
 const PRODUCTEN=[
  [[0,'drukwerk','Drukwerk'],[1,'savethedate','Save the date'],[1,'uitnodiging','Uitnodiging'],[2,'receptiekaartjes','Receptiekaartjes'],[1,'menukaarten','Menukaarten'],[1,'naamkaartjes','Naamkaartjes'],[1,'banner','Banner'],[1,'stoelafwezigen','Stoel voor afwezigen'],[1,'drukwerkAnder','Ander:'],[0,'vows','Vows']],
  [[0,'bedankjes','Bedankjes'],[1,'vulling','Vulling'],[1,'verpakking','Verpakking'],[1,'afwerking','Afwerking'],[2,'clips','Clips'],[2,'lint','Lint'],[2,'stickers','Stickers'],[2,'kaartjes','Kaartjes'],[2,'vinyl','Vinyl'],[0,'decoratie','Decoratie'],[1,'flowerhoop','Flowerhoop'],[1,'gastenboek','Gastenboek'],[1,'enveloppendoos','Enveloppendoos']]
@@ -381,6 +383,7 @@ const DEFAULTS={
   btw:21,
   termijnen:{offerte:14,opvolging:14,herhaling:7,vragenlijst:7,proef:5,proefdruk:7,deadlineWaarschuwing:30},
   afzender:'Liesbeth\njustPIXIT',
+  vragenlijsten:{Huwelijk:['Jullie namen zoals ze op de uitnodiging moeten staan','Datum en uur van de ceremonie','Locatie(s): ceremonie, receptie, feest','Tot wanneer mogen gasten antwoorden (RSVP)?','Hoeveel uitnodigingen hebben jullie nodig?','Welke stijl of sfeer spreekt jullie aan? (kleuren, lettertypes, voorbeelden)','Is er een dresscode of thema?','Zijn er extra kaartjes nodig (menu, naamkaartjes, bedankjes)?','Hebben jullie een website of QR-code voor meer info?','Nog iets dat ik zeker moet weten?'],Geboorte:['Naam van de baby (en eventueel tweede naam)','Geboortedatum en -uur, gewicht en lengte','Namen van de ouders','Namen van broers/zussen, meter en peter','Hoeveel kaartjes hebben jullie nodig?','Welke stijl spreekt jullie aan? (kleuren, illustraties, voorbeelden)','Komt er een foto op het kaartje?','Welke tekst of quote willen jullie erbij?','Gegevens voor kraambezoek of een geboortelijst?','Nog iets dat ik zeker moet weten?'],Ander:['Wat wil je laten ontwerpen?','Voor wanneer heb je het nodig?','Hoeveel exemplaren?','Welke stijl of sfeer spreekt je aan?','Nog iets dat ik zeker moet weten?']},
   boeking:{actief:true,titel:'Kennismakingsgesprek',intro:'In een vrijblijvend gesprek van een uurtje bekijken we jullie wensen voor de uitnodigingen of het geboortekaartje, en hoe ik daar iets unieks van maak.',locatie:'Online via videocall, of bij mij thuis',duur:60,buffer:15,dagen:{1:true,2:true,3:true,4:true,5:false,6:false,0:false},blokken:[{van:'09:30',tot:'12:00'},{van:'19:00',tot:'21:30'}],minUren:48,maxWeken:8,geblokkeerd:[],types:['Huwelijk','Geboorte','Ander'],vragen:['Hoe hebben jullie justPIXIT gevonden?'],bevestiging:'Bedankt voor jullie aanvraag! Jullie afspraak staat vast. Ik kijk ernaar uit om jullie te leren kennen.',afzender:'Liesbeth · justPIXIT'},
   mails:{
     opvolging:'Hoi {voornaam},\n\nIk hoop dat alles goed gaat met jullie! Een tweetal weken geleden stuurde ik jullie de offerte door. Hebben jullie al de tijd gehad om ze rustig te bekijken?\n\nAls er nog vragen zijn of als jullie iets willen aanpassen, laat het gerust weten. Ik denk graag mee.\n\nWarme groetjes,\n{afzender}',
@@ -393,20 +396,25 @@ const DEFAULTS={
     verplaatstAdmin:'Afspraak verplaatst door {door}.\n\nKlant: {naam}\nNieuw moment: {wanneer}\nVorig moment: {vorig}\nE-mail: {email}\n\nOpen de fiche: {app}',
     portaalLogin:'Hoi {voornaam},\n\nJullie hebben nu toegang tot jullie persoonlijke pagina bij justPIXIT. Stel met de knop hieronder een wachtwoord in; daarna bekijken en bevestigen jullie de offerte en volgen jullie hoe ver we staan.\n\n{loginlink}\n\nDeze link is enkel voor jullie bedoeld. Daarna log je in op {app} met jullie e-mailadres en wachtwoord.\n\n{afzender}',
     wachtwoordReset:'Hoi {voornaam},\n\nStel hieronder een nieuw wachtwoord in voor je justPIXIT-account. Heb je dit niet aangevraagd, dan mag je deze mail negeren.\n\n{loginlink}\n\nDe link werkt 2 uur.\n\n{afzender}',
-    offerteReactie:'Reactie op een offerte via Mijn pagina.\n\nKlant: {naam}\nOfferte: {offerte} ({totaal})\nReactie: {reactie}\n\nBericht van de klant:\n{bericht}\n\nOpen de fiche: {app}',
-    offerteGoedgekeurdKlant:'Hoi {voornaam},\n\nWat fijn — jullie hebben de offerte "{offerte}" ({totaal}) goedgekeurd. Bedankt voor het vertrouwen!\n\nIk stuur jullie binnenkort de vragenlijst en het onboardingspakket. Van zodra ik die ingevuld terugkrijg, plan ik jullie ontwerp in.\n\n{portaallink}\n\nTot snel!\n{afzender}'
+    offerteVerstuurd:'Hoi {voornaam},\n\nBedankt voor het fijne gesprek! In bijlage vinden jullie de offerte "{offerte}".\n\n{bericht}\n\nMet de knop hieronder bekijken jullie de offerte en laten jullie me weten of jullie ermee verder willen. Past er iets niet helemaal? Dan hoor ik graag wat jullie anders willen.\n\n{dossierlink}\n\nWarme groetjes,\n{afzender}',
+    offerteReactie:'Reactie op een offerte.\n\nKlant: {naam}\nOfferte: {offerte} ({totaal})\nReactie: {reactie}\n\nBericht van de klant:\n{bericht}\n\nOpen de fiche: {app}',
+    annulatieKlant:'Hoi {voornaam},\n\nJullie kennismakingsgesprek van {wanneer} is geannuleerd.\n\nWillen jullie later toch nog samenzitten? Plan dan gerust een nieuw moment:\n{boeklink}\n\nGroetjes,\n{afzender}',
+    dossierMelding:'{onderwerp}\n\nKlant: {naam}\nE-mail: {email}\n\n{bericht}\n\nOpen de fiche: {app}',
+    naGoedkeuringKlant:'Hoi {voornaam},\n\nFijn dat jullie doorgaan! In bijlage vinden jullie de voorschotfactuur en het contract.\n\n{bericht}\n\nMet de knop hieronder vullen jullie de vragenlijst in en tekenen jullie het contract online. Van zodra het voorschot betaald is en ik de vragenlijst heb, plan ik jullie ontwerp in.\n\n{dossierlink}\n\nTot snel!\n{afzender}',
+    offerteGoedgekeurdKlant:'Hoi {voornaam},\n\nWat fijn — jullie hebben de offerte "{offerte}" ({totaal}) goedgekeurd. Bedankt voor het vertrouwen!\n\nIk stuur jullie binnenkort de voorschotfactuur, het contract en de vragenlijst. Van zodra het voorschot betaald is en ik de vragenlijst heb, plan ik jullie ontwerp in.\n\n{dossierlink}\n\nTot snel!\n{afzender}'
   }
 };
 const LIJST_LABELS={stopReden:'Reden niet doorgegaan',bron:'Hoe gevonden?',type:'Type klant',versies:'Uitnodiging · versies',opOfferte:'Uitnodiging · op offerte',formaat:'Uitnodiging · formaat',enveloppen:'Uitnodiging · enveloppen',foto:'Uitnodiging · foto',afwerking:'Uitnodiging · afwerking'};
 const TERMIJN_LABELS={offerte:['Offerte versturen','dagen na het kennismakingsgesprek'],opvolging:['Offerte opvolgen','dagen na het versturen van de offerte'],herhaling:['Tweede opvolging','dagen na de eerste opvolging'],vragenlijst:['Herinnering vragenlijst','dagen na goedkeuring'],proef:['Feedback digitale proef opvolgen','dagen na het versturen van de proef'],proefdruk:['Proefdruk nakijken','dagen na bestelling'],deadlineWaarschuwing:['Deadline tonen op Vandaag','dagen vooraf']};
 const PLAN_LABELS={beslissing:['Beslissing klant over offerte','dagen na versturen offerte'],wachttijdOntwerp:['Wachttijd tot start ontwerp','dagen na ontvangst vragenlijst'],ontwerpduur:['Ontwerpen tot digitale proef','dagen'],feedback:['Feedbackrondes tot proefdruk','dagen'],proefdrukDuur:['Proefdruk tot drukwerk besteld','dagen'],levering:['Drukwerk tot levering (afgerond)','dagen']};
-const MAIL_LABELS={boekingKlant:'Bevestiging afspraak (naar de klant)',boekingAdmin:'Melding nieuwe afspraak (naar jou)',verplaatstKlant:'Afspraak verplaatst (naar de klant)',verplaatstAdmin:'Afspraak verplaatst door de klant (naar jou)',portaalLogin:'Uitnodiging portaal (wachtwoord instellen, naar de klant)',wachtwoordReset:'Wachtwoord vergeten (naar de gebruiker)',offerteReactie:'Offerte goedgekeurd of vraag via Mijn pagina (naar jou)',offerteGoedgekeurdKlant:'Bevestiging offerte goedgekeurd (naar de klant)',opvolging:'Opvolging offerte',onboarding:'Onboarding (na goedkeuring)',vragenlijst:'Herinnering vragenlijst',proef:'Feedback digitale proef'};
-const MAIL_AUTO=['boekingKlant','boekingAdmin','verplaatstKlant','verplaatstAdmin','portaalLogin','wachtwoordReset','offerteReactie','offerteGoedgekeurdKlant'];
+const MAIL_LABELS={boekingKlant:'Bevestiging afspraak (naar de klant)',boekingAdmin:'Melding nieuwe afspraak (naar jou)',verplaatstKlant:'Afspraak verplaatst (naar de klant)',verplaatstAdmin:'Afspraak verplaatst door de klant (naar jou)',portaalLogin:'Uitnodiging portaal (wachtwoord instellen, naar de klant)',wachtwoordReset:'Wachtwoord vergeten (naar de gebruiker)',offerteVerstuurd:'Offerte versturen (PDF in bijlage, naar de klant)',offerteReactie:'Offerte goedgekeurd / afgekeurd / vraag (naar jou)',offerteGoedgekeurdKlant:'Bevestiging offerte goedgekeurd (naar de klant)',naGoedkeuringKlant:'Na goedkeuring: voorschot, contract & vragenlijst (naar de klant)',annulatieKlant:'Afspraak geannuleerd (naar de klant)',dossierMelding:'Melding uit het dossier (naar jou)',opvolging:'Opvolging offerte',onboarding:'Onboarding (na goedkeuring)',vragenlijst:'Herinnering vragenlijst',proef:'Feedback digitale proef'};
+const MAIL_AUTO=['boekingKlant','boekingAdmin','verplaatstKlant','verplaatstAdmin','annulatieKlant','offerteVerstuurd','offerteReactie','offerteGoedgekeurdKlant','naGoedkeuringKlant','dossierMelding','portaalLogin','wachtwoordReset'];
 const MAIL_PLACEHOLDERS={boekingKlant:'{voornaam} {naam} {wanneer} {duur} {locatie} {videolink} {wijziglink} {bevestiging} {afzender}',boekingAdmin:'{naam} {wanneer} {email} {telefoon} {type} {datumEvent} {bericht} {videolink} {app}',
   verplaatstKlant:'{voornaam} {naam} {wanneer} {vorig} {duur} {locatie} {videolink} {wijziglink} {afzender}',verplaatstAdmin:'{naam} {wanneer} {vorig} {email} {door} {app}',
   portaalLogin:'{voornaam} {naam} {loginlink} {app} {afzender}',wachtwoordReset:'{voornaam} {loginlink} {afzender}',
-  offerteReactie:'{naam} {offerte} {totaal} {reactie} {bericht} {email} {app}',offerteGoedgekeurdKlant:'{voornaam} {naam} {offerte} {totaal} {portaallink} {afzender}'};
-const KNOP_UITLEG={videolink:'knop “Deelnemen aan Teams/Zoom” (valt weg zonder videocall)',wijziglink:'knop “Afspraak verplaatsen” met de persoonlijke verzetlink van de klant',portaallink:'knop “Mijn pagina” (klantenportaal)',loginlink:'knop “Inloggen” met de persoonlijke inloglink'};
+  offerteReactie:'{naam} {offerte} {totaal} {reactie} {bericht} {email} {app}',offerteGoedgekeurdKlant:'{voornaam} {naam} {offerte} {totaal} {dossierlink} {afzender}',
+  offerteVerstuurd:'{voornaam} {naam} {offerte} {totaal} {geldigTot} {bericht} {dossierlink} {afzender}',naGoedkeuringKlant:'{voornaam} {naam} {bericht} {dossierlink} {afzender}',annulatieKlant:'{voornaam} {naam} {wanneer} {reden} {boeklink} {afzender}',dossierMelding:'{onderwerp} {naam} {email} {bericht} {app}'};
+const KNOP_UITLEG={videolink:'knop “Deelnemen aan Teams/Zoom” (valt weg zonder videocall)',wijziglink:'knop naar het persoonlijke dossier van de klant (verzetten/annuleren)',dossierlink:'knop naar het persoonlijke dossier (offerte bevestigen, vragenlijst, contract)',boeklink:'knop naar de afsprakenpagina',portaallink:'knop “Mijn pagina” (klantenportaal)',loginlink:'knop “Inloggen” met de persoonlijke inloglink'};
 let cfg=JSON.parse(JSON.stringify(DEFAULTS));
 function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!stored)return c;
   if(stored.lijsten)for(const k in c.lijsten)if(Array.isArray(stored.lijsten[k]))c.lijsten[k]=stored.lijsten[k].map(String);
@@ -415,6 +423,7 @@ function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!store
   if(Number.isFinite(Number(stored.btw)))c.btw=Number(stored.btw);
   if(stored.mails)for(const k in c.mails)if(typeof stored.mails[k]==='string')c.mails[k]=stored.mails[k];
   if(typeof stored.afzender==='string')c.afzender=stored.afzender;
+  if(stored.vragenlijsten&&typeof stored.vragenlijsten==='object')for(const t in stored.vragenlijsten)if(Array.isArray(stored.vragenlijsten[t]))c.vragenlijsten[t]=stored.vragenlijsten[t].map(String);
   if(stored.boeking&&typeof stored.boeking==='object'){const b=stored.boeking;for(const k in c.boeking){if(b[k]===undefined)continue;
     if(k==='dagen'&&typeof b.dagen==='object')c.boeking.dagen=Object.assign({},c.boeking.dagen,b.dagen);
     else if(['blokken','geblokkeerd','types','vragen'].includes(k)){if(Array.isArray(b[k]))c.boeking[k]=JSON.parse(JSON.stringify(b[k]))}
@@ -480,8 +489,8 @@ function planning(k){
   const out={};
   for(const [key,prev,n] of steps){
     const idx=FI[key];
-    if(idx<=cur&&k.fase!=='geen_deal'){out[key]={d:fd[key]||'',real:true,skipped:key==='opvolging'&&!fd[key]&&idx<cur};continue}
-    if(k.fase==='geen_deal'){out[key]={d:fd[key]||'',real:!!fd[key]};continue}
+    if(idx<=cur&&!stopped(k)){out[key]={d:fd[key]||'',real:true,skipped:key==='opvolging'&&!fd[key]&&idx<cur};continue}
+    if(stopped(k)){out[key]={d:fd[key]||'',real:!!fd[key]};continue}
     const ov=(k.planOverride||{})[key];
     if(ov){out[key]={d:ov,real:false,manual:true,late:ov<t};continue}
     let d;
@@ -505,8 +514,11 @@ function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;
   render();window.scrollTo(0,0)}
 
 /* ---------- views ---------- */
+function magModule(id){return !serverInfo.modules||serverInfo.modules.includes(id)}
 function render(){
-  document.querySelectorAll('#nav button').forEach(b=>b.setAttribute('aria-current',b.dataset.v===view.v));
+  document.querySelectorAll('#nav button').forEach(b=>{b.setAttribute('aria-current',b.dataset.v===view.v);b.hidden=!magModule(b.dataset.v)});
+  const nb=$('#newBtn');if(nb)nb.hidden=!magModule('klanten');
+  if(['vandaag','pipeline','klanten','gebruikers','beheer','koppelingen'].includes(view.v)&&!magModule(view.v)){const eerste=(serverInfo.modules||[]).find(m=>['vandaag','pipeline','klanten','gebruikers','beheer','koppelingen'].includes(m));if(eerste&&eerste!==view.v){view={v:eerste};}}
   const app=$('#app');
   if(dbFailed){app.innerHTML=`<div class="banner">De server is niet bereikbaar. Herlaad de pagina of controleer of de app draait.</div>`;return}
   if(!loaded){app.innerHTML='<p class="empty">Klanten laden…</p>';return}
@@ -565,7 +577,7 @@ function cardHtml(k){const a=actie(k);const d=a?dueLabel(a.due):null;
 function vPipeline(){
   const cols=(showEnded?FASES:ACTIVE).map(f=>{const ks=klanten.filter(k=>k.fase===f.k);
     return `<div class="col"><h3><span class="chip g-${f.g}" style="padding:0;background:none"><span class="dot"></span></span>${esc(f.l)}<span class="n">${ks.length}</span></h3>${ks.length?ks.map(cardHtml).join(''):'<span class="none">—</span>'}</div>`}).join('');
-  const ended=klanten.filter(k=>['afgerond','geen_deal'].includes(k.fase)).length;
+  const ended=klanten.filter(k=>['afgerond','geen_deal','geannuleerd'].includes(k.fase)).length;
   return `<div class="vhead"><div><h1>Pipeline</h1><p>Alle lopende klanten per fase. Klik een kaart om de fiche te openen.</p></div><div class="spacer"></div>
   <button class="btn small" id="toggleEnded">${showEnded?'Verberg afgeronde':'Toon afgeronde ('+ended+')'}</button></div>
   <div class="board">${cols}</div>`;
@@ -642,6 +654,8 @@ function vKlant(){
     </div>
     <div class="sheet" id="tab-planning" role="tabpanel" ${klantTab!=='planning'?'hidden':''}></div>
     <div class="sheet" id="tab-offerte" role="tabpanel" ${klantTab!=='offerte'?'hidden':''}></div>
+    <div class="sheet" id="tab-vragenlijst" role="tabpanel" ${klantTab!=='vragenlijst'?'hidden':''}></div>
+    <div class="sheet" id="tab-bijlages" role="tabpanel" ${klantTab!=='bijlages'?'hidden':''}></div>
     <div class="sheet" id="tab-logboek" role="tabpanel" ${klantTab!=='logboek'?'hidden':''}></div>
   </div><aside id="side"></aside></div>`;
 }
@@ -652,21 +666,21 @@ function renderSide(){
     <div class="sub">${faseChip(k.fase)}${k.voorbeeld?'<span class="chip vb">voorbeeld</span>':''}${k.kennismaking?`<span>Kennismaking ${esc(fmtDT(k.kennismaking))}</span>`:''}${k.deadline?`<span>· deadline ${fmt(k.deadline)}</span>`:''}</div></div>
     <span class="savestate" id="savestate">${saveTimer?'Opslaan…':'Alles opgeslagen'}</span>`;
   const nOf=(k.offertes||[]).length;
-  const TABS=[['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['logboek','Logboek']];
+  const TABS=[['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['vragenlijst','Vragenlijst'],['bijlages','Bijlages'],['logboek','Logboek']];
   $('#tabs').innerHTML=TABS.map(([id,l])=>`<button role="tab" id="tabbtn-${id}" aria-selected="${klantTab===id}" data-tab="${id}">${l}${hasNew(k,id)?'<span class="newdot" title="Nieuw sinds je laatst keek"></span><span class="sr">(nieuw)</span>':''}</button>`).join('');
   const cur=FI[k.fase]??0, fd=k.faseDatums||{}, plan=planning(k);
   const flow=FASES.map((f,i)=>{
-    if(f.k==='geen_deal'&&k.fase!=='geen_deal')return '';
-    const st=(k.fase==='geen_deal')?(f.k==='geen_deal'?'cur':(fd[f.k]?'done':'todo')):(i<cur?'done':i===cur?'cur':'todo');
+    if(GESTOPT.has(f.k)&&f.k!==k.fase)return '';
+    const st=stopped(k)?(f.k===k.fase?'cur':(fd[f.k]?'done':'todo')):(i<cur?'done':i===cur?'cur':'todo');
     const pl=plan[f.k]||{};let dt='',cls='',sub='';
     if(st==='done'){dt=pl.d?fmt(pl.d):'';if(pl.skipped)sub='overgeslagen'}
     else if(st==='cur'){dt=fd[f.k]?fmt(fd[f.k]):'';sub=fd[f.k]?'nu · sinds '+Math.max(0,-diffDays(fd[f.k]))+' d':'nu'}
     else if(pl.d){dt=fmt(pl.d);cls=pl.shift?'shift':'plan';sub=f.k==='opvolging'?'enkel indien nodig':(pl.shift?'gepland · verschoven naar vandaag':'gepland')}
     if(f.k==='gehad'&&st==='todo'&&k.kennismaking)sub='gesprek '+esc(fmtDT(k.kennismaking));
     return `<li class="${st}"><span class="mk"></span><button data-fase="${f.k}" title="Zet in deze fase">${esc(f.l)}</button><span class="d ${cls}">${dt}</span>${sub?`<span class="s">${sub}</span>`:''}</li>`}).join('');
-  const total=FI.afgerond, pct=k.fase==='geen_deal'?0:Math.round(Math.min(cur,total)/total*100);
+  const total=FI.afgerond, pct=stopped(k)?0:Math.round(Math.min(cur,total)/total*100);
   const dl=deadlineHtml(k,plan);
-  const next=FASES[cur+1]&&!['geen_deal'].includes(FASES[cur+1].k)&&k.fase!=='geen_deal'?FASES[cur+1]:null;
+  const next=FASES[cur+1]&&!GESTOPT.has(FASES[cur+1].k)&&!stopped(k)?FASES[cur+1]:null;
   const M=mails(k);
   const stopPanel=stopForm?`<section class="panel" id="stopform"><header><h2>Klant gaat niet door</h2></header><div class="todo-card">
      <p style="color:var(--muted);font-size:13px">Waarom niet? Zo zie je later wat de meest voorkomende redenen zijn.</p>
@@ -680,16 +694,16 @@ function renderSide(){
      ${k.herContact?`<p style="font-size:13px">Opnieuw contacteren op <b>${fmt(k.herContact)}</b></p>`:''}
      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-fase="${esc(k.stopNa&&k.stopNa!=='geen_deal'?k.stopNa:'gehad')}">Heractiveer${k.stopNa&&k.stopNa!=='geen_deal'?' → '+esc(fase(k.stopNa).l):''}</button><button class="btn small ghost" id="stopEdit">Reden aanpassen</button></div></div></section>`:'';
   $('#side').innerHTML=`${stopPanel}${stoppedPanel}
-   ${a&&!stopForm&&k.fase!=='geen_deal'?`<section class="panel"><header><h2>Nu te doen</h2><span class="due ${d.c}" style="margin-left:auto">${d.t}</span></header><div class="todo-card"><p>${esc(a.t)}</p>
+   ${a&&!stopForm&&!stopped(k)?`<section class="panel"><header><h2>Nu te doen</h2><span class="due ${d.c}" style="margin-left:auto">${d.t}</span></header><div class="todo-card"><p>${esc(a.t)}</p>
      ${a.mail?`<div class="mail" id="mailtxt">${esc(M[a.mail])}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-copy="${a.mail}">Kopieer mail</button>${a.mail2?`<button class="btn small" data-copy="${a.mail2}">Kopieer herinnering</button>`:''}${k.email?`<button class="btn small ghost" data-copy="__email">${esc(k.email)}</button>`:''}</div>`:''}
    </div></section>`:''}
-   ${afspraakPanel(k)}
-   <section class="panel"><header><h2>Traject &amp; planning</h2><span class="count" style="margin-left:auto">${k.fase==='geen_deal'?'gestopt':'fase '+(Math.min(cur,total)+1)+' van '+(total+1)}</span></header>
+   ${afspraakPanel(k)}${naGoedkeuringPanel(k)}
+   <section class="panel"><header><h2>Traject &amp; planning</h2><span class="count" style="margin-left:auto">${stopped(k)?'gestopt':'fase '+(Math.min(cur,total)+1)+' van '+(total+1)}</span></header>
     <div class="progress" style="margin-top:12px"><i style="width:${pct}%"></i></div>${dl}
     <ol class="flow">${flow}</ol>
     ${k.datumEvent?`<div class="dlrow none" style="margin-bottom:10px">Event op ${fmt(k.datumEvent)}</div>`:''}
     <div class="flowfoot" style="border-top:0;padding-top:0"><button class="btn small ghost" data-tab="planning">Uitgebreide planning →</button></div>
-    <div class="flowfoot">${next?`<button class="btn primary small" data-fase="${next.k}">→ ${esc(next.l)}</button>`:''}${k.fase!=='geen_deal'&&k.fase!=='afgerond'?'<button class="btn small ghost" data-fase="geen_deal">Niet doorgegaan</button>':''}</div></section>
+    <div class="flowfoot">${next?`<button class="btn primary small" data-fase="${next.k}">→ ${esc(next.l)}</button>`:''}${!stopped(k)&&k.fase!=='afgerond'?'<button class="btn small ghost" data-fase="geen_deal">Niet doorgegaan</button>':''}</div></section>
    ${serverInfo.whatsapp&&k.telefoon?`<section class="panel"><header><h2>WhatsApp</h2></header><div class="todo-card">
      <textarea id="waText" rows="3" aria-label="WhatsApp-bericht" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:8px 10px">${esc('Hoi '+(voornaam(k.naam)||'')+', ')}</textarea>
      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn small primary" id="waSend">Stuur naar ${esc(k.telefoon)}</button><span class="hint">via WhatsApp</span></div></div></section>`:''}
@@ -698,6 +712,8 @@ function renderSide(){
     <form class="logadd" id="logform"><input id="logtxt" placeholder="bv. gebeld, voicemail ingesproken" aria-label="Notitie voor logboek"><button class="btn small">Voeg toe</button></form></section>`;
   if(klantTab==='offerte'&&!ofMounted)renderOffertes();
   if(klantTab==='planning')renderPlanningTab();
+  if(klantTab==='vragenlijst')renderVragenlijstTab();
+  if(klantTab==='bijlages')renderBijlagesTab();
   if(klantTab==='logboek'&&logEdit===null&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tab-logboek')))renderLogTab();
   $('#delsec').innerHTML=confirmDel?`<div class="confirm">Deze klant en de hele fiche definitief verwijderen? <button class="btn small danger" id="delYes">Ja, verwijder</button><button class="btn small" id="delNo">Annuleer</button></div>`:`<button class="btn small ghost danger" id="delAsk">Klant verwijderen</button>`;
 }
@@ -705,6 +721,7 @@ function renderSide(){
 /* ---------- afspraak verplaatsen & klantenportaal (zijbalk) ---------- */
 function afspraakPanel(k){
   if(k.fase==='geen_deal')return '';
+  if(k.fase==='geannuleerd')return `<section class="panel"><header><h2>Gesprek geannuleerd</h2><span class="chip g-stop" style="margin-left:auto">${fmt((k.faseDatums||{}).geannuleerd)}</span></header><div class="todo-card" style="display:grid;gap:8px">${k.geannuleerdeAfspraak?`<p>Het gesprek van <b>${esc(fmtDT(k.geannuleerdeAfspraak))}</b> werd geannuleerd; het agenda-item is verwijderd.</p>`:''}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-fase="${esc(k.stopNa&&!GESTOPT.has(k.stopNa)?k.stopNa:'ingepland')}">Heractiveer fiche</button><button class="btn small ghost" id="wzCopy">Dossierlink kopiëren</button></div><span class="hint">Heractiveer de fiche en vul een nieuw tijdstip in, of laat de klant zelf een nieuw moment boeken via de afsprakenpagina.</span></div></section>`;
   const kanMailen=!!(serverInfo.mail&&k.email);
   const nu=new Date(), nuLokaal=isoDay(nu)+'T'+pad(nu.getHours())+':'+pad(nu.getMinutes());
   const toekomst=k.kennismaking&&k.kennismaking>=nuLokaal;
@@ -716,17 +733,17 @@ function afspraakPanel(k){
   return `<section class="panel"><header><h2>Afspraak &amp; Mijn pagina</h2>${k.kennismaking?`<span class="count" style="margin-left:auto">${esc(fmtDT(k.kennismaking))}</span>`:''}</header><div class="todo-card" style="display:grid;gap:10px">
     ${k.videolink?`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px"><a class="btn small" href="${esc(k.videolink)}" target="_blank" rel="noopener">Deelnemen aan ${esc(k.videoprovider||'videocall')} ↗</a><button class="btn small ghost" data-copytext="${esc(k.videolink)}">Kopieer link</button></div>`:''}
     ${vpMsg?`<div class="dlrow ${vpMsg.ok?'ok':'bad'}" style="margin:0"><b>${esc(vpMsg.t)}</b>${vpMsg.sub?`<span>${esc(vpMsg.sub)}</span>`:''}</div>`:''}
-    ${form||`<div style="display:flex;gap:8px;flex-wrap:wrap">${k.kennismaking?`<button class="btn small" id="vpOpen">${toekomst?'Verplaatsen':'Nieuw moment plannen'}</button>`:'<button class="btn small" id="vpOpen">Kennismaking inplannen</button>'}</div>`}
+    ${form||`<div style="display:flex;gap:8px;flex-wrap:wrap">${k.kennismaking?`<button class="btn small" id="vpOpen">${toekomst?'Verplaatsen':'Nieuw moment plannen'}</button>${toekomst?'<button class="btn small ghost danger" id="vpAnnuleer" title="Verwijdert het agenda-item (Outlook/Teams, Zoom) en zet de fiche op Gesprek geannuleerd">Annuleer afspraak</button>':''}`:'<button class="btn small" id="vpOpen">Kennismaking inplannen</button>'}</div>`}
     <div style="border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px">
      <div class="label">Toegang tot Mijn pagina (klantenportaal)</div>
-     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="plMail" ${k.email?'':'disabled'} title="${k.email?'Maakt een portaalaccount en mailt een uitnodiging naar '+esc(k.email):'Vul eerst een e-mailadres in op de fiche'}">Toegang geven &amp; mailen</button><button class="btn small ghost" id="plCopy" ${k.email?'':'disabled'} title="Maakt een uitnodigingslink (een week geldig) om te kopiëren">Uitnodigingslink kopiëren</button><button class="btn small ghost" id="wzCopy" title="Persoonlijke link waarmee de lead zelf de kennismaking verzet (zonder account) — staat ook in de bevestigingsmail">Verzetlink kopiëren</button></div>
-     <span class="hint">Geef toegang zodra de klant doorgaat (offerte getekend + voorschot): hij stelt dan een wachtwoord in en kan op Mijn pagina de offerte bevestigen en het traject volgen. De verzetlink werkt zonder account.</span>
+     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="plMail" ${k.email?'':'disabled'} title="${k.email?'Maakt een portaalaccount en mailt een uitnodiging naar '+esc(k.email):'Vul eerst een e-mailadres in op de fiche'}">Toegang geven &amp; mailen</button><button class="btn small ghost" id="plCopy" ${k.email?'':'disabled'} title="Maakt een uitnodigingslink (een week geldig) om te kopiëren">Uitnodigingslink kopiëren</button><button class="btn small ghost" id="wzCopy" title="Persoonlijke dossierlink van de klant (zonder account): afspraak verzetten/annuleren, offerte bevestigen, vragenlijst, contract — staat ook in de mails">Dossierlink kopiëren</button></div>
+     <span class="hint">De dossierlink werkt zonder account en volstaat tot en met het tekenen van het contract. Geef pas toegang tot het portaal (account met wachtwoord) zodra het voorschot betaald is en de samenwerking start.</span>
     </div></div></section>`;
 }
 async function herlaadKlant(){flushSave();mounted=null;await db.load().catch(()=>{});await new Promise(r=>setTimeout(r,30));render()}
 document.addEventListener('click',async e=>{
   const t=e.target.closest('#vpOpen,#vpCancel,#vpGo,#plMail,#plCopy,#wzCopy,[data-plmail],[data-copytext]');if(!t||!work)return;
-  if(t.id==='wzCopy'){t.disabled=true;try{const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/wijziglink',{method:'POST',credentials:'same-origin'}).then(x=>x.json());if(r.link)await copy(r.link);else toast(r.error||'Mislukt')}catch(err){toast('Mislukt')}finally{t.disabled=false}return}
+  if(t.id==='wzCopy'){t.disabled=true;try{const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/wijziglink',{method:'POST',credentials:'same-origin'}).then(x=>x.json());if(r.link){await copy(r.link);toast('Dossierlink gekopieerd')}else toast(r.error||'Mislukt')}catch(err){toast('Mislukt')}finally{t.disabled=false}return}
   if(t.dataset.copytext){copy(t.dataset.copytext);return}
   if(t.id==='vpOpen'){vpOpen=true;vpMsg=null;renderSide();const i=$('#vpSlot');if(i)i.focus();return}
   if(t.id==='vpCancel'){vpOpen=false;vpMsg=null;renderSide();return}
@@ -742,11 +759,64 @@ document.addEventListener('click',async e=>{
     catch(err){toast('Mislukt')}finally{t.disabled=false}}
 });
 
+/* ---------- na goedkeuring: voorschot, vragenlijst, contract ---------- */
+function naGoedkeuringPanel(k){
+  if(stopped(k)||FI[k.fase]<FI.goedgekeurd||k.fase==='afgerond')return '';
+  const vs=k.voorschot||{},vl=k.vragenlijst||{},c=k.contract||{};
+  const rij=(ok,t,sub)=>`<div class="dlrow ${ok?'ok':'none'}" style="margin:0"><b>${ok?'✓ ':''}${esc(t)}</b>${sub?`<span>${sub}</span>`:''}</div>`;
+  const factuur=(k.bijlages||[]).filter(f=>f.soort==='factuur').length;
+  const allesBinnen=vs.betaald&&vl.ingevuldOp;
+  return `<section class="panel"><header><h2>Na goedkeuring</h2>${k.naGoedkeuringVerstuurdOp?`<span class="count" style="margin-left:auto">gemaild ${fmt(k.naGoedkeuringVerstuurdOp)}</span>`:''}</header><div class="todo-card" style="display:grid;gap:8px">
+    ${rij(vs.betaald,'Voorschot '+(vs.betaald?'betaald'+(vs.op?' op '+fmt(vs.op):''):'nog niet betaald'),`<button class="btn small ${vs.betaald?'ghost':''}" id="vsToggle">${vs.betaald?'Terug op niet betaald':'Markeer als betaald'}</button>`)}
+    ${rij(!!vl.ingevuldOp,'Vragenlijst '+(vl.ingevuldOp?'ontvangen op '+fmt(vl.ingevuldOp):'nog niet ingevuld'),vl.ingevuldOp?'<button class="btn small ghost" data-tab="vragenlijst">Bekijk antwoorden →</button>':'<span class="hint">De klant vult ze in via zijn dossier.</span>')}
+    ${rij(!!c.getekend,c.getekend?'Contract getekend door '+esc(c.getekend.naam)+' op '+fmt(c.getekend.op.slice(0,10)):(c.bestandId?'Contract verstuurd, nog niet getekend':'Nog geen contract geüpload'),c.bestandId?'':'<button class="btn small ghost" data-tab="bijlages">Upload bij Bijlages →</button>')}
+    <div style="border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px">
+     <button class="btn small ${k.naGoedkeuringVerstuurdOp?'':'primary'}" id="ngSend" ${k.email&&serverInfo.mail?'':'disabled'} title="${k.email?(serverInfo.mail?'Mailt de voorschotfactuur en het contract als bijlage, met de link naar vragenlijst en handtekening':'Stel eerst e-mail in bij Koppelingen'):'Vul eerst een e-mailadres in'}">${k.naGoedkeuringVerstuurdOp?'Opnieuw mailen: voorschot, contract & vragenlijst':'Mail voorschotfactuur, contract & vragenlijst'}</button>
+     <span class="hint">${factuur?factuur+' factuur':'Geen factuur'} en ${c.bestandId?'een contract':'geen contract'} als bijlage · de klant krijgt de dossierlink om de vragenlijst in te vullen en het contract te tekenen.</span>
+    </div>
+    ${allesBinnen&&k.fase==='goedgekeurd'?`<div class="nudge">Voorschot betaald en vragenlijst binnen — je kan het ontwerp inplannen. <button class="btn small primary" data-fase="ontwerp_gepland">→ Ontwerp ingepland</button></div>`:''}
+   </div></section>`;
+}
+const BIJLAGE_SOORT={offerte:'Offerte',factuur:'Voorschotfactuur',contract:'Contract',contract_getekend:'Handtekening',ander:'Bijlage'};
+function alleBijlages(k){const uit=[];(k.offertes||[]).forEach(o=>(o.bestanden||[]).forEach(f=>uit.push({id:f.id,naam:f.naam,type:f.type,soort:'offerte',bron:o.titel,d:f.d,vast:true})));(k.bijlages||[]).forEach(f=>uit.push(Object.assign({},f)));return uit}
+function renderBijlagesTab(){
+  const box=$('#tab-bijlages');if(!box||!work)return;const k=work;const list=alleBijlages(k);const c=k.contract||{};
+  box.innerHTML=`<section class="sec"><h2>Bijlages</h2><p class="hint">Offertes staan bij de offerte zelf. Voeg hier de voorschotfactuur, het contract en andere documenten toe — de klant ziet ze ook in zijn dossier. Een geüpload contract kan de klant online tekenen.</p>
+   <div class="files" style="margin-top:12px">${list.length?list.map(f=>`<div class="file"><span class="ic">${esc(BIJLAGE_SOORT[f.soort]||'Bijlage')}</span><a href="/_blob/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.naam||'bestand')}</a>${f.bron?`<span class="hint">· ${esc(f.bron)}</span>`:''}<span style="font-size:12px;color:var(--muted);white-space:nowrap">${fmt(f.d)}</span>${f.soort==='contract'&&c.getekend?`<span class="chip">getekend door ${esc(c.getekend.naam)}</span>`:''}${f.vast||f.soort==='contract_getekend'?'':`<button class="iconbtn" data-bjdel="${esc(f.id)}" data-naam="${esc(f.naam||'')}" aria-label="Bijlage verwijderen">×</button>`}</div>`).join(''):'<p class="hint">Nog geen bijlages.</p>'}</div>
+   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px"><select id="bjSoort" style="border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:7px 10px"><option value="factuur">Voorschotfactuur</option><option value="contract">Contract</option><option value="ander">Andere bijlage</option></select><label class="btn small" style="cursor:pointer">+ Bestand toevoegen (PDF/afbeelding)<input type="file" id="bjFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden></label><span class="hint" id="bjMsg"></span></div></section>`;
+}
+function renderVragenlijstTab(){
+  const box=$('#tab-vragenlijst');if(!box||!work)return;const k=work;const v=k.vragenlijst;
+  const vragen=cfg.vragenlijsten[k.type]||cfg.vragenlijsten.Ander||[];const ant=(v&&v.antwoorden)||{};
+  const kop=`<section class="sec"><h2>Vragenlijst${k.type?' · '+esc(k.type):''}</h2>`;
+  if(!v||!v.ingevuldOp){box.innerHTML=kop+`<p class="hint">Nog niet ingevuld. De klant vult de vragenlijst in via zijn dossier (link in de mail na goedkeuring, of kopieer de dossierlink in de zijbalk). De vragen zelf pas je aan in Beheer → Fiche &amp; planning → Vragenlijsten.</p>
+     <div style="margin-top:14px"><div class="label" style="margin-bottom:6px">Vragen voor ${esc(k.type||'dit type')}</div><ol style="margin:0 0 0 18px;padding:0;color:var(--muted)">${vragen.map(q=>`<li>${esc(q)}</li>`).join('')}</ol></div></section>`;return}
+  box.innerHTML=kop+`<p class="hint">Ingevuld door de klant op ${fmt(v.ingevuldOp)}.</p>
+    <dl style="display:grid;gap:14px;margin:16px 0 0">${Object.keys(ant).length?Object.entries(ant).map(([q,a])=>`<div><dt class="label" style="margin-bottom:3px">${esc(q)}</dt><dd style="margin:0;white-space:pre-wrap">${a?esc(a):'<span class="hint">—</span>'}</dd></div>`).join(''):'<p class="hint">Geen antwoorden.</p>'}</dl></section>`;
+}
+async function klantPost(pad,body){const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+pad,{method:body===null?'DELETE':'POST',headers:{'Content-Type':'application/json'},body:body===null?undefined:JSON.stringify(body||{}),credentials:'same-origin'});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw new Error(j.error||'Mislukt');return j}
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('#vpAnnuleer,#vsToggle,#ngSend,[data-bjdel],[data-ofmail]');if(!t||!work)return;
+  if(t.id==='vpAnnuleer'){const reden=prompt('Afspraak van '+fmtDT(work.kennismaking)+' annuleren? Het agenda-item wordt verwijderd en de fiche gaat naar "Gesprek geannuleerd".\n\nReden (optioneel, komt in de mail naar de klant):');if(reden===null)return;
+    t.disabled=true;try{const r=await klantPost('/annuleer',{reden});toast('Afspraak geannuleerd'+(r.gemaild?' — klant verwittigd':''));await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
+  if(t.id==='vsToggle'){const vs=work.voorschot||{};t.disabled=true;try{await klantPost('/voorschot',{betaald:!vs.betaald});toast(vs.betaald?'Voorschot op niet betaald':'Voorschot als betaald gemarkeerd');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
+  if(t.id==='ngSend'){t.disabled=true;t.textContent='Versturen…';try{const r=await klantPost('/na-goedkeuring',{});toast('Gemaild naar '+work.email+' ('+r.bijlagen+' bijlage'+(r.bijlagen===1?'':'n')+')');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false;t.textContent='Mail voorschotfactuur, contract & vragenlijst'}return}
+  if(t.dataset.bjdel){if(!confirm('Bijlage "'+t.dataset.naam+'" verwijderen?'))return;try{await klantPost('/bijlage/'+t.dataset.bjdel,null);toast('Bijlage verwijderd');await herlaadKlant()}catch(err){toast(err.message)}return}
+  if(t.dataset.ofmail){const o=findOf(t.dataset.ofmail);if(!o)return;const extra=prompt('Offerte "'+(o.titel||'Offerte')+'" mailen naar '+work.email+' met '+(o.bestanden||[]).length+' bijlage(n).\n\nPersoonlijk woordje bovenaan de mail (optioneel):','');if(extra===null)return;
+    t.disabled=true;t.textContent='Versturen…';try{const r=await klantPost('/offerte/'+encodeURIComponent(o.id)+'/verstuur',{bericht:extra});toast('Offerte gemaild ('+r.bijlagen+' bijlage'+(r.bijlagen===1?'':'n')+')');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false;t.textContent='Verstuur per mail'}return}
+});
+document.addEventListener('change',async e=>{
+  const inp=e.target;if(inp.id!=='bjFile'||!work)return;const f=inp.files&&inp.files[0];if(!f)return;const soort=($('#bjSoort')||{}).value||'ander';const msg=$('#bjMsg');
+  const type=f.type||(f.name.toLowerCase().endsWith('.pdf')?'application/pdf':'');if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(type)){if(msg)msg.textContent='Enkel PDF, PNG, JPG of WebP';return}
+  if(msg)msg.textContent='Opladen…';
+  try{const r=await assets.upload(f,{type});await klantPost('/bijlage',{id:r.id,naam:f.name,soort});toast('Bijlage toegevoegd');await herlaadKlant()}catch(err){if(msg)msg.textContent=err.message||'Opladen mislukt'}
+});
+
 /* ---------- saving ---------- */
 function setSave(t){const el=$('#savestate');if(el)el.textContent=t}
 function queue(top){pendingTop[top]=true;clearTimeout(saveTimer);setSave('Opslaan…');saveTimer=setTimeout(flushSave,700)}
 function flushSave(){clearTimeout(saveTimer);saveTimer=null;const keys=Object.keys(pendingTop);if(!keys.length||!work||!db)return;pendingTop={};
-  const id=work.id;const patch={bijgewerkt:new Date().toISOString()};keys.forEach(k=>patch[k]=clone({v:work[k]}).v??'');
+  const id=work.id;const patch={bijgewerkt:new Date().toISOString()};work.bijgewerkt=patch.bijgewerkt;keys.forEach(k=>patch[k]=clone({v:work[k]}).v??'');
   const full=keys.some(k=>['faseDatums','planOverride'].includes(k));const whole=full?Object.assign(clone(work),patch):null;if(whole)delete whole.id;
   chain=chain.then(()=>full?db.doc('klanten/'+id).set(whole):db.doc('klanten/'+id).update(patch)).then(()=>{if(!saveTimer)setSave('Alles opgeslagen')},e=>{setSave('Niet opgeslagen ('+(e&&e.code||'fout')+')');});
 }
@@ -760,7 +830,8 @@ async function zetFase(f,datum,opts={}){
   work.fase=f; work.faseDatums=work.faseDatums||{}; work.faseDatums[f]=t;
   work.logboek=(work.logboek||[]).concat([{d:t,t:opts.logText||('Fase → '+fase(f).l),s:'fase',ts:nowTs()}]);
   renderSide();
-  chain=chain.then(()=>db.doc('klanten/'+work.id).update(Object.assign({fase:f,faseDatums:work.faseDatums,logboek:work.logboek,bijgewerkt:new Date().toISOString()},extra))).then(()=>{toast(fase(f).l);if(klantTab==='offerte'){ofMounted=false;renderOffertes()}},e=>toast('Niet opgeslagen: '+(e&&e.code)));
+  const bw=new Date().toISOString();work.bijgewerkt=bw;
+  chain=chain.then(()=>db.doc('klanten/'+work.id).update(Object.assign({fase:f,faseDatums:work.faseDatums,logboek:work.logboek,bijgewerkt:bw},extra))).then(()=>{toast(fase(f).l);if(klantTab==='offerte'){ofMounted=false;renderOffertes()}},e=>toast('Niet opgeslagen: '+(e&&e.code)));
 }
 
 /* ---------- nieuw ---------- */
@@ -858,15 +929,17 @@ document.addEventListener('click',e=>{const t=e.target.closest('#stopYes,#stopNo
 /* ---------- nieuw-bolletjes ---------- */
 const nowTs=()=>new Date().toISOString();
 function hasNew(k,tab){const g=(k.gezien||{})[tab]||'';
+  if(tab==='vragenlijst'){const ts=k.vragenlijst&&k.vragenlijst.ts||'';return !!ts&&ts>g}
+  if(tab==='bijlages'){const ts=k.contract&&k.contract.getekend&&k.contract.getekend.op||'';return !!ts&&ts>g}
   if(tab==='logboek')return (k.logboek||[]).some(l=>l.ts&&l.ts>g);
   if(tab==='offerte')return !!(k.offerteTs&&k.offerteTs>g);return false}
 function markSeenNow(tab){work.gezien=Object.assign({},work.gezien,{[tab]:nowTs()});queue('gezien')}
-function markSeen(tab){if(!work||!['logboek','offerte'].includes(tab))return;if(!hasNew(work,tab))return;work.gezien=Object.assign({},work.gezien,{[tab]:nowTs()});queue('gezien')}
+function markSeen(tab){if(!work||!['logboek','offerte','vragenlijst','bijlages'].includes(tab))return;if(!hasNew(work,tab))return;work.gezien=Object.assign({},work.gezien,{[tab]:nowTs()});queue('gezien')}
 
 /* ---------- planning tab ---------- */
 const PLAN_ROWS=['ingepland','gehad','offerte','opvolging','goedgekeurd','ontwerp_gepland','ontwerp_bezig','proef_digitaal','proefdruk','drukwerk','afgerond'];
 function deadlineHtml(k,plan){
-  if(k.fase==='geen_deal'||k.fase==='afgerond')return '';
+  if(stopped(k)||k.fase==='afgerond')return '';
   const eind=plan.afgerond&&plan.afgerond.d;
   if(k.deadline&&eind){const sp=Math.round((parseDay(k.deadline)-parseDay(eind))/864e5);
     return sp>=0?`<div class="dlrow ok"><b>Haalbaar: ${sp} d speling</b><span>Volgens planning klaar op ${fmt(eind)} · deadline ${fmt(k.deadline)}</span></div>`
@@ -875,7 +948,7 @@ function deadlineHtml(k,plan){
   return '';
 }
 function rowState(k,key){const cur=FI[k.fase]??0,i=FI[key],fd=k.faseDatums||{};
-  if(k.fase==='geen_deal')return fd[key]?'done':'plan';
+  if(stopped(k))return fd[key]?'done':'plan';
   if(i<cur)return (key==='opvolging'&&!fd[key])?'skip':'done';if(i===cur)return 'cur';return 'plan'}
 function ganttHtml(k,plan){
   const dates=PLAN_ROWS.map(r=>plan[r]&&plan[r].d).filter(Boolean).concat([k.deadline,k.datumEvent,today(),k.kennismaking&&k.kennismaking.slice(0,10)].filter(Boolean)).sort();
@@ -907,7 +980,7 @@ function renderPlanningTab(){
     else{dateCell=`<input type="date" id="po-${r}" data-po="${r}" value="${esc(pl.d||'')}" aria-label="Geplande datum ${esc(fase(r).l)}">`;
       const n=pl.d?diffDays(pl.d):null;info=(n===null?'':n<0?(-n)+' d geleden':n===0?'vandaag':'over '+n+' d')+(pl.manual?` · zelf ingesteld <button class="linkbtn" data-poreset="${r}">automatisch</button>`:pl.shift?' · verschoven':(r==='opvolging'?' · indien nodig':''))}
     return `<tr><td><b>${esc(fase(r).l)}</b></td><td>${stt}</td><td>${dateCell}</td><td class="muted">${info}</td><td><input id="fn-${r}" data-fn="${r}" value="${esc(fn[r]||'')}" placeholder="Notitie" aria-label="Notitie bij ${esc(fase(r).l)}"></td></tr>`}).join('');
-  box.innerHTML=`<section class="sec"><h2>Tijdslijn</h2>${k.fase==='geen_deal'?'<div class="dlrow none" style="margin:0 0 12px">Dit traject is gestopt. Je ziet enkel de datums die al gebeurden.</div>':deadlineHtml(k,plan).replace('class="dlrow','style="margin:0 0 14px" class="dlrow')}${ganttHtml(k,plan)}</section>
+  box.innerHTML=`<section class="sec"><h2>Tijdslijn</h2>${stopped(k)?'<div class="dlrow none" style="margin:0 0 12px">Dit traject is gestopt. Je ziet enkel de datums die al gebeurden.</div>':deadlineHtml(k,plan).replace('class="dlrow','style="margin:0 0 14px" class="dlrow')}${ganttHtml(k,plan)}</section>
    <section class="sec"><h2>Per fase</h2><p class="hint">Gedane fases tonen de echte datum; die kan je corrigeren. Bij komende fases kan je de geplande datum zelf aanpassen. De fases erna schuiven dan mee.</p>
     <div class="tablewrap" style="border:0"><table class="ptable"><thead><tr><th>Fase</th><th>Status</th><th>Datum</th><th>Wanneer</th><th>Notitie</th></tr></thead><tbody>${rows}</tbody></table></div></section>
    <section class="sec"><h2>Standaard doorlooptijden</h2><p class="hint" style="margin:0 0 10px">De automatische planning gebruikt: offerte ${cfg.termijnen.offerte} d na het gesprek · beslissing ${cfg.planning.beslissing} d · vragenlijst ${cfg.termijnen.vragenlijst} d · wachttijd ontwerp ${cfg.planning.wachttijdOntwerp} d · ontwerp ${cfg.planning.ontwerpduur} d · feedback ${cfg.planning.feedback} d · proefdruk ${cfg.planning.proefdrukDuur} d · levering ${cfg.planning.levering} d.</p><button class="btn small" data-v="beheer">Aanpassen in Beheer</button></section>`;
@@ -976,10 +1049,10 @@ function fileHtml(o,f){const isImg=(f.type||'').startsWith('image/');const key='
    <span style="font-size:12px;color:var(--muted);white-space:nowrap">${fmt(f.d)}</span>
    ${ofConfirm===key?`<span class="confirm">Verwijderen? <button class="btn small danger" data-ofdelfileyes="${o.id}" data-fid="${esc(f.id)}">Ja</button><button class="btn small ghost" data-ofcancel="1">Nee</button></span>`:`<button class="iconbtn" data-ofdelfile="${o.id}" data-fid="${esc(f.id)}" aria-label="Bestand verwijderen">×</button>`}</div>`}
 function nudgeHtml(o){
-  if(o.status==='Afgewezen'&&work.fase!=='geen_deal'){const open=(work.offertes||[]).some(x=>x.id!==o.id&&['Concept','Verstuurd'].includes(x.status));
-    return `<div class="nudge">${open?'Deze optie werd geweigerd. Er staan nog andere offertes open.':'De klant weigerde deze offerte.'} <button class="btn small" data-ofnew="1">Nieuwe offerte maken</button><button class="btn small danger" data-ofstop="1">Klant gaat niet door</button></div>`}
+  if(o.status==='Afgewezen'&&!stopped(work)){const open=(work.offertes||[]).some(x=>x.id!==o.id&&['Concept','Verstuurd'].includes(x.status));
+    return `<div class="nudge">${open?'Deze optie werd afgekeurd. Er staan nog andere offertes open.':'De klant keurde deze offerte af'+(o.afgewezenOp?' op '+fmt(o.afgewezenOp):'')+'.'} ${o.klantReactie?`<b>Feedback:</b> “${esc(o.klantReactie)}” `:''}<button class="btn small" data-ofnew="1">Aangepaste offerte maken</button><button class="btn small danger" data-ofstop="1">Klant gaat niet door</button></div>`}
   if(o.status==='Verstuurd'&&FI[work.fase]<FI.offerte)return `<div class="nudge">Deze offerte is verstuurd, maar de klant staat nog in "${esc(fase(work.fase).l)}". <button class="btn small primary" data-ofphase="offerte" data-of="${o.id}">Zet in fase "Offerte verstuurd"</button></div>`;
-  if(o.status==='Verstuurd')return `<div class="nudge">Geef de klant toegang tot Mijn pagina om de offerte te bekijken en goed te keuren. ${o.klantReactie?`<b>Laatste vraag van de klant:</b> “${esc(o.klantReactie)}” `:''}${serverInfo.mail&&work.email?`<button class="btn small primary" data-plmail="1">Toegang geven &amp; mailen naar ${esc(work.email)}</button>`:'<span class="hint">(vul een e-mailadres in om toegang te kunnen geven)</span>'}</div>`;
+  if(o.status==='Verstuurd')return `<div class="nudge">${o.verstuurdOp?'Gemaild op '+fmt(o.verstuurdOp)+'. ':''}De klant keurt de offerte goed of af via de link in de mail. ${o.klantReactie?`<b>Reactie van de klant:</b> “${esc(o.klantReactie)}” `:''}<button class="btn small ghost" id="wzCopy">Dossierlink kopiëren</button></div>`;
   if(o.status==='Goedgekeurd'&&o.goedgekeurdVia==='portaal'&&FI[work.fase]>=FI.goedgekeurd)return `<div class="nudge">Goedgekeurd door de klant via Mijn pagina op ${fmt(o.goedgekeurdOp)}. Volgende stap: vragenlijst en onboardingspack versturen.</div>`;
   if(o.status==='Goedgekeurd'&&FI[work.fase]<FI.goedgekeurd)return `<div class="nudge">Goedgekeurd! Volgende stap: vragenlijst en onboardingspack versturen. <button class="btn small primary" data-ofphase="goedgekeurd" data-of="${o.id}">Zet in fase "Goedgekeurd"</button></div>`;
   return ''}
@@ -1006,7 +1079,7 @@ function ofCard(o){
   <div class="files"><div class="label">Bestanden</div>${(o.bestanden||[]).map(f=>fileHtml(o,f)).join('')}
    ${assets?`<label class="drop" data-ofdrop="${o.id}">Sleep je offerte (PDF of afbeelding) hierheen of <u>kies een bestand</u><input type="file" id="of-${o.id}-file" data-ofupload="${o.id}" accept="application/pdf,image/png,image/jpeg,image/webp" multiple hidden></label>`:'<p class="hint" style="margin:0">Bestanden opladen kan enkel als je de pagina opent als eigenaar in Claude.</p>'}</div>
   ${o.factuur?`<div class="dlrow ok" style="margin:0"><b>E-factuur gemaakt${o.factuur.nummer?' · '+esc(o.factuur.nummer):''}</b><span>UBL gedownload${o.factuur.op?' op '+fmt(o.factuur.op):''}. Lees ze in sbbSLIM in of verstuur via Peppol.</span></div>`:''}
-  <div class="ofactions">${serverInfo.facturen?`<button class="btn small" data-factuur="${o.id}">${o.factuur?'E-factuur opnieuw downloaden':'Download e-factuur (UBL)'}</button>`:`<button class="btn small" data-v="koppelingen" title="Vul eerst je facturatiegegevens in">E-factuur instellen</button>`}<button class="btn small" data-ofcopy="${o.id}">Kopieer als tekst</button><button class="btn small" data-ofdup="${o.id}">Dupliceer als nieuwe optie</button><span class="spacer"></span>
+  <div class="ofactions"><button class="btn small primary" data-ofmail="${o.id}" ${(o.bestanden||[]).length&&work.email&&serverInfo.mail?'':'disabled'} title="${!(o.bestanden||[]).length?'Upload eerst de offerte als PDF (hieronder bij Bestanden)':!work.email?'Vul eerst een e-mailadres in op de fiche':!serverInfo.mail?'Stel eerst e-mail in bij Koppelingen':'Mailt de PDF-bestanden naar de klant met een link om goed te keuren of af te keuren'}">${o.verstuurdOp?'Opnieuw mailen':'Verstuur per mail'}</button>${serverInfo.facturen?`<button class="btn small" data-factuur="${o.id}">${o.factuur?'E-factuur opnieuw downloaden':'Download e-factuur (UBL)'}</button>`:`<button class="btn small" data-v="koppelingen" title="Vul eerst je facturatiegegevens in">E-factuur instellen</button>`}<button class="btn small" data-ofcopy="${o.id}">Kopieer als tekst</button><button class="btn small" data-ofdup="${o.id}">Dupliceer als nieuwe optie</button><span class="spacer"></span>
    ${ofConfirm==='of:'+o.id?`<span class="confirm">Deze offerte verwijderen? <button class="btn small danger" data-ofdelyes="${o.id}">Ja, verwijder</button><button class="btn small ghost" data-ofcancel="1">Nee</button></span>`:`<button class="btn small ghost danger" data-ofdel="${o.id}">Verwijder offerte</button>`}</div>
   </section>`}
 async function downloadUBL(ofId){
@@ -1053,7 +1126,7 @@ document.addEventListener('drop',e=>{const d=e.target.closest&&e.target.closest(
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-tab],[data-factuur],[data-ofstop],[data-ofnew],[data-ofaddrow],[data-ofdelrow],[data-ofdel],[data-ofdelyes],[data-ofcancel],[data-ofdup],[data-ofcopy],[data-ofphase],[data-ofdelfile],[data-ofdelfileyes]');
   if(!t||!work)return;const D=t.dataset;
-  if(D.tab){klantTab=D.tab;markSeen(klantTab);['fiche','planning','logboek','offerte'].forEach(x=>{$('#tab-'+x).hidden=klantTab!==x});if(klantTab==='offerte')renderOffertes();if(klantTab==='logboek')renderLogTab();renderSide();const tb=$('#tabs');if(tb&&tb.getBoundingClientRect().top<0)tb.scrollIntoView({block:'start'});return}
+  if(D.tab){klantTab=D.tab;markSeen(klantTab);['fiche','planning','logboek','offerte','vragenlijst','bijlages'].forEach(x=>{$('#tab-'+x).hidden=klantTab!==x});if(klantTab==='offerte')renderOffertes();if(klantTab==='logboek')renderLogTab();if(klantTab==='vragenlijst')renderVragenlijstTab();if(klantTab==='bijlages')renderBijlagesTab();renderSide();const tb=$('#tabs');if(tb&&tb.getBoundingClientRect().top<0)tb.scrollIntoView({block:'start'});return}
   if(D.ofstop){if(!work.stopReden)work.stopReden='Te duur';stopForm=true;renderSide();const sp=$('#stopform');if(sp)sp.scrollIntoView({block:'center',behavior:'smooth'});return}
   if(D.ofnew){work.offertes=(work.offertes||[]).concat([newOfferte()]);ofChanged(true);return}
   if(D.ofaddrow){findOf(D.ofaddrow).regels.push({oms:'',aantal:'',prijs:''});ofChanged(true);const i=findOf(D.ofaddrow).regels.length-1;const n=$(`#of-${D.ofaddrow}-r${i}-oms`);if(n)n.focus();return}
@@ -1132,18 +1205,25 @@ function tekenGebruikers(){
 function tekenRollen(){
   const box=$('#rollenBox');if(!box)return;
   const rows=Object.keys(gebrData.rollen).map(k=>{const r=gebrData.rollen[k];const toeg=[r.beheer?'Beheer':'',r.portaal?'Mijn pagina':''].filter(Boolean).join(' + ')||'geen toegang';const aantal=(gebrData.gebruikers||[]).filter(u=>u.role===k).length;
-    if(rolEdit===k&&!r.ingebouwd)return `<div class="todo-card" style="display:grid;gap:10px"><div class="grid2">
+    const ml=gebrData.moduleLijst||{beheer:[],portaal:[]};const mods=r.modules||[];
+    if(rolEdit===k)return `<div class="todo-card" style="display:grid;gap:12px"><div class="grid2">
        <label class="fld"><span>Naam van de rol</span><input id="rl-label" value="${esc(r.label)}"></label></div>
-       <div class="opts"><label><input type="checkbox" id="rl-beheer" ${r.beheer?'checked':''}>Toegang tot beheer (Studio)</label><label><input type="checkbox" id="rl-portaal" ${r.portaal?'checked':''}>Toegang tot Mijn pagina</label></div>
+       ${r.ingebouwd?`<span class="hint">Ingebouwde rol: de toegang (${esc(toeg)}) ligt vast; de zichtbare modules kies je hieronder.</span>`:`<div class="opts"><label><input type="checkbox" id="rl-beheer" ${r.beheer?'checked':''}>Toegang tot beheer (Studio)</label><label><input type="checkbox" id="rl-portaal" ${r.portaal?'checked':''}>Toegang tot Mijn pagina</label></div>`}
+       <div><div class="label" style="margin-bottom:6px">Zichtbare modules</div><div class="grid2" style="gap:14px">
+        <div><div class="hint" style="margin-bottom:4px"><b>Beheer (Studio)</b></div><div class="opts" style="flex-direction:column;align-items:stretch">${ml.beheer.map(m=>`<label title="${esc(m.uitleg)}"><input type="checkbox" data-rlmod="${esc(m.id)}" ${mods.includes(m.id)?'checked':''}>${esc(m.label)}</label>`).join('')}</div></div>
+        <div><div class="hint" style="margin-bottom:4px"><b>Mijn pagina (klantenportaal)</b></div><div class="opts" style="flex-direction:column;align-items:stretch">${ml.portaal.map(m=>`<label title="${esc(m.uitleg)}"><input type="checkbox" data-rlmod="${esc(m.id)}" ${mods.includes(m.id)?'checked':''}>${esc(m.label)}</label>`).join('')}</div></div>
+       </div><span class="hint">Zo stel je later pakketten samen (basis, complete, all-in): maak per pakket een rol met de modules die erbij horen.</span></div>
        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" data-rlsave="${esc(k)}">Bewaren</button><button class="btn small ghost" data-rlcancel="1">Annuleer</button></div></div>`;
+    const alle=ml.beheer.concat(ml.portaal);const modLabels=alle.filter(m=>mods.includes(m.id)).map(m=>m.label);
     return `<div class="dlrow" style="margin:0;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
-      <span><b>${esc(r.label)}</b> <span class="hint">${esc(toeg)}</span> <span class="chip">${aantal} ${aantal===1?'gebruiker':'gebruikers'}</span>${r.ingebouwd?' <span class="hint">· ingebouwd</span>':''}</span>
-      ${r.ingebouwd?'':`<span style="display:flex;gap:6px"><button class="btn small ghost" data-rledit="${esc(k)}">Wijzig</button><button class="btn small ghost danger" data-rldel="${esc(k)}">Verwijder</button></span>`}</div>`;
+      <span><b>${esc(r.label)}</b> <span class="hint">${esc(toeg)}</span> <span class="chip">${aantal} ${aantal===1?'gebruiker':'gebruikers'}</span>${r.ingebouwd?' <span class="hint">· ingebouwd</span>':''}<br><span class="hint">Modules: ${modLabels.length?esc(modLabels.join(', ')):'<i>geen</i>'}</span></span>
+      <span style="display:flex;gap:6px"><button class="btn small ghost" data-rledit="${esc(k)}">Wijzig</button>${r.ingebouwd?'':`<button class="btn small ghost danger" data-rldel="${esc(k)}">Verwijder</button>`}</span></div>`;
   }).join('');
   const nieuw=rolNieuw?`<div class="todo-card" style="display:grid;gap:10px"><b>Nieuwe rol</b><div class="grid2">
      <label class="fld"><span>Sleutel <span class="hint">(kort, bv. medewerker)</span></span><input id="rn-key" placeholder="medewerker"></label>
      <label class="fld"><span>Naam van de rol</span><input id="rn-label" placeholder="Medewerker"></label></div>
     <div class="opts"><label><input type="checkbox" id="rn-beheer">Toegang tot beheer (Studio)</label><label><input type="checkbox" id="rn-portaal">Toegang tot Mijn pagina</label></div>
+    <span class="hint">Na het aanmaken kies je via "Wijzig" welke modules deze rol ziet (standaard: alle modules van het gekozen deel).</span>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" id="rnSave">Rol aanmaken</button><button class="btn small ghost" id="rnCancel">Annuleer</button><span class="hint" id="rnMsg"></span></div></div>`:`<button class="btn small" id="rnOpen">+ Rol toevoegen</button>`;
   box.innerHTML=`<div style="display:grid;gap:8px">${rows}</div><div style="margin-top:4px">${nieuw}</div>`;
 }
@@ -1163,7 +1243,8 @@ document.addEventListener('click',async e=>{
       gebrNieuw=false;await laadGebruikers();toast(r.gemaild?'Aangemaakt — uitnodiging gemaild':'Aangemaakt');if(!r.gemaild&&r.link)await copy(r.link)}catch(err){if(msg){msg.style.color='var(--late)';msg.textContent=err.message}}return}
   if(t.dataset.rledit){rolEdit=t.dataset.rledit;rolNieuw=false;tekenRollen();return}
   if(t.dataset.rlcancel){rolEdit=null;tekenRollen();return}
-  if(t.dataset.rlsave){try{await apiGebr('/api/rollen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:t.dataset.rlsave,label:($('#rl-label')||{}).value||'',beheer:($('#rl-beheer')||{}).checked,portaal:($('#rl-portaal')||{}).checked})});rolEdit=null;toast('Bewaard');await laadGebruikers()}catch(err){toast(err.message)}return}
+  if(t.dataset.rlsave){const modules=[...document.querySelectorAll('[data-rlmod]')].filter(c=>c.checked).map(c=>c.dataset.rlmod);const r0=gebrData.rollen[t.dataset.rlsave]||{};
+    try{await apiGebr('/api/rollen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:t.dataset.rlsave,label:($('#rl-label')||{}).value||'',beheer:$('#rl-beheer')?$('#rl-beheer').checked:!!r0.beheer,portaal:$('#rl-portaal')?$('#rl-portaal').checked:!!r0.portaal,modules})});rolEdit=null;toast('Bewaard');await laadGebruikers();if(t.dataset.rlsave===serverInfo.rol){await refreshServerInfo();render()}}catch(err){toast(err.message)}return}
   if(t.dataset.rldel){if(!confirm('Rol verwijderen?'))return;try{await apiGebr('/api/rollen/'+t.dataset.rldel,{method:'DELETE'});toast('Verwijderd');await laadGebruikers()}catch(err){toast(err.message)}return}
   if(t.id==='rnOpen'){rolNieuw=true;rolEdit=null;tekenRollen();return}
   if(t.id==='rnCancel'){rolNieuw=false;tekenRollen();return}
@@ -1193,7 +1274,9 @@ function beheerFiche(){
    <section><h2>Opvolgtermijnen</h2><p>Hiermee berekent het systeem wanneer een actie op "Vandaag" verschijnt.</p><div class="terms">${terms}</div></section>
    <section><h2>Planning</h2><p>De planning op de klantpagina vertrekt van de datum van het kennismakingsgesprek. Ze telt de termijnen hierboven op met deze doorlooptijden. Fases die al voorbij zijn, krijgen hun echte datum.</p>
     <div class="terms">${Object.keys(PLAN_LABELS).map(k=>`<label><b>${esc(PLAN_LABELS[k][0])}</b><input type="number" min="0" max="365" id="plan-${k}" data-plan="${k}" value="${cfg.planning[k]}"><span>${esc(PLAN_LABELS[k][1])}</span></label>`).join('')}
-    <label><b>Standaard btw op offertes</b><input type="number" min="0" max="100" id="cfg-btw" data-btw="1" value="${cfg.btw}"><span>procent</span></label></div></section>`;
+    <label><b>Standaard btw op offertes</b><input type="number" min="0" max="100" id="cfg-btw" data-btw="1" value="${cfg.btw}"><span>procent</span></label></div></section>
+   <section><h2>Vragenlijsten</h2><p>Na goedkeuring van de offerte vult de klant deze vragenlijst in via zijn dossier. Per type klant een eigen lijst, één vraag per regel. De antwoorden verschijnen in de fiche onder het tabblad Vragenlijst.</p>
+    <div class="mailgrid">${cfg.lijsten.type.map(t=>`<div class="sec"><h3 style="font-size:13px;font-weight:600">${esc(t)}</h3><textarea data-vl="${esc(t)}" aria-label="Vragenlijst ${esc(t)}" style="min-height:220px">${esc((cfg.vragenlijsten[t]||[]).join('\n'))}</textarea></div>`).join('')}</div></section>`;
 }
 function mailVak(k){
   const knoppen=Object.keys(KNOP_UITLEG).filter(b=>(MAIL_PLACEHOLDERS[k]||'').includes('{'+b+'}'));
@@ -1235,12 +1318,6 @@ function beheerAfspraken(){
       <label class="fld"><span>Afzender in bevestigingsmail</span><input id="bk-afzender" data-bk="afzender" value="${esc(cfg.boeking.afzender)}"></label>
      </div>
      <p class="hint" style="margin:0">${serverInfo.mail?'Bevestigingsmails staan aan: de klant en jij krijgen een mail bij elke boeking.':'Bevestigingsmails staan uit. Stel Resend in bij Koppelingen om ze aan te zetten.'}</p>
-    </div></section>
-   <section><h2>Mijn pagina (klantenportaal)</h2><p>De startpagina <code>${esc(serverInfo.base)}/</code> is de login voor bestaande klanten: ze vragen een inloglink per e-mail aan (geen wachtwoord). Ze zien er hun offerte en keuren ze goed (of stellen een vraag), volgen in welke fase hun project zit, zien hun afspraak en passen telefoon, feestdatum en aantal gasten aan. Jij krijgt een mail en een regel in het logboek bij elke goedkeuring, vraag of verplaatsing.</p>
-    <p><b>Nieuwe leads</b> hebben geen login nodig: in hun bevestigingsmail zit een persoonlijke verzetlink (unieke code) waarmee ze de kennismaking zelf verplaatsen. Pas jij het tijdstip aan in de fiche of via "Verplaatsen", dan volgen Outlook/Teams en Zoom automatisch.</p>
-    <div class="sec" style="display:grid;gap:10px">
-     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><code>${esc(serverInfo.base)}/mijn</code><button class="btn small ghost" id="copyPortaalLink">Kopieer</button><a class="btn small ghost" href="/mijn" target="_blank" rel="noopener">Bekijk ↗</a></div>
-     <p class="hint" style="margin:0">Na het versturen van een offerte mail je de klant een inloglink (knop op de klantpagina en in de offerte-nudge), of kopieer je er een voor WhatsApp.${serverInfo.mail?'':' <b>Let op:</b> zonder e-mailkoppeling kunnen klanten zelf geen inloglink aanvragen; een gekopieerde link werkt wel.'}</p>
     </div></section>
    <section><h2>Agenda (Office 365 / Outlook)</h2><p>Zet je kennismakingsgesprekken automatisch in je Outlook-agenda. Voeg de onderstaande link toe in Outlook via <b>Agenda toevoegen → Abonneren vanaf internet</b>. Outlook ververst die daarna zelf (meestal elke paar uur). Heb je Office 365 gekoppeld (zie Koppelingen), dan komen afspraken ook rechtstreeks in je agenda.</p>
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
@@ -1313,6 +1390,7 @@ document.addEventListener('input',e=>{const el=e.target;
   else if(el.dataset.bklist){cfg.boeking[el.dataset.bklist]=el.value.split('\n').map(x=>x.trim()).filter(Boolean);saveCfg()}
   else if(el.dataset.mail){cfg.mails[el.dataset.mail]=el.value;saveCfg()}
   else if(el.dataset.afzender){cfg.afzender=el.value;saveCfg()}
+  else if(el.dataset.vl){cfg.vragenlijsten[el.dataset.vl]=el.value.split('\n').map(x=>x.trim()).filter(Boolean);saveCfg()}
 });
 
 /* ---------- verbinding met de server ---------- */
@@ -1324,6 +1402,8 @@ function apiDb(){
   const merge=(a,b)=>{const o=Object.assign({},a);for(const k in b)o[k]=isObj(b[k])&&isObj(a[k])?merge(a[k],b[k]):JSON.parse(JSON.stringify(b[k]));return o};
   const snapDoc=path=>({id:path.split('/').pop(),exists:path in store,data:()=>store[path]?JSON.parse(JSON.stringify(store[path])):undefined,metadata:{fromCache:false,hasPendingWrites:pending>0}});
   const notify=()=>subs.forEach(f=>setTimeout(f,0));
+  // Revisie van de server overnemen na een eigen schrijfactie, zodat enkel wijzigingen van anderen een herlaad triggeren.
+  const neemRev=(path,r)=>{if(!r||r.rev==null)return;if(store[path])store[path].rev=r.rev;if(typeof work!=='undefined'&&work&&('klanten/'+work.id)===path)work.rev=r.rev;const i=klanten.findIndex(k=>('klanten/'+k.id)===path);if(i>=0)klanten[i].rev=r.rev};
   async function call(method,path,body){
     const r=await fetch('/api/'+path,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,credentials:'same-origin'});
     if(r.status===401){showLogin();throw{code:'not_granted',message:'Niet aangemeld'}}
@@ -1333,8 +1413,8 @@ function apiDb(){
   async function load(){const d=await call('GET','data');store={};for(const [id,doc] of Object.entries(d.klanten||{}))store['klanten/'+id]=doc;for(const [id,doc] of Object.entries(d.instellingen||{}))store['instellingen/'+id]=doc;notify()}
   const doc=path=>({path,id:path.split('/').pop(),
     get:async()=>snapDoc(path),
-    set:async d=>{store[path]=JSON.parse(JSON.stringify(d));notify();pending++;try{await call('PUT','doc/'+path,store[path])}finally{pending--}},
-    update:async d=>{if(!(path in store))throw{code:'invalid_argument',message:'bestaat niet'};store[path]=merge(store[path],d);notify();pending++;try{await call('PUT','doc/'+path,store[path])}finally{pending--}},
+    set:async d=>{store[path]=JSON.parse(JSON.stringify(d));notify();pending++;try{const r=await call('PUT','doc/'+path,store[path]);neemRev(path,r);return r}finally{pending--}},
+    update:async d=>{if(!(path in store))throw{code:'invalid_argument',message:'bestaat niet'};store[path]=merge(store[path],d);notify();pending++;try{const r=await call('PATCH','doc/'+path,JSON.parse(JSON.stringify(d)));neemRev(path,r);return r}finally{pending--}},
     delete:async()=>{delete store[path];notify();await call('DELETE','doc/'+path)},
     onSnapshot:(next)=>{const f=()=>next(snapDoc(path));subs.push(f);setTimeout(f,0);return()=>{const i=subs.indexOf(f);if(i>=0)subs.splice(i,1)}}});
   const collection=c=>({path:c,doc:id=>doc(c+'/'+(id||Math.random().toString(36).slice(2,12))),
@@ -1582,7 +1662,9 @@ render();
   try{await db.load()}catch(e){if(e&&e.code!=='not_granted'){dbFailed=true;render()}return}
   db.collection('klanten').onSnapshot(snap=>{
     klanten=snap.docs.map(d=>Object.assign({id:d.id},d.data()));loaded=true;
-    if(view.v==='klant'&&mounted===view.id&&!klanten.some(k=>k.id===view.id)){mounted=null}
+    if(view.v==='klant'&&mounted===view.id){const k=klanten.find(x=>x.id===view.id);
+      if(!k)mounted=null;
+      else if(work&&!saveTimer&&!Object.keys(pendingTop).length&&(k.rev||0)>(work.rev||0)){mounted=null;ofMounted=false}}
     render();
   });
   db.doc('instellingen/algemeen').onSnapshot(snap=>{

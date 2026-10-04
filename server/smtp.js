@@ -15,7 +15,8 @@ function smtpConfig(env = process.env) {
   };
 }
 
-function sendMail({ to, subject, text, html, replyTo }, cfg = smtpConfig()) {
+// attachments: [{ filename, content: Buffer, contentType }]
+function sendMail({ to, subject, text, html, replyTo, attachments }, cfg = smtpConfig()) {
   if (!cfg || !cfg.from || !to) return Promise.resolve(false);
   return new Promise((resolve, reject) => {
     let socket, buffer = '', step = 0, upgraded = cfg.secure;
@@ -24,22 +25,25 @@ function sendMail({ to, subject, text, html, replyTo }, cfg = smtpConfig()) {
     const write = s => socket.write(s + '\r\n');
     const b64 = s => Buffer.from(s, 'utf8').toString('base64');
     const wrap = s => b64(s).replace(/.{76}/g, '$&\r\n');
+    const wrapBuf = buf => buf.toString('base64').replace(/.{76}/g, '$&\r\n');
     const encHeader = s => /[^\x20-\x7e]/.test(s) ? `=?UTF-8?B?${b64(s)}?=` : s;
     const kop = [`From: ${cfg.from}`, `To: ${to}`, replyTo ? `Reply-To: ${replyTo}` : null, `Subject: ${encHeader(subject)}`, `Date: ${new Date().toUTCString()}`, 'MIME-Version: 1.0'];
-    let body;
+    const grensId = () => 'bnd_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    // tekstdeel (plain of plain+html)
+    let inhoudType, inhoud;
     if (html) {
-      const grens = 'bnd_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-      kop.push(`Content-Type: multipart/alternative; boundary="${grens}"`);
-      body = [
-        'Dit is een bericht in meerdere formaten.', '',
-        `--${grens}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(text), '',
-        `--${grens}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(html), '',
-        `--${grens}--`,
-      ].join('\r\n');
-    } else {
-      kop.push('Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64');
-      body = wrap(text);
-    }
+      const g = grensId(); inhoudType = `multipart/alternative; boundary="${g}"`;
+      inhoud = [`--${g}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(text), '', `--${g}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(html), '', `--${g}--`].join('\r\n');
+    } else { inhoudType = 'text/plain; charset=UTF-8'; inhoud = wrap(text); }
+    let body;
+    const att = (attachments || []).filter(a => a && a.content);
+    if (att.length) {
+      const g = grensId(); kop.push(`Content-Type: multipart/mixed; boundary="${g}"`);
+      const delen = [`--${g}`, `Content-Type: ${inhoudType}`].concat(html ? [] : ['Content-Transfer-Encoding: base64']).concat(['', inhoud, '']);
+      for (const a of att) delen.push(`--${g}`, `Content-Type: ${a.contentType || 'application/octet-stream'}; name="${String(a.filename || 'bijlage').replace(/"/g, '')}"`, 'Content-Transfer-Encoding: base64', `Content-Disposition: attachment; filename="${String(a.filename || 'bijlage').replace(/"/g, '')}"`, '', wrapBuf(Buffer.isBuffer(a.content) ? a.content : Buffer.from(String(a.content), 'base64')), '');
+      delen.push(`--${g}--`); body = delen.join('\r\n');
+    } else if (html) { kop.push(`Content-Type: ${inhoudType}`); body = 'Dit is een bericht in meerdere formaten.\r\n\r\n' + inhoud; }
+    else { kop.push('Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64'); body = inhoud; }
     const message = kop.filter(l => l !== null).join('\r\n') + '\r\n\r\n' + body + '\r\n.';
 
     const steps = [

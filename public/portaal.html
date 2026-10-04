@@ -121,15 +121,16 @@ async function init(){
   try{me=await api('me')}catch(e){if(e.status===401){location.replace('/');return}$('#main').innerHTML='<p class="err">De pagina kon niet geladen worden. Probeer het later opnieuw.</p>';return}
   render();
 }
+const mag=id=>!me||!me.modules||me.modules.includes(id);
 function render(){
   const n=me.voornaam||voornaam(me.naam);
   $('#main').innerHTML=`<div class="topbar"><button class="btn ghost small" id="logout">Afmelden</button></div>
    <div class="hero"><h1>Hoi ${esc(n||'daar')}</h1><p>Hier vinden jullie alles over jullie ${esc((me.type||'').toLowerCase()==='geboorte'?'geboortekaartje':'project')} bij justPIXIT.</p></div><hr class="rule">
-   ${(me.offertes||[]).some(o=>o.status==='Verstuurd')?renderOffertes():''}
-   <section class="blok" id="afspraak">${renderAfspraak()}</section>
-   <section class="blok"><div class="bhead"><h2>Waar staan we?</h2></div>${renderTraject()}</section>
-   ${(me.offertes||[]).length&&!(me.offertes||[]).some(o=>o.status==='Verstuurd')?renderOffertes():''}
-   <section class="blok"><div class="bhead"><h2>Jullie gegevens</h2></div>${renderGegevens()}</section>`;
+   ${mag('p_offertes')&&(me.offertes||[]).some(o=>o.status==='Verstuurd')?renderOffertes():''}
+   ${mag('p_afspraak')?`<section class="blok" id="afspraak">${renderAfspraak()}</section>`:''}
+   ${mag('p_traject')?`<section class="blok"><div class="bhead"><h2>Waar staan we?</h2></div>${renderTraject()}</section>`:''}
+   ${mag('p_offertes')&&(me.offertes||[]).length&&!(me.offertes||[]).some(o=>o.status==='Verstuurd')?renderOffertes():''}
+   ${mag('p_gegevens')?`<section class="blok"><div class="bhead"><h2>Jullie gegevens</h2></div>${renderGegevens()}</section>`:''}`;
 }
 const euro=n=>(Number(n)||0).toLocaleString('nl-BE',{style:'currency',currency:'EUR'});
 function renderOffertes(){

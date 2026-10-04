@@ -12,17 +12,20 @@ const FASES = [
   { k: 'drukwerk',        l: 'Drukwerk besteld',        klant: 'Het drukwerk is besteld. Nog even geduld, dan is het bij jullie.' },
   { k: 'afgerond',        l: 'Afgerond',                klant: 'Alles is geleverd. Bedankt voor het vertrouwen!' },
   { k: 'geen_deal',       l: 'Niet doorgegaan',         klant: 'Dit traject is niet verdergezet. Jullie zijn altijd welkom voor een nieuw project.' },
+  { k: 'geannuleerd',     l: 'Gesprek geannuleerd',     klant: 'Het kennismakingsgesprek werd geannuleerd. Plan gerust een nieuw moment wanneer het jullie past.' },
 ];
+const GESTOPT = new Set(['geen_deal', 'geannuleerd']);
 const FI = Object.fromEntries(FASES.map((f, i) => [f.k, i]));
 
 // Status per fase voor een klant: done / cur / todo (geen_deal wordt enkel getoond als dat de huidige fase is).
 function fasenVoor(klant) {
   const cur = FI[klant.fase] ?? 0, fd = klant.faseDatums || {};
-  return FASES.filter(f => f.k !== 'geen_deal' || klant.fase === 'geen_deal').map((f, i) => {
+  const gestopt = GESTOPT.has(klant.fase);
+  return FASES.filter(f => !GESTOPT.has(f.k) || f.k === klant.fase).map((f, i) => {
     const idx = FI[f.k];
-    const st = klant.fase === 'geen_deal' ? (f.k === 'geen_deal' ? 'cur' : (fd[f.k] ? 'done' : 'todo')) : (idx < cur ? 'done' : idx === cur ? 'cur' : 'todo');
+    const st = gestopt ? (f.k === klant.fase ? 'cur' : (fd[f.k] ? 'done' : 'todo')) : (idx < cur ? 'done' : idx === cur ? 'cur' : 'todo');
     return { k: f.k, l: f.l, uitleg: f.klant, status: st, datum: fd[f.k] || '' };
   });
 }
 
-module.exports = { FASES, FI, fasenVoor };
+module.exports = { FASES, FI, GESTOPT, fasenVoor };

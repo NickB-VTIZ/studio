@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="nl-BE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jullie dossier · justPIXIT</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Dossier met persoonlijke code (geen login): afspraak, offerte, vragenlijst, contract. Zelfde papier-en-inkt-stijl. */
+:root{--paper:#F2F4EF;--card:#FBFBF8;--ink:#1C2A24;--ink-soft:#56655D;--green:#2C5A4C;--green-ink:#F7FAF6;--sage:#DDE7E0;--sage-deep:#C3D3C8;--line:#D2DBD3;--hair:#C8D2C9;--warn-bg:#F7E6DD;--warn-ink:#8A4B2E;--ok-bg:#E3EFE7;--ok-ink:#2C6A4C;--f-display:"Fraunces",Georgia,serif;--f-ui:"Figtree",system-ui,sans-serif;color-scheme:light}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.55;padding-inline:18px;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}button,input,textarea{font:inherit;color:inherit}
+.wrap{max-width:860px;margin:0 auto;padding-block:40px 72px}@media (max-width:560px){.wrap{padding-block:26px 48px}}
+.mark{text-align:center;margin-bottom:30px}.mark .logo{font-family:var(--f-display);font-size:21px}.mark .logo b{font-weight:500}.mark .tag{display:block;margin-top:3px;font-size:12.5px;color:var(--ink-soft)}
+.sheet{background:var(--card);border:1px solid var(--hair);border-radius:4px;box-shadow:0 1px 0 var(--hair),0 18px 40px -28px rgba(28,42,36,.4);padding:6px}.sheet-in{border:1px solid var(--line);border-radius:3px;padding:clamp(22px,4vw,44px)}
+.hero{text-align:center;max-width:34rem;margin:0 auto 6px}.hero h1{font-family:var(--f-display);font-weight:400;font-size:clamp(28px,5.5vw,42px);line-height:1.05}.hero p{margin:12px auto 0;color:var(--ink-soft)}
+.rule{border:0;border-top:1px solid var(--line);max-width:70px;margin:26px auto}
+section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
+.bhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 14px}.bhead h2{font-family:var(--f-display);font-weight:400;font-size:22px}.bhead .meta{font-size:13px;color:var(--ink-soft)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:18px 20px}
+.recap{display:grid;gap:10px}.recap .row{display:grid;grid-template-columns:6rem 1fr;gap:14px;align-items:baseline}@media (max-width:420px){.recap .row{grid-template-columns:1fr;gap:2px}}
+.recap .k{font-size:12.5px;color:var(--ink-soft)}.recap .v{font-size:15.5px}.recap .v.big{font-family:var(--f-display);font-size:20px;line-height:1.2}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--card);padding:12px 20px;border-radius:3px;cursor:pointer;font-weight:500;font-size:15px;text-decoration:none;color:var(--ink);display:inline-block}
+.btn:hover{border-color:var(--green)}.btn.primary{background:var(--green);color:var(--green-ink);border-color:var(--green)}.btn.primary:hover{background:#244c40}.btn:disabled{opacity:.55;cursor:default}
+.btn.ghost{border-color:transparent;background:none;color:var(--ink-soft);padding-inline:8px}.btn.ghost:hover{color:var(--green)}.btn.small{padding:8px 14px;font-size:14px}.btn.danger{color:var(--warn-ink)}
+.err{color:var(--warn-ink);background:var(--warn-bg);padding:11px 14px;border-radius:3px;font-size:14.5px;margin-top:10px}.ok{color:var(--ok-ink);background:var(--ok-bg);padding:11px 14px;border-radius:3px;font-size:14.5px;margin-top:10px}
+.note{font-size:13.5px;color:var(--ink-soft)}.center-msg{text-align:center;color:var(--ink-soft);padding:40px 0}
+.pill{font-size:12.5px;padding:3px 9px;border-radius:999px;background:var(--sage);color:var(--ink)}.pill.ok{background:var(--ok-bg);color:var(--ok-ink)}.pill.warn{background:var(--warn-bg);color:var(--warn-ink)}
+.steps{list-style:none;margin:0;padding:0;display:grid}.steps li{position:relative;padding:0 0 18px 30px}.steps li::before{content:"";position:absolute;left:8px;top:22px;bottom:-2px;width:2px;background:var(--line)}.steps li:last-child::before{display:none}
+.steps .mk{position:absolute;left:0;top:4px;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);background:var(--card)}.steps li.done .mk{background:var(--green);border-color:var(--green)}
+.steps li.done .mk::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid var(--green-ink);border-width:0 2px 2px 0;transform:rotate(45deg)}.steps li.done::before{background:var(--green)}
+.steps li.cur .mk{border-color:var(--green);box-shadow:0 0 0 4px var(--sage)}.steps .t{font-weight:500}.steps li.todo .t{color:var(--ink-soft);font-weight:400}.steps .d{font-size:12.5px;color:var(--ink-soft);margin-left:8px}
+.steps .u{display:block;font-size:14px;color:var(--ink-soft);margin-top:3px;max-width:48ch}.steps li.cur .u{color:var(--ink)}
+.steps li.cur{background:var(--sage);border-radius:3px;margin-left:-10px;padding-left:40px;padding-top:10px;padding-bottom:12px;margin-bottom:8px}.steps li.cur .mk{left:10px;top:14px}.steps li.cur::before{left:18px;top:32px}
+.booker{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,16rem);gap:30px;align-items:start;margin-top:16px}@media (max-width:620px){.booker{grid-template-columns:1fr;gap:26px}}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.cal-head h3{font-family:var(--f-display);font-weight:400;font-size:19px;text-transform:capitalize}
+.nav{display:flex;gap:7px}.nav button{border:1px solid var(--line);background:var(--card);width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:17px;display:grid;place-items:center;line-height:1}.nav button:hover:not(:disabled){border-color:var(--green);color:var(--green)}.nav button:disabled{opacity:.3;cursor:default}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.grid .wd{text-align:center;font-size:11px;color:var(--ink-soft);padding-bottom:7px}
+.day{position:relative;aspect-ratio:1;max-width:46px;width:100%;margin:0 auto;border:0;background:none;border-radius:50%;color:var(--sage-deep);cursor:default;font-variant-numeric:tabular-nums;font-size:15px;display:grid;place-items:center}
+.day.free{background:var(--sage);color:var(--ink);cursor:pointer}.day.free:hover{background:var(--sage-deep)}.day.sel{background:var(--green);color:var(--green-ink);font-weight:500}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(5.4rem,1fr));gap:9px}.slot{border:1px solid var(--green);color:var(--green);background:var(--card);border-radius:3px;padding:12px 6px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:15px}.slot:hover,.slot.sel{background:var(--green);color:var(--green-ink)}
+.lead{font-size:13px;color:var(--ink-soft);margin:0 0 12px}.lead b{color:var(--ink);font-weight:600}.pick-first,.slot-empty{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:18px 16px;text-align:center}
+.chosen{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--card);border:1px solid var(--green);border-radius:3px;padding:14px 18px;margin-top:18px}.chosen .lab{font-size:12px;color:var(--ink-soft)}.chosen .when{font-family:var(--f-display);font-size:19px;margin-top:2px}
+.fld{display:grid;gap:6px;min-width:0}.fld>span{font-size:13.5px;color:var(--ink-soft)}.fld input,.fld textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:3px;padding:11px 13px;min-width:0}.fld input:focus,.fld textarea:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--sage)}.fld textarea{resize:vertical;min-height:70px}
+.files{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.sig{border:1px dashed var(--sage-deep);background:#fff;border-radius:3px;width:100%;max-width:520px;height:160px;touch-action:none;display:block}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:14.5px}.chk input{margin-top:4px;accent-color:var(--green)}
+.foot{text-align:center;color:var(--ink-soft);font-size:12.5px;margin-top:28px}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="mark"><div class="logo">just<b>PIXIT</b></div><span class="tag">jullie dossier</span></div>
+  <div class="sheet"><div class="sheet-in" id="main"><p class="center-msg">Even geduld…</p></div></div>
+  <p class="foot">justPIXIT · trouwuitnodigingen en geboortekaartjes</p>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const parseDay=s=>{const [y,m,d]=s.slice(0,10).split('-').map(Number);return new Date(y,m-1,d)};
+const isoDay=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const fmtLong=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long'});
+const fmtLongY=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+const fmtShort=s=>s?parseDay(s).toLocaleDateString('nl-BE',{day:'numeric',month:'short',year:'numeric'}):'';
+const eindUur=(slot,duur)=>{const [h,m]=slot.slice(11,16).split(':').map(Number);const t=h*60+m+duur;return pad(Math.floor(t/60)%24)+':'+pad(t%60)};
+const euro=n=>(Number(n)||0).toLocaleString('nl-BE',{style:'currency',currency:'EUR'});
+const code=new URLSearchParams(location.search).get('c')||'';
+let me=null,kiezen=false,annuleren=false,byDay={},month=null,selDay=null,selSlot=null,busy=false,msg={},ofOpen={};
+
+async function api(path,body){const r=await fetch('/api/dossier/'+encodeURIComponent(code)+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw Object.assign(new Error(j.error||'Er liep iets mis'),{status:r.status});return j}
+async function init(){
+  if(!code){$('#main').innerHTML='<p class="err">Deze link is onvolledig. Gebruik de link uit je e-mail.</p>';return}
+  try{me=await api('')}catch(e){$('#main').innerHTML=`<p class="err">${esc(e.message)}</p>`;return}
+  render();
+}
+async function herlaad(){try{me=await api('')}catch(e){}render()}
+function render(){
+  const openOf=(me.offertes||[]).some(o=>o.status==='Verstuurd');
+  const toonVragen=me.vragenlijst&&me.vragenlijst.nodig&&me.vragenlijst.vragen.length;
+  const toonContract=me.contract&&me.contract.bestandId;
+  $('#main').innerHTML=`<div class="hero"><h1>Hoi ${esc(me.voornaam||'daar')}</h1><p>${me.gestopt?(me.fase==='geannuleerd'?'Jullie kennismakingsgesprek werd geannuleerd. Plan gerust een nieuw moment wanneer het past.':'Dit traject werd afgesloten. Jullie zijn altijd welkom voor een nieuw project.'):'Hier vinden jullie alles rond jullie project bij justPIXIT: de afspraak, de offerte en de volgende stappen.'}</p>${me.gestopt?'<div class="actions" style="justify-content:center"><a class="btn primary" href="/afspraak">Plan een nieuw moment</a></div>':''}</div><hr class="rule">
+   ${openOf?renderOffertes():''}
+   ${toonVragen?renderVragenlijst():''}
+   ${toonContract?renderContract():''}
+   <section class="blok" id="afspraak">${renderAfspraak()}</section>
+   ${!openOf&&(me.offertes||[]).length?renderOffertes():''}
+   ${(me.bijlages||[]).length?renderBijlages():''}
+   <section class="blok"><div class="bhead"><h2>Waar staan we?</h2></div>${renderTraject()}</section>`;
+  if(toonContract&&!me.contract.getekend)setTimeout(initSig,0);
+}
+/* ---- afspraak ---- */
+function renderAfspraak(){
+  const k=me.kennismaking;
+  if(!k){if(me.geannuleerdeAfspraak)return `<div class="bhead"><h2>Kennismaking</h2></div><div class="card"><p class="note" style="margin:0">Het gesprek van ${esc(fmtLong(me.geannuleerdeAfspraak))} om ${me.geannuleerdeAfspraak.slice(11,16)} werd geannuleerd.</p></div>`;
+    return `<div class="bhead"><h2>Kennismaking</h2></div><div class="card"><p class="note" style="margin:0">Er staat momenteel geen gesprek gepland.</p></div>`}
+  const voorbij=k<me.nu;
+  if(kiezen)return `<div class="bhead"><h2>Nieuw moment kiezen</h2><button class="btn ghost small" id="annuleerKies">Annuleer</button></div>
+   <p class="note">Huidig moment: <b>${esc(fmtLong(k))} om ${k.slice(11,16)}</b>. Kies een vrij moment; ${me.videolink?'de link voor de videocall blijft dezelfde.':'ik krijg automatisch een seintje.'}</p>
+   ${month?renderBooker():'<p class="center-msg">Vrije momenten ophalen…</p>'}`;
+  if(annuleren)return `<div class="bhead"><h2>Afspraak annuleren</h2><button class="btn ghost small" id="annuleerStop">Toch niet</button></div>
+   <div class="card" style="border-color:var(--warn-ink)"><p>Jullie gesprek van <b>${esc(fmtLong(k))} om ${k.slice(11,16)}</b> annuleren?</p>
+    <p class="note" style="margin-top:6px">Liever een ander moment? Kies dan "Ander moment kiezen" — dat is zo geregeld.</p>
+    <label class="fld" style="margin-top:12px"><span>Reden (optioneel)</span><textarea id="annReden" maxlength="500" rows="2" placeholder="bv. we stellen onze plannen nog even uit"></textarea></label>
+    ${msg.annuleer?`<p class="err">${esc(msg.annuleer)}</p>`:''}
+    <div class="actions"><button class="btn danger" id="annuleerGo" ${busy?'disabled':''}>${busy?'Even geduld…':'Ja, annuleer de afspraak'}</button><button class="btn" id="kiesIpv">Liever ander moment kiezen</button></div></div>`;
+  return `<div class="bhead"><h2>${voorbij?'Jullie kennismaking':'Jullie afspraak'}</h2><span class="meta">${esc(me.titel||'Kennismakingsgesprek')}</span></div>
+   <div class="card"><div class="recap">
+    <div class="row"><span class="k">Wanneer</span><span class="v big">${esc(fmtLongY(k))}<br><span style="font-size:16px;font-family:var(--f-ui)">${k.slice(11,16)} – ${eindUur(k,me.duur)} (${me.duur} min)</span></span></div>
+    <div class="row"><span class="k">Waar</span><span class="v">${esc(me.locatie||'In overleg')}</span></div>
+    ${me.videolink?`<div class="row"><span class="k">Videocall</span><span class="v"><a class="btn primary small" href="${esc(me.videolink)}" target="_blank" rel="noopener">Deelnemen aan ${esc(me.videoprovider||'de videocall')}</a></span></div>`:''}
+   </div>
+   ${msg.afspraak?`<p class="${msg.afspraak.ok?'ok':'err'}">${esc(msg.afspraak.t)}</p>`:''}
+   ${me.verplaatsbaar?`<div class="actions"><button class="btn" id="kies">Ander moment kiezen</button><a class="btn ghost" href="${icsLink(k)}" download="afspraak-justpixit.ics">Zet in mijn agenda</a><button class="btn ghost danger" id="annuleerOpen">Afspraak annuleren</button></div>`:'<p class="note" style="margin-top:12px">Dit gesprek heeft al plaatsgevonden.</p>'}</div>`;
+}
+function renderBooker(){
+  return `<div class="booker"><div>${renderCalendar()}</div>
+    <div id="slotbox"><p class="lead">${selDay?`Vrije momenten op <b>${esc(fmtLong(selDay))}</b>`:'Kies eerst een dag'}</p>${selDay?renderSlots():'<p class="pick-first">Dagen met een zachte stip zijn vrij.</p>'}</div></div>
+   ${selSlot?`<div class="chosen"><div><div class="lab">Nieuw moment</div><div class="when">${esc(fmtLong(selSlot.slice(0,10)))} om ${selSlot.slice(11,16)}</div></div><button class="btn primary" id="bevestig" ${busy?'disabled':''}>${busy?'Even geduld…':'Bevestig nieuw moment'}</button></div>`:''}
+   ${msg.verplaats?`<p class="err">${esc(msg.verplaats)}</p>`:''}`;
+}
+function renderCalendar(){
+  const [y,mo]=month.split('-').map(Number);const first=new Date(y,mo-1,1);const start=(first.getDay()+6)%7;const days=new Date(y,mo,0).getDate();
+  const months=Object.keys(byDay).map(d=>d.slice(0,7));const minM=months[0]||month,maxM=months[months.length-1]||month;
+  let cells='';for(let i=0;i<start;i++)cells+='<span></span>';
+  for(let d=1;d<=days;d++){const ds=`${y}-${pad(mo)}-${pad(d)}`;const free=!!byDay[ds];cells+=`<button class="day ${free?'free':''} ${ds===selDay?'sel':''}" ${free?`data-day="${ds}"`:'disabled'} aria-label="${esc(fmtLongY(ds))}">${d}</button>`}
+  return `<div class="cal-head"><h3>${first.toLocaleDateString('nl-BE',{month:'long',year:'numeric'})}</h3><div class="nav"><button data-nav="-1" ${month<=minM?'disabled':''} aria-label="Vorige maand">‹</button><button data-nav="1" ${month>=maxM?'disabled':''} aria-label="Volgende maand">›</button></div></div>
+   <div class="grid">${['ma','di','wo','do','vr','za','zo'].map(w=>`<span class="wd">${w}</span>`).join('')}${cells}</div>`;
+}
+function renderSlots(){const slots=byDay[selDay]||[];return slots.length?`<div class="slots">${slots.map(s=>`<button class="slot ${s===selSlot?'sel':''}" data-slot="${s}">${s.slice(11,16)}</button>`).join('')}</div>`:'<p class="slot-empty">Geen vrije momenten meer op deze dag.</p>'}
+function icsLink(slot){
+  const start=parseDay(slot);const [h,mi]=slot.slice(11,16).split(':').map(Number);start.setHours(h,mi,0,0);const end=new Date(start.getTime()+me.duur*60000);
+  const f=d=>d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'T'+pad(d.getHours())+pad(d.getMinutes())+'00';
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//justPIXIT//Studio//NL','BEGIN:VEVENT',`UID:${Date.now()}@justpixit`,`DTSTAMP:${f(new Date())}`,`DTSTART;TZID=Europe/Brussels:${f(start)}`,`DTEND;TZID=Europe/Brussels:${f(end)}`,`SUMMARY:${me.titel||'Kennismaking'} - justPIXIT`,`LOCATION:${(me.locatie||'').replace(/,/g,'\\,')}`,me.videolink?`URL:${me.videolink}`:null,'END:VEVENT','END:VCALENDAR'].filter(Boolean).join('\r\n');
+  return 'data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);
+}
+async function laadSlots(){
+  byDay={};selDay=null;selSlot=null;msg.verplaats='';
+  try{const r=await api('/slots');(r.dagen||[]).forEach(d=>byDay[d.datum]=d.slots);const first=(r.dagen||[])[0];month=first?first.datum.slice(0,7):isoDay(new Date()).slice(0,7);if(!r.actief||!first)msg.verplaats='Er zijn momenteel geen vrije momenten. Stuur me een berichtje, dan zoeken we samen iets.'}
+  catch(e){msg.verplaats='De vrije momenten konden niet geladen worden.';month=isoDay(new Date()).slice(0,7)}
+  render();
+}
+/* ---- offertes ---- */
+function renderOffertes(){
+  const open=me.offertes.filter(o=>o.status==='Verstuurd').length;
+  return `<section class="blok" id="offertes"><div class="bhead"><h2>${open?'Jullie offerte':'Offertes'}</h2>${open>1?`<span class="meta">${open} opties — kies er één</span>`:''}</div><div style="display:grid;gap:16px">${me.offertes.map(offerteKaart).join('')}</div></section>`;
+}
+function offerteKaart(o){
+  const st=o.status, m=msg['of:'+o.id], modus=ofOpen[o.id];
+  const pdfs=o.bestanden.length?`<div class="files">${o.bestanden.map(f=>`<a class="btn small" href="/api/dossier/${encodeURIComponent(code)}/bestand/${esc(f.id)}" target="_blank" rel="noopener">${(f.type||'').startsWith('image/')?'Afbeelding':'PDF'} · ${esc(f.naam)}</a>`).join('')}</div>`:'<p class="note" style="margin-top:10px">De offerte zit als bijlage bij de mail.</p>';
+  let acties='';
+  if(st==='Verstuurd'){
+    if(modus==='goed')acties=`<div class="card" style="background:var(--card);border-color:var(--green);margin-top:14px"><p><b>Offerte "${esc(o.titel)}" goedkeuren?</b></p><p class="note" style="margin-top:4px">Daarmee geven jullie me groen licht. Ik stuur jullie daarna de voorschotfactuur, het contract en een korte vragenlijst.</p><div class="actions"><button class="btn primary" data-ofgo="${esc(o.id)}" ${busy?'disabled':''}>${busy?'Even geduld…':'Ja, ik keur de offerte goed'}</button><button class="btn ghost" data-ofsluit="${esc(o.id)}">Toch niet</button></div></div>`;
+    else if(modus==='af')acties=`<form class="card" data-ofaf="${esc(o.id)}" style="background:var(--card);margin-top:14px;display:grid;gap:10px"><p><b>Niet akkoord met deze offerte</b></p><label class="fld"><span>Laat even weten waarom, of wat jullie anders willen — dan maak ik een aangepast voorstel</span><textarea id="aftxt-${esc(o.id)}" rows="3" maxlength="2000" placeholder="bv. het aantal uitnodigingen mag lager, of we willen enkel de save-the-date"></textarea></label><div class="actions" style="margin-top:0"><button class="btn primary" type="submit" ${busy?'disabled':''}>Verstuur</button><button class="btn ghost" type="button" data-ofsluit="${esc(o.id)}">Annuleer</button></div></form>`;
+    else acties=`<div class="actions"><button class="btn primary" data-ofopen="goed" data-of="${esc(o.id)}">Offerte goedkeuren</button><button class="btn" data-ofopen="af" data-of="${esc(o.id)}">Niet akkoord / aanpassing</button></div>`;
+  }
+  const pill=st==='Verstuurd'?'<span class="pill">Wacht op jullie antwoord</span>':st==='Goedgekeurd'?'<span class="pill ok">Goedgekeurd</span>':st==='Afgewezen'?'<span class="pill warn">Niet akkoord</span>':`<span class="pill">${esc(st)}</span>`;
+  return `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 style="font-family:var(--f-display);font-weight:400;font-size:21px">${esc(o.titel)}</h3>${pill}</div>
+   <p class="note">${o.datum?'Verstuurd op '+esc(fmtShort(o.datum)):''}${o.geldigTot?' · geldig tot '+esc(fmtShort(o.geldigTot)):''}${o.goedgekeurdOp?' · goedgekeurd op '+esc(fmtShort(o.goedgekeurdOp)):''}${o.totaal?' · '+euro(o.totaal)+' incl. btw':''}</p>
+   ${o.notitie?`<p style="margin-top:10px;font-size:14.5px;white-space:pre-wrap">${esc(o.notitie)}</p>`:''}
+   ${pdfs}
+   ${o.reactie&&st!=='Goedgekeurd'?`<p class="note" style="margin-top:12px">Jullie reactie: “${esc(o.reactie)}” — ik kom hierop terug.</p>`:''}
+   ${m?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}
+   ${acties}</div>`;
+}
+/* ---- vragenlijst ---- */
+function renderVragenlijst(){
+  const v=me.vragenlijst;const ant=v.antwoorden||{};const klaar=!!v.ingevuldOp;const m=msg.vragen;
+  return `<section class="blok" id="vragenlijst"><div class="bhead"><h2>Vragenlijst${me.type?' · '+esc(me.type.toLowerCase()):''}</h2>${klaar?`<span class="pill ok">Ingevuld op ${esc(fmtShort(v.ingevuldOp))}</span>`:'<span class="pill warn">Nog in te vullen</span>'}</div>
+   <form id="vform" class="card" style="display:grid;gap:14px"><p class="note">${klaar?'Jullie antwoorden staan hieronder. Aanpassen kan altijd — klik daarna opnieuw op Bewaren.':'Met deze antwoorden kan ik jullie ontwerp inplannen. Weet je iets nog niet? Laat het dan even leeg.'}</p>
+    ${v.vragen.map((q,i)=>`<label class="fld"><span>${i+1}. ${esc(q)}</span><textarea data-vraag="${esc(q)}" rows="2" maxlength="2000">${esc(ant[q]||'')}</textarea></label>`).join('')}
+    ${m?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}
+    <div class="actions" style="margin-top:0"><button class="btn primary" type="submit" ${busy?'disabled':''}>${klaar?'Bewaren':'Vragenlijst versturen'}</button></div></form></section>`;
+}
+/* ---- contract ---- */
+function renderContract(){
+  const c=me.contract;const m=msg.contract;const url=`/api/dossier/${encodeURIComponent(code)}/bestand/${esc(c.bestandId)}`;
+  if(c.getekend)return `<section class="blok" id="contract"><div class="bhead"><h2>Contract</h2><span class="pill ok">Getekend door ${esc(c.getekend.naam)} op ${esc(fmtShort(c.getekend.op.slice(0,10)))}</span></div><div class="card"><p class="note">Bedankt! Een kopie van het contract en jullie handtekening staan bij de bijlages.</p><div class="files"><a class="btn small" href="${url}" target="_blank" rel="noopener">PDF · ${esc(c.naam||'Contract')}</a></div></div></section>`;
+  return `<section class="blok" id="contract"><div class="bhead"><h2>Contract tekenen</h2><span class="pill warn">Nog te tekenen</span></div>
+   <form id="cform" class="card" style="display:grid;gap:14px">
+    <p class="note">Lees het contract rustig na. Teken daarna hieronder met je vinger of muis, vul je naam in en bevestig.</p>
+    <div class="files" style="margin-top:0"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open het contract (PDF)</a></div>
+    <label class="fld"><span>Volledige naam</span><input id="c-naam" maxlength="120" placeholder="bv. Lotte Peeters" required></label>
+    <div class="fld"><span>Handtekening</span><canvas id="sig" class="sig" width="520" height="160"></canvas><div><button type="button" class="btn ghost small" id="sigWis">Wis handtekening</button></div></div>
+    <label class="chk"><input type="checkbox" id="c-akkoord"><span>Ik heb het contract gelezen en ga akkoord met de inhoud. Mijn elektronische handtekening geldt als ondertekening.</span></label>
+    <div id="cmsg">${m?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}</div>
+    <div class="actions" style="margin-top:0"><button class="btn primary" type="submit" ${busy?'disabled':''}>${busy?'Even geduld…':'Teken het contract'}</button></div></form></section>`;
+}
+let sigDirty=false;
+function initSig(){
+  const cv=$('#sig');if(!cv)return;const ctx=cv.getContext('2d');ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#1C2A24';
+  const scale=()=>{const r=cv.getBoundingClientRect();return {x:cv.width/r.width,y:cv.height/r.height,r}};
+  let tekenen=false;sigDirty=false;
+  const pos=e=>{const s=scale();return {x:(e.clientX-s.r.left)*s.x,y:(e.clientY-s.r.top)*s.y}};
+  cv.addEventListener('pointerdown',e=>{tekenen=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);cv.setPointerCapture(e.pointerId);e.preventDefault()});
+  cv.addEventListener('pointermove',e=>{if(!tekenen)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();sigDirty=true;e.preventDefault()});
+  cv.addEventListener('pointerup',()=>{tekenen=false});cv.addEventListener('pointercancel',()=>{tekenen=false});
+  $('#sigWis').onclick=()=>{ctx.clearRect(0,0,cv.width,cv.height);sigDirty=false};
+}
+/* ---- bijlages & traject ---- */
+function renderBijlages(){
+  const lab={offerte:'Offerte',factuur:'Factuur',contract:'Contract',contract_getekend:'Handtekening',ander:'Bijlage'};
+  return `<section class="blok"><div class="bhead"><h2>Bijlages</h2></div><div class="card"><div class="files" style="margin-top:0">${me.bijlages.map(f=>`<a class="btn small" href="/api/dossier/${encodeURIComponent(code)}/bestand/${esc(f.id)}" target="_blank" rel="noopener">${esc(lab[f.soort]||'Bijlage')} · ${esc(f.naam)}</a>`).join('')}</div></div></section>`;
+}
+function renderTraject(){
+  if(me.gestopt)return `<div class="card"><p style="margin:0">${esc((me.fasen.find(f=>f.k===me.fase)||{}).uitleg||'')}</p></div>`;
+  return `<ol class="steps">${me.fasen.map(f=>`<li class="${f.status}"><span class="mk"></span><span class="t">${esc(f.l)}</span>${f.datum&&f.status!=='todo'?`<span class="d">${esc(fmtShort(f.datum))}</span>`:''}${f.status==='cur'?`<span class="u">${esc(f.uitleg)}</span>`:''}</li>`).join('')}</ol>`;
+}
+/* ---- events ---- */
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('#kies,#annuleerKies,#kiesIpv,#annuleerOpen,#annuleerStop,#annuleerGo,[data-day],[data-nav],[data-slot],#bevestig,[data-ofopen],[data-ofsluit],[data-ofgo]');if(!t)return;
+  if(t.id==='kies'||t.id==='kiesIpv'){kiezen=true;annuleren=false;msg={};month=null;render();laadSlots();return}
+  if(t.id==='annuleerKies'){kiezen=false;render();return}
+  if(t.id==='annuleerOpen'){annuleren=true;kiezen=false;msg={};render();return}
+  if(t.id==='annuleerStop'){annuleren=false;render();return}
+  if(t.id==='annuleerGo'&&!busy){busy=true;render();try{const r=await api('/annuleer',{reden:($('#annReden')||{}).value||''});annuleren=false;await herlaad();msg={afspraak:{ok:true,t:'De afspraak is geannuleerd'+(r.gemaild?' — je krijgt een bevestiging per mail.':'.')}}}catch(err){msg.annuleer=err.message}finally{busy=false}render();window.scrollTo({top:0,behavior:'smooth'});return}
+  if(t.dataset.day){selDay=t.dataset.day;selSlot=null;render();if(window.innerWidth<=620){const sb=$('#slotbox');if(sb)sb.scrollIntoView({behavior:'smooth',block:'start'})}return}
+  if(t.dataset.nav){const [y,m]=month.split('-').map(Number);const d=new Date(y,m-1+Number(t.dataset.nav),1);month=d.getFullYear()+'-'+pad(d.getMonth()+1);render();return}
+  if(t.dataset.slot){selSlot=t.dataset.slot;render();return}
+  if(t.id==='bevestig'&&selSlot&&!busy){busy=true;msg.verplaats='';render();
+    try{const r=await api('/verplaats',{slot:selSlot});kiezen=false;await herlaad();msg={afspraak:{ok:true,t:'Jullie afspraak is verplaatst'+(r.gemaild?' — er is een bevestiging onderweg naar je mailbox.':'.')}}}
+    catch(err){msg.verplaats=err.message;if(err.status===409){busy=false;await laadSlots();return}}
+    finally{busy=false}render();window.scrollTo({top:0,behavior:'smooth'});return}
+  if(t.dataset.ofopen){ofOpen={[t.dataset.of]:t.dataset.ofopen};render();const ta=$('#aftxt-'+t.dataset.of);if(ta)ta.focus();return}
+  if(t.dataset.ofsluit){ofOpen={};render();return}
+  if(t.dataset.ofgo&&!busy){const id=t.dataset.ofgo;busy=true;render();
+    try{await api('/offerte/'+encodeURIComponent(id)+'/goedkeuren',{});ofOpen={};await herlaad();msg['of:'+id]={ok:true,t:'Bedankt! Jullie goedkeuring is doorgegeven. Ik neem snel contact op voor de volgende stap.'}}
+    catch(err){msg['of:'+id]={ok:false,t:err.message}}finally{busy=false}render();const el=$('#offertes');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
+});
+document.addEventListener('submit',async e=>{
+  const f=e.target;
+  if(f.dataset&&f.dataset.ofaf){e.preventDefault();if(busy)return;const id=f.dataset.ofaf;const bericht=($('#aftxt-'+id)||{}).value||'';
+    if(!bericht.trim()){msg['of:'+id]={ok:false,t:'Laat even weten waarom, of wat er anders mag.'};render();return}
+    busy=true;render();try{await api('/offerte/'+encodeURIComponent(id)+'/afwijzen',{bericht});ofOpen={};await herlaad();msg['of:'+id]={ok:true,t:'Bedankt voor jullie feedback — ik bekijk het en kom met een aangepast voorstel.'}}catch(err){msg['of:'+id]={ok:false,t:err.message}}finally{busy=false}render();return}
+  if(f.id==='vform'){e.preventDefault();if(busy)return;const antwoorden={};f.querySelectorAll('[data-vraag]').forEach(t=>antwoorden[t.dataset.vraag]=t.value);
+    busy=true;render();try{await api('/vragenlijst',{antwoorden});await herlaad();msg.vragen={ok:true,t:'Bedankt, jullie antwoorden zijn bewaard!'}}catch(err){msg.vragen={ok:false,t:err.message}}finally{busy=false}render();const el=$('#vragenlijst');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
+  if(f.id==='cform'){e.preventDefault();if(busy)return;const naam=$('#c-naam').value.trim();const akkoord=$('#c-akkoord').checked;const cv=$('#sig');
+    const fout=t=>{const el=$('#cmsg');if(el)el.innerHTML=`<p class="err">${esc(t)}</p>`};
+    if(naam.length<3){fout('Vul je volledige naam in.');return}
+    if(!sigDirty){fout('Zet je handtekening in het vak.');return}
+    if(!akkoord){fout('Vink aan dat je akkoord gaat met het contract.');return}
+    const handtekening=cv.toDataURL('image/png');busy=true;render();
+    try{await api('/contract/teken',{naam,akkoord,handtekening});await herlaad();msg.contract={ok:true,t:'Het contract is getekend. Bedankt!'}}catch(err){msg.contract={ok:false,t:err.message}}finally{busy=false}render();const el=$('#contract');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
+});
+init();
+</script>
+</body>
+</html>

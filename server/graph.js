@@ -93,4 +93,12 @@ async function zetAfspraak(cfg, klant, duur, opts = {}) {
   return { id: ev.id || klant.msEventId, joinUrl: (ev.onlineMeeting && ev.onlineMeeting.joinUrl) || '' };
 }
 
-module.exports = { authUrl, exchangeCode, accessToken, nieuwRefreshToken, wieBenIk, zetAfspraak };
+// Verwijdert een agenda-item (bv. bij annulatie). Een al verdwenen item telt als geslaagd.
+async function verwijderAfspraak(cfg, eventId) {
+  if (!eventId) return false;
+  const token = await accessToken(cfg);
+  try { await graph('DELETE', '/me/events/' + encodeURIComponent(eventId), token); return true; }
+  catch (e) { if (/404|not found|ErrorItemNotFound/i.test(e.message)) return true; throw e; }
+}
+
+module.exports = { authUrl, exchangeCode, accessToken, nieuwRefreshToken, wieBenIk, zetAfspraak, verwijderAfspraak };
