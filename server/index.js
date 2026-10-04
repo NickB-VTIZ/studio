@@ -151,7 +151,7 @@ async function geefPortaaltoegang(id, req, { mail = true } = {}) {
   let u = gebruikerViaKlant(id) || gebruikerViaEmail(doc.email);
   const bestond = !!u;
   if (u && u.role !== 'klant') throw Object.assign(new Error('Dit e-mailadres hoort al bij een ander account.'), { status: 409 });
-  if (!u) { const uid = maakGebruiker(doc.email, 'klant', id); u = store.get('gebruikers', uid); u.id = uid; }
+  if (!u) { const vn = (String(doc.naam || '').replace(/^Voorbeeld\s*·\s*/, '').split(/\s|&/)[0] || '').trim(); const uid = maakGebruiker(doc.email, 'klant', id, { voornaam: vn, naam: doc.naam || '' }); u = store.get('gebruikers', uid); u.id = uid; }
   else if (u.klantId !== id) { u.klantId = id; store.set('gebruikers', u.id, u); }
   const uid = u.id;
   const token = maakInvite(uid, mail ? 72 : 24 * 7); // gekopieerde link: een week geldig
@@ -227,12 +227,18 @@ function hashPw(pw, salt) { return crypto.pbkdf2Sync(String(pw), salt, 120000, 3
 const normEmail = e => String(e || '').trim().toLowerCase();
 function gebruikers() { return store.list('gebruikers'); }
 function gebruikerViaEmail(email) { const e = normEmail(email); return gebruikers().find(u => u.email === e) || null; }
-function gebruikerViaKlant(klantId) { return gebruikers().find(u => u.role === 'klant' && u.klantId === klantId) || null; }
-function maakGebruiker(email, role, klantId) {
+function gebruikerViaKlant(klantId) { return gebruikers().find(u => u.klantId === klantId) || null; }
+function maakGebruiker(email, role, klantId, extra = {}) {
   const uid = crypto.randomBytes(8).toString('hex');
-  store.set('gebruikers', uid, { email: normEmail(email), role, klantId: klantId || '', hash: '', salt: '', aangemaakt: new Date().toISOString() });
+  store.set('gebruikers', uid, { email: normEmail(email), role, klantId: klantId || '', voornaam: extra.voornaam || '', naam: extra.naam || '', hash: '', salt: '', aangemaakt: new Date().toISOString() });
   return uid;
 }
+// Rollen: elke rol zegt tot welk deel ze toegang geeft (beheer = Studio, portaal = Mijn pagina). Ingebouwde rollen kan je niet verwijderen.
+const STANDAARD_ROLLEN = { admin: { label: 'Beheerder', beheer: true, portaal: false, ingebouwd: true }, klant: { label: 'Klant', beheer: false, portaal: true, ingebouwd: true } };
+function rollen() { const d = store.get('instellingen', 'rollen'); return Object.assign({}, STANDAARD_ROLLEN, (d && d.rollen) || {}); }
+function rolDef(key) { return rollen()[key] || null; }
+function rolHeeft(key, deel) { const r = rolDef(key); return !!(r && r[deel]); }
+function bewaarRollen(map) { store.set('instellingen', 'rollen', { rollen: map }); }
 function zetWachtwoord(uid, pw) {
   const u = store.get('gebruikers', uid); if (!u) return;
   const salt = crypto.randomBytes(16).toString('hex');
@@ -287,7 +293,7 @@ function sessieUid(req) {
 }
 function huidigeGebruiker(req) { const uid = sessieUid(req); return uid ? store.get('gebruikers', uid) : null; }
 const isHttps = req => (req.headers['x-forwarded-proto'] || '').split(',')[0] === 'https' || !!req.socket.encrypted;
-const authedAdmin = req => { const u = huidigeGebruiker(req); return u && u.role === 'admin' ? u : null; };
+const authedAdmin = req => { const u = huidigeGebruiker(req); return u && rolHeeft(u.role, 'beheer') ? u : null; };
 const sidCookie = (req, val, maxAge) => `sid=${val}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${isHttps(req) ? '; Secure' : ''}`;
 
 // Uitnodiging / wachtwoord-reset: token = <uid>.<exp>.<nonce>.<sig>; de nonce staat op de gebruiker (eenmalig).
@@ -469,7 +475,7 @@ async function api(req, res, url) {
   // --- klantenportaal (klant-sessie) ---
   if (p.startsWith('/api/portaal/')) {
     const gu = huidigeGebruiker(req);
-    if (!gu || gu.role !== 'klant') return json(res, 401, { error: 'Niet aangemeld' });
+    if (!gu || !rolHeeft(gu.role, 'portaal')) return json(res, 401, { error: 'Niet aangemeld' });
     const kid = gu.klantId;
     const k = kid && store.get('klanten', kid);
     if (!k) return json(res, 404, { error: 'Geen dossier gekoppeld aan dit account.' });
@@ -479,7 +485,8 @@ async function api(req, res, url) {
       const offertes = zichtbareOffertes().map(o => { const t = offerteTotalen(o); return { id: o.id, titel: o.titel || 'Offerte', status: o.status, datum: o.datum || '', geldigTot: o.geldigTot || '', notitie: o.notitie || '', btw: num(o.btw),
         regels: (o.regels || []).filter(r => r.oms || r.aantal || r.prijs).map(r => ({ oms: r.oms || '', aantal: num(r.aantal), prijs: num(r.prijs), totaal: num(r.aantal) * num(r.prijs) })),
         totalen: t, bestanden: (o.bestanden || []).map(f => ({ id: f.id, naam: f.naam || 'bestand', type: f.type || '' })), goedgekeurdOp: o.goedgekeurdOp || '', reactie: o.klantReactie || '' }; });
-      return json(res, 200, { naam: k.naam, email: k.email || '', telefoon: k.telefoon || '', type: k.type || '', datumEvent: k.datumEvent || '', gasten: k.gasten || '',
+      const voornaam = gu.voornaam || (String(k.naam || '').replace(/^Voorbeeld\s*·\s*/, '').split(/\s|&/)[0] || '').trim();
+      return json(res, 200, { naam: k.naam, voornaam, email: k.email || '', telefoon: k.telefoon || '', type: k.type || '', datumEvent: k.datumEvent || '', gasten: k.gasten || '',
         kennismaking: k.kennismaking || '', duur: cfg.duur, locatie: k.videoprovider || cfg.locatie || '', titel: cfg.titel, videolink: k.videolink || '', videoprovider: k.videoprovider || '',
         fase: k.fase, fasen: fasenVoor(k), offertes, gestopt: k.fase === 'geen_deal', verplaatsbaar: k.fase !== 'geen_deal' && !!k.kennismaking && k.kennismaking >= nuBrussel(), nu: nuBrussel() });
     }
@@ -558,16 +565,86 @@ async function api(req, res, url) {
     if (nieuw) zetWachtwoord(admingu.id, nieuw);
     return json(res, 200, { ok: true, email });
   }
-  // Portaalgebruikers beheren (lijst + verwijderen).
+  // --- Gebruikersbeheer ---
+  const aantalBeheer = () => gebruikers().filter(u => rolHeeft(u.role, 'beheer')).length;
   if (p === '/api/gebruikers' && m === 'GET') {
-    return json(res, 200, { gebruikers: gebruikers().map(u => ({ id: u.id, email: u.email, role: u.role, klantId: u.klantId || '', klant: u.klantId ? (store.get('klanten', u.klantId) || {}).naam || '' : '', actief: !!u.hash, laatstIngelogd: u.laatstIngelogd || '' })) });
+    return json(res, 200, {
+      gebruikers: gebruikers().map(u => ({ id: u.id, email: u.email, voornaam: u.voornaam || '', naam: u.naam || '', role: u.role, klantId: u.klantId || '', klant: u.klantId ? (store.get('klanten', u.klantId) || {}).naam || '' : '', actief: !!u.hash, laatstIngelogd: u.laatstIngelogd || '' })),
+      rollen: rollen(),
+    });
+  }
+  if (p === '/api/gebruikers' && m === 'POST') { // nieuwe gebruiker + uitnodiging om wachtwoord in te stellen
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    const email = normEmail(b.email);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(res, 400, { error: 'Vul een geldig e-mailadres in.' });
+    if (gebruikerViaEmail(email)) return json(res, 409, { error: 'Er bestaat al een gebruiker met dit e-mailadres.' });
+    const role = rolDef(b.role) ? b.role : 'klant';
+    const uid = maakGebruiker(email, role, b.klantId || '', { voornaam: String(b.voornaam || '').trim().slice(0, 80), naam: String(b.naam || '').trim().slice(0, 120) });
+    let link = '', gemaild = false;
+    try { link = publicBase(req) + '/wachtwoord?t=' + encodeURIComponent(maakInvite(uid, b.mail ? 72 : 24 * 7));
+      if (b.mail && mailActief()) { const u = store.get('gebruikers', uid); const basis = { voornaam: u.voornaam || '', naam: u.naam || '', afzender: instellingen().afzender || 'justPIXIT', app: publicBase(req) + '/' };
+        const mm = bouwMail(sjablonen().portaalLogin, basis, { loginlink: { url: link, label: 'Stel mijn wachtwoord in' } });
+        const r = await verstuurMail({ to: email, subject: 'Toegang tot justPIXIT', text: mm.text, html: mm.html }, { soort: 'uitnodiging gebruiker' }); gemaild = r.ok; }
+    } catch (e) { console.error('[gebruiker]', e.message); }
+    return json(res, 200, { ok: true, id: uid, link, gemaild });
   }
   const gebrMatch = p.match(/^\/api\/gebruikers\/([a-f0-9]{8,32})$/);
+  if (gebrMatch && (m === 'POST' || m === 'PUT')) { // naam/voornaam/e-mail/rol wijzigen
+    const u = store.get('gebruikers', gebrMatch[1]); if (!u) return json(res, 404, { error: 'Niet gevonden' });
+    u.id = gebrMatch[1];
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    if ('email' in b) { const e = normEmail(b.email); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return json(res, 400, { error: 'Vul een geldig e-mailadres in.' }); const bestaat = gebruikerViaEmail(e); if (bestaat && bestaat.id !== u.id) return json(res, 409, { error: 'Dit e-mailadres is al in gebruik.' }); u.email = e; }
+    if ('voornaam' in b) u.voornaam = String(b.voornaam || '').trim().slice(0, 80);
+    if ('naam' in b) u.naam = String(b.naam || '').trim().slice(0, 120);
+    if ('role' in b && b.role !== u.role) {
+      if (!rolDef(b.role)) return json(res, 400, { error: 'Onbekende rol.' });
+      if (rolHeeft(u.role, 'beheer') && !rolHeeft(b.role, 'beheer') && aantalBeheer() <= 1) return json(res, 400, { error: 'Dit is het laatste account met beheerrechten; wijzig de rol niet.' });
+      u.role = b.role;
+    }
+    store.set('gebruikers', u.id, u);
+    return json(res, 200, { ok: true });
+  }
   if (gebrMatch && m === 'DELETE') {
     const u = store.get('gebruikers', gebrMatch[1]);
     if (!u) return json(res, 404, { error: 'Niet gevonden' });
-    if (u.role === 'admin' && gebruikers().filter(x => x.role === 'admin').length <= 1) return json(res, 400, { error: 'Je kan het laatste beheerdersaccount niet verwijderen.' });
+    if (rolHeeft(u.role, 'beheer') && aantalBeheer() <= 1) return json(res, 400, { error: 'Je kan het laatste account met beheerrechten niet verwijderen.' });
     store.delete('gebruikers', gebrMatch[1]);
+    return json(res, 200, { ok: true });
+  }
+  if (p.match(/^\/api\/gebruikers\/([a-f0-9]{8,32})\/uitnodiging$/) && m === 'POST') {
+    const id = p.split('/')[3]; const u = store.get('gebruikers', id); if (!u) return json(res, 404, { error: 'Niet gevonden' });
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    const link = publicBase(req) + '/wachtwoord?t=' + encodeURIComponent(maakInvite(id, b.mail ? 72 : 24 * 7));
+    let gemaild = false;
+    if (b.mail) { if (!mailActief()) return json(res, 400, { error: 'E-mail is niet ingesteld (zie Koppelingen).' });
+      const basis = { voornaam: u.voornaam || '', naam: u.naam || '', afzender: instellingen().afzender || 'justPIXIT', app: publicBase(req) + '/' };
+      const mm = bouwMail(sjablonen().portaalLogin, basis, { loginlink: { url: link, label: 'Stel mijn wachtwoord in' } });
+      const r = await verstuurMail({ to: u.email, subject: 'Toegang tot justPIXIT', text: mm.text, html: mm.html }, { soort: 'uitnodiging gebruiker' }); if (!r.ok) return json(res, 502, { error: 'Mail versturen mislukt: ' + r.error }); gemaild = true;
+    }
+    return json(res, 200, { ok: true, link, gemaild });
+  }
+  // Rollen beheren
+  if (p === '/api/rollen' && m === 'GET') return json(res, 200, { rollen: rollen() });
+  if (p === '/api/rollen' && m === 'POST') { // toevoegen of wijzigen
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    const key = String(b.key || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24);
+    if (!key) return json(res, 400, { error: 'Geef de rol een korte sleutel (letters/cijfers).' });
+    if (STANDAARD_ROLLEN[key] && b.nieuw) return json(res, 409, { error: 'Deze rol bestaat al.' });
+    const map = (store.get('instellingen', 'rollen') || {}).rollen || {};
+    const bestaand = map[key] || STANDAARD_ROLLEN[key] || {};
+    if (bestaand.ingebouwd) { // enkel het label mag je bij ingebouwde rollen niet nodig; sta toegang niet aan te passen
+      return json(res, 400, { error: 'Ingebouwde rollen (Beheerder, Klant) kan je niet wijzigen.' });
+    }
+    map[key] = { label: String(b.label || key).trim().slice(0, 40) || key, beheer: !!b.beheer, portaal: !!b.portaal, ingebouwd: false };
+    bewaarRollen(map);
+    return json(res, 200, { ok: true, key });
+  }
+  const rolMatch = p.match(/^\/api\/rollen\/([a-z0-9_]{1,24})$/);
+  if (rolMatch && m === 'DELETE') {
+    const key = rolMatch[1];
+    if (STANDAARD_ROLLEN[key]) return json(res, 400, { error: 'Ingebouwde rollen kan je niet verwijderen.' });
+    if (gebruikers().some(u => u.role === key)) return json(res, 400, { error: 'Er zijn nog gebruikers met deze rol. Wijzig hun rol eerst.' });
+    const map = (store.get('instellingen', 'rollen') || {}).rollen || {}; delete map[key]; bewaarRollen(map);
     return json(res, 200, { ok: true });
   }
   if (p === '/api/version' && m === 'GET') {

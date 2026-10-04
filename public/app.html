@@ -329,6 +329,7 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
     <button data-v="vandaag">Vandaag</button>
     <button data-v="pipeline">Pipeline</button>
     <button data-v="klanten">Klanten</button>
+    <button data-v="gebruikers">Gebruikers</button>
     <button data-v="beheer">Beheer</button>
     <button data-v="koppelingen">Koppelingen</button>
   </nav>
@@ -497,7 +498,7 @@ function planning(k){
 let db=null, sample=null, klanten=[], loaded=false, showEnded=false;
 let view={v:'vandaag'}; let work=null; let mounted=null; let pendingTop={}; let saveTimer=null; let chain=Promise.resolve();
 let search='', filterType='', confirmDel=false, klantTab='fiche', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null, vpOpen=false, vpMsg=null, vpBusy=false;
-try{const v=localStorage.getItem('jp-view');if(v&&['vandaag','pipeline','klanten','beheer','koppelingen'].includes(v))view={v}}catch(e){}
+// Na het inloggen start de beheerder altijd op "Vandaag".
 
 function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;ofConfirm=null;vpOpen=false;vpMsg=null;if(v==='klant'){klantTab='fiche';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
   try{if(v!=='klant'&&v!=='nieuw')localStorage.setItem('jp-view',v)}catch(e){}
@@ -513,7 +514,8 @@ function render(){
   else if(view.v==='pipeline')app.innerHTML=vPipeline();
   else if(view.v==='klanten')app.innerHTML=vKlanten();
   else if(view.v==='nieuw')app.innerHTML=vNieuw();
-  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel();laadAgenda();laadMailtest();laadGebruikers()}}
+  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel();laadAgenda();laadMailtest()}}
+  else if(view.v==='gebruikers'){app.innerHTML=vGebruikers();laadGebruikers()}
   else if(view.v==='koppelingen'){if(!koppelOpen){app.innerHTML=vKoppelingen();koppelOpen=true;laadKoppelingen()}}
   else if(view.v==='klant'){
     const k=klanten.find(x=>x.id===view.id);
@@ -1086,21 +1088,88 @@ function beheerSysteem(){
      <label class="fld"><span>Huidig wachtwoord <span class="hint">(ter bevestiging)</span></span><input id="acc-huidig" type="password" autocomplete="current-password"></label>
      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="accSave">Account bewaren</button><span class="hint" id="accMsg"></span></div>
     </div></section>
-   <section><h2>Portaalgebruikers</h2><p>Accounts die toegang hebben tot Mijn pagina. Klanten geef je toegang vanaf hun fiche (zijbalk → “Toegang geven”). Hier kan je accounts bekijken of verwijderen.</p>
-    <div class="sec" id="gebruikersBox" style="display:grid;gap:10px"><p class="hint" style="margin:0">Laden…</p></div></section>
    <section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
    <section><h2>Koppelingen</h2><p>E-mail (Resend), WhatsApp, Office 365, Zoom en facturatie stel je in op de aparte pagina.</p><button class="btn" data-v="koppelingen" data-gonav="1">Naar Koppelingen →</button></section>`;
 }
-async function laadGebruikers(){
-  const box=$('#gebruikersBox');if(!box)return;
-  let d={gebruikers:[]};try{d=await (await fetch('/api/gebruikers',{credentials:'same-origin'})).json()}catch(e){}
-  const rows=(d.gebruikers||[]).map(u=>{const rol=u.role==='admin'?'Beheerder':'Klant';const wie=u.role==='klant'?(u.klant||'(geen fiche)'):'';
-    return `<li class="dlrow" style="margin:0;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><span><b>${esc(u.email)}</b> <span class="chip">${rol}</span>${wie?` <span class="hint">· ${esc(wie)}</span>`:''}${u.actief?'':' <span class="hint">· nog niet geactiveerd</span>'}${u.laatstIngelogd?` <span class="hint">· laatst ${esc(fmtDT(u.laatstIngelogd.slice(0,16)))}</span>`:''}</span>${u.role==='admin'?'':`<button class="btn small ghost danger" data-deluser="${esc(u.id)}" data-email="${esc(u.email)}">Verwijderen</button>`}</li>`}).join('');
-  box.innerHTML=rows?`<ul style="list-style:none;margin:0;padding:0;display:grid;gap:8px">${rows}</ul>`:'<p class="hint" style="margin:0">Nog geen portaalgebruikers.</p>';
+/* ---------- Gebruikersbeheer (apart tabblad) ---------- */
+let gebrData={gebruikers:[],rollen:{}}, gebrEdit=null, rolEdit=null, gebrNieuw=false, rolNieuw=false;
+function vGebruikers(){
+  return `<div class="vhead"><div><h1>Gebruikersbeheer</h1><p>Beheer wie toegang heeft, hun naam en rol. Nieuwe leads krijgen pas een account wanneer je toegang geeft vanaf hun fiche.</p></div></div>
+   <div class="beheer">
+    <section><h2>Gebruikers</h2><div class="sec" id="gebruikersBox" style="display:grid;gap:12px"><p class="hint" style="margin:0">Laden…</p></div></section>
+    <section><h2>Rollen</h2><p>Een rol bepaalt tot welk deel iemand toegang heeft: het beheer (Studio) en/of Mijn pagina (klantenportaal).</p><div class="sec" id="rollenBox" style="display:grid;gap:12px"><p class="hint" style="margin:0">Laden…</p></div></section>
+   </div>`;
 }
-document.addEventListener('click',async e=>{const t=e.target.closest('[data-deluser]');if(!t)return;
-  if(!confirm('Toegang voor '+t.dataset.email+' verwijderen? De fiche blijft bestaan.'))return;
-  try{const r=await fetch('/api/gebruikers/'+t.dataset.deluser,{method:'DELETE',credentials:'same-origin'}).then(x=>x.json());if(r.error)toast(r.error);else{toast('Toegang verwijderd');laadGebruikers()}}catch(err){toast('Mislukt')}});
+function rolLabel(key){return (gebrData.rollen[key]||{}).label||key}
+async function laadGebruikers(){
+  try{gebrData=await (await fetch('/api/gebruikers',{credentials:'same-origin'})).json()}catch(e){gebrData={gebruikers:[],rollen:{}}}
+  tekenGebruikers();tekenRollen();
+}
+function rolOpties(sel){return Object.keys(gebrData.rollen).map(k=>`<option value="${esc(k)}" ${k===sel?'selected':''}>${esc(gebrData.rollen[k].label)}</option>`).join('')}
+function tekenGebruikers(){
+  const box=$('#gebruikersBox');if(!box)return;
+  const rows=(gebrData.gebruikers||[]).map(u=>{
+    if(gebrEdit===u.id)return `<div class="todo-card" style="display:grid;gap:10px"><div class="grid2">
+       <label class="fld"><span>Voornaam</span><input id="gu-vn" value="${esc(u.voornaam||'')}"></label>
+       <label class="fld"><span>Naam</span><input id="gu-naam" value="${esc(u.naam||'')}"></label>
+       <label class="fld"><span>E-mailadres</span><input id="gu-email" type="email" value="${esc(u.email)}"></label>
+       <label class="fld"><span>Rol</span><select id="gu-rol">${rolOpties(u.role)}</select></label>
+      </div>${u.klant?`<span class="hint">Gekoppeld aan fiche: ${esc(u.klant)}</span>`:''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" data-gusave="${esc(u.id)}">Bewaren</button><button class="btn small ghost" data-gucancel="1">Annuleer</button>${u.actief?'':`<button class="btn small ghost" data-guinvite="${esc(u.id)}">Uitnodiging mailen</button>`}</div></div>`;
+    const naam=[u.voornaam,u.naam].filter(Boolean).join(' ')||'(geen naam)';
+    return `<div class="dlrow" style="margin:0;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+      <span><b>${esc(naam)}</b> <span class="hint">${esc(u.email)}</span> <span class="chip">${esc(rolLabel(u.role))}</span>${u.klant?` <span class="hint">· ${esc(u.klant)}</span>`:''}${u.actief?'':' <span class="hint">· nog niet geactiveerd</span>'}${u.laatstIngelogd?` <span class="hint">· laatst ${esc(fmtDT(u.laatstIngelogd.slice(0,16)))}</span>`:''}</span>
+      <span style="display:flex;gap:6px"><button class="btn small ghost" data-guedit="${esc(u.id)}">Wijzig</button><button class="btn small ghost danger" data-gudel="${esc(u.id)}" data-email="${esc(u.email)}">Verwijder</button></span></div>`;
+  }).join('');
+  const nieuw=gebrNieuw?`<div class="todo-card" style="display:grid;gap:10px"><b>Nieuwe gebruiker</b><div class="grid2">
+     <label class="fld"><span>Voornaam</span><input id="gn-vn"></label><label class="fld"><span>Naam</span><input id="gn-naam"></label>
+     <label class="fld"><span>E-mailadres</span><input id="gn-email" type="email" placeholder="naam@voorbeeld.be"></label>
+     <label class="fld"><span>Rol</span><select id="gn-rol">${rolOpties('klant')}</select></label>
+    </div><label class="opts" style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="gn-mail" ${serverInfo.mail?'checked':'disabled'}>Meteen een uitnodiging mailen${serverInfo.mail?'':' (geen e-mail ingesteld)'}</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" id="gnSave">Aanmaken</button><button class="btn small ghost" id="gnCancel">Annuleer</button><span class="hint" id="gnMsg"></span></div></div>`:`<button class="btn small" id="gnOpen">+ Gebruiker toevoegen</button>`;
+  box.innerHTML=(rows?`<div style="display:grid;gap:8px">${rows}</div>`:'<p class="hint" style="margin:0">Nog geen gebruikers.</p>')+'<div style="margin-top:4px">'+nieuw+'</div>';
+}
+function tekenRollen(){
+  const box=$('#rollenBox');if(!box)return;
+  const rows=Object.keys(gebrData.rollen).map(k=>{const r=gebrData.rollen[k];const toeg=[r.beheer?'Beheer':'',r.portaal?'Mijn pagina':''].filter(Boolean).join(' + ')||'geen toegang';const aantal=(gebrData.gebruikers||[]).filter(u=>u.role===k).length;
+    if(rolEdit===k&&!r.ingebouwd)return `<div class="todo-card" style="display:grid;gap:10px"><div class="grid2">
+       <label class="fld"><span>Naam van de rol</span><input id="rl-label" value="${esc(r.label)}"></label></div>
+       <div class="opts"><label><input type="checkbox" id="rl-beheer" ${r.beheer?'checked':''}>Toegang tot beheer (Studio)</label><label><input type="checkbox" id="rl-portaal" ${r.portaal?'checked':''}>Toegang tot Mijn pagina</label></div>
+       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" data-rlsave="${esc(k)}">Bewaren</button><button class="btn small ghost" data-rlcancel="1">Annuleer</button></div></div>`;
+    return `<div class="dlrow" style="margin:0;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+      <span><b>${esc(r.label)}</b> <span class="hint">${esc(toeg)}</span> <span class="chip">${aantal} ${aantal===1?'gebruiker':'gebruikers'}</span>${r.ingebouwd?' <span class="hint">· ingebouwd</span>':''}</span>
+      ${r.ingebouwd?'':`<span style="display:flex;gap:6px"><button class="btn small ghost" data-rledit="${esc(k)}">Wijzig</button><button class="btn small ghost danger" data-rldel="${esc(k)}">Verwijder</button></span>`}</div>`;
+  }).join('');
+  const nieuw=rolNieuw?`<div class="todo-card" style="display:grid;gap:10px"><b>Nieuwe rol</b><div class="grid2">
+     <label class="fld"><span>Sleutel <span class="hint">(kort, bv. medewerker)</span></span><input id="rn-key" placeholder="medewerker"></label>
+     <label class="fld"><span>Naam van de rol</span><input id="rn-label" placeholder="Medewerker"></label></div>
+    <div class="opts"><label><input type="checkbox" id="rn-beheer">Toegang tot beheer (Studio)</label><label><input type="checkbox" id="rn-portaal">Toegang tot Mijn pagina</label></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" id="rnSave">Rol aanmaken</button><button class="btn small ghost" id="rnCancel">Annuleer</button><span class="hint" id="rnMsg"></span></div></div>`:`<button class="btn small" id="rnOpen">+ Rol toevoegen</button>`;
+  box.innerHTML=`<div style="display:grid;gap:8px">${rows}</div><div style="margin-top:4px">${nieuw}</div>`;
+}
+async function apiGebr(url,opt){const r=await fetch(url,Object.assign({credentials:'same-origin'},opt));let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw new Error(j.error||'Mislukt');return j}
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('[data-guedit],[data-gucancel],[data-gusave],[data-gudel],[data-guinvite],#gnOpen,#gnCancel,#gnSave,[data-rledit],[data-rlcancel],[data-rlsave],[data-rldel],#rnOpen,#rnCancel,#rnSave');
+  if(!t||view.v!=='gebruikers')return;
+  if(t.dataset.guedit){gebrEdit=t.dataset.guedit;gebrNieuw=false;tekenGebruikers();return}
+  if(t.dataset.gucancel){gebrEdit=null;tekenGebruikers();return}
+  if(t.dataset.gusave){try{await apiGebr('/api/gebruikers/'+t.dataset.gusave,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({voornaam:($('#gu-vn')||{}).value||'',naam:($('#gu-naam')||{}).value||'',email:($('#gu-email')||{}).value||'',role:($('#gu-rol')||{}).value||''})});gebrEdit=null;toast('Bewaard');await laadGebruikers()}catch(err){toast(err.message)}return}
+  if(t.dataset.gudel){if(!confirm('Gebruiker '+t.dataset.email+' verwijderen? De eventuele fiche blijft bestaan.'))return;try{await apiGebr('/api/gebruikers/'+t.dataset.gudel,{method:'DELETE'});toast('Verwijderd');await laadGebruikers()}catch(err){toast(err.message)}return}
+  if(t.dataset.guinvite){try{const r=await apiGebr('/api/gebruikers/'+t.dataset.guinvite+'/uitnodiging',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mail:true})});toast(r.gemaild?'Uitnodiging gemaild':'Link aangemaakt')}catch(err){toast(err.message)}return}
+  if(t.id==='gnOpen'){gebrNieuw=true;gebrEdit=null;tekenGebruikers();return}
+  if(t.id==='gnCancel'){gebrNieuw=false;tekenGebruikers();return}
+  if(t.id==='gnSave'){const msg=$('#gnMsg');if(msg)msg.textContent='Bezig…';
+    try{const r=await apiGebr('/api/gebruikers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({voornaam:$('#gn-vn').value,naam:$('#gn-naam').value,email:$('#gn-email').value,role:$('#gn-rol').value,mail:$('#gn-mail').checked})});
+      gebrNieuw=false;await laadGebruikers();toast(r.gemaild?'Aangemaakt — uitnodiging gemaild':'Aangemaakt');if(!r.gemaild&&r.link)await copy(r.link)}catch(err){if(msg){msg.style.color='var(--late)';msg.textContent=err.message}}return}
+  if(t.dataset.rledit){rolEdit=t.dataset.rledit;rolNieuw=false;tekenRollen();return}
+  if(t.dataset.rlcancel){rolEdit=null;tekenRollen();return}
+  if(t.dataset.rlsave){try{await apiGebr('/api/rollen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:t.dataset.rlsave,label:($('#rl-label')||{}).value||'',beheer:($('#rl-beheer')||{}).checked,portaal:($('#rl-portaal')||{}).checked})});rolEdit=null;toast('Bewaard');await laadGebruikers()}catch(err){toast(err.message)}return}
+  if(t.dataset.rldel){if(!confirm('Rol verwijderen?'))return;try{await apiGebr('/api/rollen/'+t.dataset.rldel,{method:'DELETE'});toast('Verwijderd');await laadGebruikers()}catch(err){toast(err.message)}return}
+  if(t.id==='rnOpen'){rolNieuw=true;rolEdit=null;tekenRollen();return}
+  if(t.id==='rnCancel'){rolNieuw=false;tekenRollen();return}
+  if(t.id==='rnSave'){const msg=$('#rnMsg');if(msg)msg.textContent='Bezig…';
+    try{await apiGebr('/api/rollen',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:$('#rn-key').value,label:$('#rn-label').value,beheer:$('#rn-beheer').checked,portaal:$('#rn-portaal').checked,nieuw:true})});rolNieuw=false;await laadGebruikers();toast('Rol aangemaakt')}catch(err){if(msg){msg.style.color='var(--late)';msg.textContent=err.message}}return}
+});
 async function bewaarAccount(){
   const email=($('#acc-email')||{}).value.trim()||'',nieuw=($('#acc-nieuw')||{}).value||'',huidig=($('#acc-huidig')||{}).value||'';
   const msg=$('#accMsg');if(msg){msg.style.color='';msg.textContent='Bewaren…'}
@@ -1176,9 +1245,9 @@ function beheerAfspraken(){
    <section><h2>Agenda (Office 365 / Outlook)</h2><p>Zet je kennismakingsgesprekken automatisch in je Outlook-agenda. Voeg de onderstaande link toe in Outlook via <b>Agenda toevoegen → Abonneren vanaf internet</b>. Outlook ververst die daarna zelf (meestal elke paar uur). Heb je Office 365 gekoppeld (zie Koppelingen), dan komen afspraken ook rechtstreeks in je agenda.</p>
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
 }
-function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();laadGebruikers();window.scrollTo(0,y)}
+function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();window.scrollTo(0,y)}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-btab],[data-gonav],#copyPortaalLink');if(!t)return;
-  if(t.dataset.btab){beheerTab=t.dataset.btab;try{localStorage.setItem('jp-beheer',beheerTab)}catch(err){}$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();laadGebruikers();window.scrollTo(0,0);return}
+  if(t.dataset.btab){beheerTab=t.dataset.btab;try{localStorage.setItem('jp-beheer',beheerTab)}catch(err){}$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();window.scrollTo(0,0);return}
   if(t.dataset.gonav){go(t.dataset.v);return}
   if(t.id==='copyPortaalLink')copy(serverInfo.base+'/mijn');
 });

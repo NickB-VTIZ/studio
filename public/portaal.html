@@ -122,7 +122,7 @@ async function init(){
   render();
 }
 function render(){
-  const n=voornaam(me.naam);
+  const n=me.voornaam||voornaam(me.naam);
   $('#main').innerHTML=`<div class="topbar"><button class="btn ghost small" id="logout">Afmelden</button></div>
    <div class="hero"><h1>Hoi ${esc(n||'daar')}</h1><p>Hier vinden jullie alles over jullie ${esc((me.type||'').toLowerCase()==='geboorte'?'geboortekaartje':'project')} bij justPIXIT.</p></div><hr class="rule">
    ${(me.offertes||[]).some(o=>o.status==='Verstuurd')?renderOffertes():''}
