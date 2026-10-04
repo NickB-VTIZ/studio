@@ -650,8 +650,11 @@ function vKlant(){
     <section class="sec" id="sec-bedankjes" style="display:${get(work,'fiche.producten.bedankjes')?'':'none'}"><h2>Bedankjes</h2>
       <div id="bedankjes-body">
       ${(()=>{const opties=get(work,'fiche.bedankjes.opties')||[{notities:'',aantal:'',verpakking:'',afwerking:''}];return opties.map((opt,i)=>`<div class="bedankje-optie" data-bi="${i}" style="border:1px solid var(--bdr);border-radius:8px;padding:.75rem;margin-bottom:.75rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem"><div style="display:flex;align-items:center;gap:.75rem"><strong>Optie ${i+1}</strong><label class="fld" style="margin:0"><span style="font-size:.85em">Aantal</span><input data-f="fiche.bedankjes.opties.${i}.aantal" value="${esc(opt.aantal||'')}" style="width:5rem"></label></div>${opties.length>1?`<button type="button" class="btn ghost sm" data-del-bedankje="${i}" title="Verwijder optie" style="color:var(--danger)">✕</button>`:''}</div>
-        <label class="fld full"><span>Notities</span><textarea data-f="fiche.bedankjes.opties.${i}.notities" rows="2">${esc(opt.notities||'')}</textarea></label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem"><strong>Optie ${i+1}</strong>${opties.length>1?`<button type="button" class="btn ghost sm" data-del-bedankje="${i}" title="Verwijder optie" style="color:var(--danger)">✕</button>`:''}</div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px 18px;margin-bottom:12px">
+          <label class="fld"><span>Notities</span><textarea data-f="fiche.bedankjes.opties.${i}.notities" rows="2">${esc(opt.notities||'')}</textarea></label>
+          <label class="fld"><span>Aantal</span><input data-f="fiche.bedankjes.opties.${i}.aantal" value="${esc(opt.aantal||'')}" style="width:5rem"></label>
+        </div>
         <div class="grid2">
           <label class="fld"><span>Verpakking</span><input data-f="fiche.bedankjes.opties.${i}.verpakking" value="${esc(opt.verpakking||'')}"></label>
           <label class="fld"><span>Afwerking</span><input data-f="fiche.bedankjes.opties.${i}.afwerking" value="${esc(opt.afwerking||'')}"></label>
@@ -897,8 +900,11 @@ function renderBedankjes(){
   const body=document.getElementById('bedankjes-body');if(!body||!work)return;
   const opties=get(work,'fiche.bedankjes.opties')||[{notities:'',aantal:'',verpakking:'',afwerking:''}];
   body.innerHTML=opties.map((opt,i)=>`<div class="bedankje-optie" data-bi="${i}" style="border:1px solid var(--bdr);border-radius:8px;padding:.75rem;margin-bottom:.75rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem"><div style="display:flex;align-items:center;gap:.75rem"><strong>Optie ${i+1}</strong><label class="fld" style="margin:0"><span style="font-size:.85em">Aantal</span><input data-f="fiche.bedankjes.opties.${i}.aantal" value="${esc(opt.aantal||'')}" style="width:5rem"></label></div>${opties.length>1?`<button type="button" class="btn ghost sm" data-del-bedankje="${i}" title="Verwijder optie" style="color:var(--danger)">✕</button>`:''}</div>
-    <label class="fld full"><span>Notities</span><textarea data-f="fiche.bedankjes.opties.${i}.notities" rows="2">${esc(opt.notities||'')}</textarea></label>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem"><strong>Optie ${i+1}</strong>${opties.length>1?`<button type="button" class="btn ghost sm" data-del-bedankje="${i}" title="Verwijder optie" style="color:var(--danger)">✕</button>`:''}</div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:12px 18px;margin-bottom:12px">
+      <label class="fld"><span>Notities</span><textarea data-f="fiche.bedankjes.opties.${i}.notities" rows="2">${esc(opt.notities||'')}</textarea></label>
+      <label class="fld"><span>Aantal</span><input data-f="fiche.bedankjes.opties.${i}.aantal" value="${esc(opt.aantal||'')}" style="width:5rem"></label>
+    </div>
     <div class="grid2">
       <label class="fld"><span>Verpakking</span><input data-f="fiche.bedankjes.opties.${i}.verpakking" value="${esc(opt.verpakking||'')}"></label>
       <label class="fld"><span>Afwerking</span><input data-f="fiche.bedankjes.opties.${i}.afwerking" value="${esc(opt.afwerking||'')}"></label>
