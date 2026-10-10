@@ -182,7 +182,27 @@ function bestandOpSchijf(id) { // {pad, naam, type} van een geüpload bestand
 const bijlageVan = id => { const b = bestandOpSchijf(id); return b ? { filename: b.naam, content: fs.readFileSync(b.pad), contentType: b.type } : null; };
 // Vragenlijsten per type klant (bewerkbaar in Beheer → instellingen/algemeen.vragenlijsten). Eén vraag per regel.
 const STANDAARD_VRAGENLIJSTEN = {
-  Huwelijk: ['Jullie namen zoals ze op de uitnodiging moeten staan', 'Datum en uur van de ceremonie', 'Locatie(s): ceremonie, receptie, feest', 'Tot wanneer mogen gasten antwoorden (RSVP)?', 'Hoeveel uitnodigingen hebben jullie nodig?', 'Welke stijl of sfeer spreekt jullie aan? (kleuren, lettertypes, voorbeelden)', 'Is er een dresscode of thema?', 'Zijn er extra kaartjes nodig (menu, naamkaartjes, bedankjes)?', 'Hebben jullie een website of QR-code voor meer info?', 'Nog iets dat ik zeker moet weten?'],
+  Huwelijk: [
+    '§Gegevens drukwerk',
+    'Naam bruid (zoals je deze op de uitnodiging wilt hebben vermeld)',
+    'Naam bruidegom (zoals je deze op de uitnodiging wilt hebben vermeld)',
+    'Huwelijksdatum',
+    'Trouwlocatie — Naam',
+    'Trouwlocatie — Adres',
+    'Ceremonie — Tijdstip (indien van toepassing)',
+    'Ceremonie — Locatie (indien van toepassing)',
+    'Receptie — Tijdstip (indien van toepassing)',
+    'Receptie — Locatie (indien van toepassing)',
+    'RSVP — Datum waarvoor men aan- of afwezigheid dient te bevestigen',
+    'RSVP — Manier + gegevens waarop zij dit dienen te bevestigen (vb website, mail, telefoon, …)',
+    'Dresscode (indien van toepassing)',
+    'Cadeautips (vb cadeaulijst, envelop, …)',
+    'Zijn er nog andere gegevens die jullie graag op de uitnodiging hadden?',
+    'Datum wanneer jullie graag de uitnodigingen klaar willen hebben (de aangewezen verzenddatum is 6-8 weken voor het huwelijk)',
+    '§Ontwerp',
+    'Zijn er elementen dat jij mooi vindt dat je zeker terug wilt zien komen in je uitnodiging? (Lettertype, kleuren, symbolen, tekeningen, …)',
+    'Heb jij enkele voorbeelden of stijlen van uitnodigingen die je mooi vindt? (Pinterest is hier de place to be voor)',
+  ],
   Geboorte: ['Naam van de baby (en eventueel tweede naam)', 'Geboortedatum en -uur, gewicht en lengte', 'Namen van de ouders', 'Namen van broers/zussen, meter en peter', 'Hoeveel kaartjes hebben jullie nodig?', 'Welke stijl spreekt jullie aan? (kleuren, illustraties, voorbeelden)', 'Komt er een foto op het kaartje?', 'Welke tekst of quote willen jullie erbij?', 'Gegevens voor kraambezoek of een geboortelijst?', 'Nog iets dat ik zeker moet weten?'],
   Ander: ['Wat wil je laten ontwerpen?', 'Voor wanneer heb je het nodig?', 'Hoeveel exemplaren?', 'Welke stijl of sfeer spreekt je aan?', 'Nog iets dat ik zeker moet weten?'],
 };

@@ -67,6 +67,7 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 .vl-saved.show{opacity:1}
 .vl-saved svg{width:14px;height:14px}
 .vl-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:4px}
+.vl-sec{font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--green);margin:8px 0 -4px;padding-bottom:6px;border-bottom:1px solid var(--sage-deep)}
 </style>
 </head>
 <body>
@@ -188,6 +189,7 @@ function offerteKaart(o){
 let vlTimer=null,vlSaving=false;
 function vlAntwoorden(){const ant={};document.querySelectorAll('#vform [data-vraag]').forEach(t=>ant[t.dataset.vraag]=t.value);return ant}
 function vlProgress(){const els=[...document.querySelectorAll('#vform [data-vraag]')];const filled=els.filter(t=>t.value.trim().length>0).length;return {filled,total:els.length,pct:els.length?Math.round(filled/els.length*100):0}}
+function isSection(q){return q.startsWith('§')}
 function vlAutoSave(){
   clearTimeout(vlTimer);
   vlTimer=setTimeout(async()=>{
@@ -216,8 +218,8 @@ function renderVragenlijst(){
      </div>
    </details>
    <form id="vform" class="card" style="display:grid;gap:16px">
-    <div class="vl-progress"><span id="vlPct">0 van ${v.vragen.length} ingevuld</span><div class="bar"><i style="width:0%"></i></div><span class="vl-saved" id="vlSaved"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Bewaard</span></div>
-    ${v.vragen.map((q,i)=>`<label class="fld"><span>${i+1}. ${esc(q)}</span><textarea data-vraag="${esc(q)}" rows="2" maxlength="2000" placeholder="Typ hier jullie antwoord…">${esc(ant[q]||'')}</textarea></label>`).join('')}
+    <div class="vl-progress"><span id="vlPct">0 van ${v.vragen.filter(q=>!q.startsWith('§')).length} ingevuld</span><div class="bar"><i style="width:0%"></i></div><span class="vl-saved" id="vlSaved"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Bewaard</span></div>
+    ${(()=>{let n=0;return v.vragen.map(q=>{if(q.startsWith('§'))return `<h3 class="vl-sec">${esc(q.slice(1))}</h3>`;n++;return `<label class="fld"><span>${n}. ${esc(q)}</span><textarea data-vraag="${esc(q)}" rows="2" maxlength="2000" placeholder="Typ hier jullie antwoord…">${esc(ant[q]||'')}</textarea></label>`}).join('')})()}
     ${m?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}
     <div class="vl-actions"><button class="btn primary" type="submit" id="vlDef" ${busy?'disabled':''}>${klaar?'Wijzigingen definitief insturen':'Definitief insturen'}</button><button class="btn" type="button" id="vlConcept" ${busy?'disabled':''}>${concept||klaar?'Concept opslaan':'Eerst als concept opslaan'}</button></div>
    </form></section>`;
