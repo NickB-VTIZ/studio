@@ -786,7 +786,7 @@ function naGoedkeuringPanel(k){
   const allesBinnen=vs.betaald&&vl.ingevuldOp;
   return `<section class="panel"><header><h2>Na goedkeuring</h2>${k.naGoedkeuringVerstuurdOp?`<span class="count" style="margin-left:auto">gemaild ${fmt(k.naGoedkeuringVerstuurdOp)}</span>`:''}</header><div class="todo-card" style="display:grid;gap:8px">
     ${rij(vs.betaald,'Voorschot '+(vs.betaald?'betaald'+(vs.op?' op '+fmt(vs.op):''):'nog niet betaald'),`<button class="btn small ${vs.betaald?'ghost':''}" id="vsToggle">${vs.betaald?'Terug op niet betaald':'Markeer als betaald'}</button>`)}
-    ${rij(!!vl.ingevuldOp,'Vragenlijst '+(vl.ingevuldOp?'ontvangen op '+fmt(vl.ingevuldOp):'nog niet ingevuld'),vl.ingevuldOp?'<button class="btn small ghost" data-tab="vragenlijst">Bekijk antwoorden →</button>':'<span class="hint">De klant vult ze in via zijn dossier.</span>')}
+    ${rij(!!vl.ingevuldOp,'Vragenlijst '+(vl.ingevuldOp?'ontvangen op '+fmt(vl.ingevuldOp):(vl.conceptOp?'concept bewaard (nog niet definitief)':'nog niet ingevuld')),(vl.ingevuldOp||vl.conceptOp)?'<button class="btn small ghost" data-tab="vragenlijst">Bekijk antwoorden →</button>':'<span class="hint">De klant vult ze in via zijn dossier.</span>')}
     ${rij(!!c.getekend,c.getekend?'Contract getekend door '+esc(c.getekend.naam)+' op '+fmt(c.getekend.op.slice(0,10)):(c.bestandId?'Contract verstuurd, nog niet getekend':'Nog geen contract geüpload'),c.bestandId?'':'<button class="btn small ghost" data-tab="bijlages">Upload bij Bijlages →</button>')}
     <div style="border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px">
      <button class="btn small ${k.naGoedkeuringVerstuurdOp?'':'primary'}" id="ngSend" ${k.email&&serverInfo.mail?'':'disabled'} title="${k.email?(serverInfo.mail?'Mailt de voorschotfactuur en het contract als bijlage, met de link naar vragenlijst en handtekening':'Stel eerst e-mail in bij Koppelingen'):'Vul eerst een e-mailadres in'}">${k.naGoedkeuringVerstuurdOp?'Opnieuw mailen: voorschot, contract & vragenlijst':'Mail voorschotfactuur, contract & vragenlijst'}</button>
@@ -807,10 +807,16 @@ function renderVragenlijstTab(){
   const box=$('#tab-vragenlijst');if(!box||!work)return;const k=work;const v=k.vragenlijst;
   const vragen=cfg.vragenlijsten[k.type]||cfg.vragenlijsten.Ander||[];const ant=(v&&v.antwoorden)||{};
   const kop=`<section class="sec"><h2>Vragenlijst${k.type?' · '+esc(k.type):''}</h2>`;
-  if(!v||!v.ingevuldOp){box.innerHTML=kop+`<p class="hint">Nog niet ingevuld. De klant vult de vragenlijst in via zijn dossier (link in de mail na goedkeuring, of kopieer de dossierlink in de zijbalk). De vragen zelf pas je aan in Beheer → Fiche &amp; planning → Vragenlijsten.</p>
+  const heeftAntwoorden=Object.values(ant).some(a=>a&&a.trim());
+  const conceptOnly=v&&v.conceptOp&&!v.ingevuldOp;
+  if(!v||(!v.ingevuldOp&&!heeftAntwoorden)){box.innerHTML=kop+`<p class="hint">Nog niet ingevuld. De klant vult de vragenlijst in via zijn dossier (link in de mail na goedkeuring, of kopieer de dossierlink in de zijbalk). De vragen zelf pas je aan in Beheer → Fiche &amp; planning → Vragenlijsten.</p>
      <div style="margin-top:14px"><div class="label" style="margin-bottom:6px">Vragen voor ${esc(k.type||'dit type')}</div><ol style="margin:0 0 0 18px;padding:0;color:var(--muted)">${vragen.map(q=>`<li>${esc(q)}</li>`).join('')}</ol></div></section>`;return}
-  box.innerHTML=kop+`<p class="hint">Ingevuld door de klant op ${fmt(v.ingevuldOp)}.</p>
-    <dl style="display:grid;gap:14px;margin:16px 0 0">${Object.keys(ant).length?Object.entries(ant).map(([q,a])=>`<div><dt class="label" style="margin-bottom:3px">${esc(q)}</dt><dd style="margin:0;white-space:pre-wrap">${a?esc(a):'<span class="hint">—</span>'}</dd></div>`).join(''):'<p class="hint">Geen antwoorden.</p>'}</dl></section>`;
+  const statusTxt=v.ingevuldOp?`<span class="chip ok" style="margin-left:auto">Definitief ingevuld op ${fmt(v.ingevuldOp)}</span>`:(conceptOnly?`<span class="chip" style="background:var(--warn-light,#fef3cd);margin-left:auto">Concept bewaard op ${fmt(v.conceptOp.slice(0,10))}</span>`:'');
+  const filled=Object.values(ant).filter(a=>a&&a.trim()).length;
+  box.innerHTML=kop+`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${statusTxt}</div>
+    ${conceptOnly?'<p class="hint" style="margin-top:8px">De klant is bezig met invullen — deze antwoorden zijn nog niet definitief.</p>':''}
+    <p class="hint" style="margin-top:8px">${filled} van ${vragen.length} vragen beantwoord.</p>
+    <dl style="display:grid;gap:14px;margin:16px 0 0">${vragen.map(q=>`<div><dt class="label" style="margin-bottom:3px">${esc(q)}</dt><dd style="margin:0;white-space:pre-wrap">${ant[q]&&ant[q].trim()?esc(ant[q]):'<span class="hint">—</span>'}</dd></div>`).join('')}</dl></section>`;
 }
 async function klantPost(pad,body){const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+pad,{method:body===null?'DELETE':'POST',headers:{'Content-Type':'application/json'},body:body===null?undefined:JSON.stringify(body||{}),credentials:'same-origin'});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw new Error(j.error||'Mislukt');return j}
 document.addEventListener('click',async e=>{

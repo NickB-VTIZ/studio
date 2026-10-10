@@ -615,7 +615,7 @@ async function api(req, res, url) {
         kennismaking: k.kennismaking || '', geannuleerdeAfspraak: k.geannuleerdeAfspraak || '', duur: cfg.duur, titel: cfg.titel, locatie: k.videoprovider || cfg.locatie || '', videolink: k.videolink || '', videoprovider: k.videoprovider || '',
         fase: k.fase, fasen: fasenVoor(k), gestopt: GESTOPT.has(k.fase), verplaatsbaar: !GESTOPT.has(k.fase) && !!k.kennismaking && k.kennismaking >= nuBrussel(), nu: nuBrussel(), actief: !!cfg.actief,
         offertes: zichtbaar.map(o => ({ id: o.id, titel: o.titel || 'Offerte', status: o.status, datum: o.datum || '', geldigTot: o.geldigTot || '', notitie: o.notitie || '', totaal: offerteTotalen(o).tot, bestanden: (o.bestanden || []).map(f => ({ id: f.id, naam: f.naam || 'bestand', type: f.type || '' })), reactie: o.klantReactie || '', goedgekeurdOp: o.goedgekeurdOp || '', afgewezenOp: o.afgewezenOp || '' })),
-        vragenlijst: { vragen: vl, antwoorden: (k.vragenlijst && k.vragenlijst.antwoorden) || {}, ingevuldOp: (k.vragenlijst && k.vragenlijst.ingevuldOp) || '', nodig: FI_SERVER[k.fase] >= FI_SERVER.goedgekeurd && !GESTOPT.has(k.fase) },
+        vragenlijst: { vragen: vl, antwoorden: (k.vragenlijst && k.vragenlijst.antwoorden) || {}, ingevuldOp: (k.vragenlijst && k.vragenlijst.ingevuldOp) || '', conceptOp: (k.vragenlijst && k.vragenlijst.conceptOp) || '', nodig: FI_SERVER[k.fase] >= FI_SERVER.goedgekeurd && !GESTOPT.has(k.fase) },
         contract: contractInfo(k), voorschot: k.voorschot || { betaald: false }, bijlages: bijlagesVan(), naGoedkeuringVerstuurdOp: k.naGoedkeuringVerstuurdOp || '' });
     }
     if (sub === 'slots' && m === 'GET') return json(res, 200, { actief: !!cfg.actief, duur: cfg.duur, dagen: cfg.actief ? slotsVoorPeriode(cfg, bezetteSlots(kid)) : [] });
@@ -647,12 +647,22 @@ async function api(req, res, url) {
       const b = await readJson(req, 50e3).catch(() => ({}));
       const vragen = vragenlijstVoor(k); const ant = {};
       for (const v of vragen) { const a = b.antwoorden && b.antwoorden[v]; if (a !== undefined) ant[v] = String(a).trim().slice(0, 2000); }
-      const al = !!(k.vragenlijst && k.vragenlijst.ingevuldOp);
-      k.vragenlijst = { type: k.type || '', antwoorden: ant, ingevuldOp: vandaagBE(), ts: new Date().toISOString() };
-      logboek(k, al ? 'Klant werkte de vragenlijst bij via het dossier' : 'Vragenlijst ingevuld door de klant via het dossier', 'vragenlijst');
+      const concept = !!b.concept; // true = draft save, false = definitief
+      const prev = k.vragenlijst || {};
+      const alDefinitief = !!prev.ingevuldOp;
+      if (concept) {
+        // Draft save: bewaar antwoorden zonder ingevuldOp te zetten (tenzij al definitief)
+        k.vragenlijst = { type: k.type || '', antwoorden: ant, conceptOp: new Date().toISOString(), ingevuldOp: prev.ingevuldOp || '', ts: new Date().toISOString() };
+        if (!prev.conceptOp && !alDefinitief) logboek(k, 'Klant begon de vragenlijst in te vullen (concept bewaard)', 'vragenlijst');
+        store.set('klanten', kid, k);
+        return json(res, 200, { ok: true, concept: true });
+      }
+      // Definitief insturen
+      k.vragenlijst = { type: k.type || '', antwoorden: ant, ingevuldOp: vandaagBE(), conceptOp: prev.conceptOp || '', ts: new Date().toISOString() };
+      logboek(k, alDefinitief ? 'Klant werkte de vragenlijst bij via het dossier' : 'Vragenlijst definitief ingevuld door de klant via het dossier', 'vragenlijst');
       store.set('klanten', kid, k);
-      if (!al) meldAdmin(req, `Vragenlijst ontvangen: ${k.naam}`, mailBasis(k, req, { bericht: `De klant vulde de vragenlijst (${k.type || 'algemeen'}) in. Bekijk ze in de fiche onder Vragenlijst.` }), 'vragenlijst ontvangen');
-      return json(res, 200, { ok: true });
+      if (!alDefinitief) meldAdmin(req, `Vragenlijst ontvangen: ${k.naam}`, mailBasis(k, req, { bericht: `De klant vulde de vragenlijst (${k.type || 'algemeen'}) definitief in. Bekijk ze in de fiche onder Vragenlijst.` }), 'vragenlijst ontvangen');
+      return json(res, 200, { ok: true, concept: false });
     }
     if (sub === 'contract/teken' && m === 'POST') {
       const b = await readJson(req, 400e3).catch(() => ({}));

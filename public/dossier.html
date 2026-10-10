@@ -51,6 +51,22 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 .chk{display:flex;gap:10px;align-items:flex-start;font-size:14.5px}.chk input{margin-top:4px;accent-color:var(--green)}
 .foot{text-align:center;color:var(--ink-soft);font-size:12.5px;margin-top:28px}
 :focus-visible{outline:2px solid var(--green);outline-offset:2px}
+/* vragenlijst enhanced */
+.vl-intro{background:var(--sage);border:1px solid var(--sage-deep);border-radius:3px;padding:16px 20px;margin-bottom:18px;font-size:14.5px;line-height:1.6;color:var(--ink)}
+.vl-intro summary{cursor:pointer;font-weight:500;font-family:var(--f-display);font-size:17px;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+.vl-intro summary::-webkit-details-marker{display:none}
+.vl-intro summary::before{content:"▸";font-size:13px;transition:transform .15s;display:inline-block;width:14px}
+.vl-intro[open] summary::before{transform:rotate(90deg)}
+.vl-intro .body{margin-top:12px;display:grid;gap:8px}
+.vl-intro .body p{margin:0}
+.vl-intro .body ul{margin:4px 0;padding-left:20px}
+.vl-intro .body li{margin:2px 0}
+.vl-progress{display:flex;align-items:center;gap:12px;margin-bottom:4px;font-size:13px;color:var(--ink-soft)}
+.vl-progress .bar{flex:1;height:6px;background:var(--sage);border-radius:3px;overflow:hidden}.vl-progress .bar i{display:block;height:100%;background:var(--green);border-radius:3px;transition:width .3s}
+.vl-saved{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ok-ink);opacity:0;transition:opacity .3s}
+.vl-saved.show{opacity:1}
+.vl-saved svg{width:14px;height:14px}
+.vl-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:4px}
 </style>
 </head>
 <body>
@@ -169,13 +185,42 @@ function offerteKaart(o){
    ${acties}</div>`;
 }
 /* ---- vragenlijst ---- */
+let vlTimer=null,vlSaving=false;
+function vlAntwoorden(){const ant={};document.querySelectorAll('#vform [data-vraag]').forEach(t=>ant[t.dataset.vraag]=t.value);return ant}
+function vlProgress(){const els=[...document.querySelectorAll('#vform [data-vraag]')];const filled=els.filter(t=>t.value.trim().length>0).length;return {filled,total:els.length,pct:els.length?Math.round(filled/els.length*100):0}}
+function vlAutoSave(){
+  clearTimeout(vlTimer);
+  vlTimer=setTimeout(async()=>{
+    if(vlSaving||busy)return;vlSaving=true;
+    try{await api('/vragenlijst',{antwoorden:vlAntwoorden(),concept:true});
+      const ind=document.getElementById('vlSaved');if(ind){ind.classList.add('show');setTimeout(()=>ind.classList.remove('show'),2400)}}
+    catch(e){}finally{vlSaving=false}
+  },1500);
+}
+function vlUpdateProgress(){const p=vlProgress();const bar=document.querySelector('.vl-progress .bar i');const txt=document.getElementById('vlPct');if(bar)bar.style.width=p.pct+'%';if(txt)txt.textContent=p.filled+' van '+p.total+' ingevuld'}
 function renderVragenlijst(){
-  const v=me.vragenlijst;const ant=v.antwoorden||{};const klaar=!!v.ingevuldOp;const m=msg.vragen;
-  return `<section class="blok" id="vragenlijst"><div class="bhead"><h2>Vragenlijst${me.type?' · '+esc(me.type.toLowerCase()):''}</h2>${klaar?`<span class="pill ok">Ingevuld op ${esc(fmtShort(v.ingevuldOp))}</span>`:'<span class="pill warn">Nog in te vullen</span>'}</div>
-   <form id="vform" class="card" style="display:grid;gap:14px"><p class="note">${klaar?'Jullie antwoorden staan hieronder. Aanpassen kan altijd — klik daarna opnieuw op Bewaren.':'Met deze antwoorden kan ik jullie ontwerp inplannen. Weet je iets nog niet? Laat het dan even leeg.'}</p>
-    ${v.vragen.map((q,i)=>`<label class="fld"><span>${i+1}. ${esc(q)}</span><textarea data-vraag="${esc(q)}" rows="2" maxlength="2000">${esc(ant[q]||'')}</textarea></label>`).join('')}
+  const v=me.vragenlijst;const ant=v.antwoorden||{};const klaar=!!v.ingevuldOp;const concept=!!v.conceptOp&&!klaar;const m=msg.vragen;
+  const statusPill=klaar?`<span class="pill ok">Definitief ingevuld op ${esc(fmtShort(v.ingevuldOp))}</span>`:(concept?'<span class="pill" style="background:var(--warn-bg);color:var(--warn-ink)">Concept bewaard</span>':'<span class="pill warn">Nog in te vullen</span>');
+  return `<section class="blok" id="vragenlijst"><div class="bhead"><h2>Vragenlijst${me.type?' · '+esc(me.type.toLowerCase()):''}</h2>${statusPill}</div>
+   <details class="vl-intro"${!klaar&&!concept?' open':''}>
+     <summary>Hoe werkt deze vragenlijst?</summary>
+     <div class="body">
+       <p>Met jullie antwoorden kan ik het ontwerp perfect op maat maken. Zo werkt het:</p>
+       <ul>
+         <li><b>Neem je tijd</b> — je hoeft niet alles in één keer in te vullen. Jullie antwoorden worden automatisch bewaard als concept.</li>
+         <li><b>Concept opslaan</b> — klik op "Concept opslaan" om je antwoorden tussentijds te bewaren. Je kan later terugkomen en verder aanvullen.</li>
+         <li><b>Definitief insturen</b> — zodra alle antwoorden vaststaan, klik je op "Definitief insturen". Ik krijg dan een melding en kan aan de slag.</li>
+         ${klaar?'<li><b>Aanpassen</b> — ook na het definitief insturen kan je nog wijzigingen doorsturen.</li>':''}
+       </ul>
+       <p>Weet je iets nog niet? Laat het veld dan even leeg — dat is helemaal oké.</p>
+     </div>
+   </details>
+   <form id="vform" class="card" style="display:grid;gap:16px">
+    <div class="vl-progress"><span id="vlPct">0 van ${v.vragen.length} ingevuld</span><div class="bar"><i style="width:0%"></i></div><span class="vl-saved" id="vlSaved"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Bewaard</span></div>
+    ${v.vragen.map((q,i)=>`<label class="fld"><span>${i+1}. ${esc(q)}</span><textarea data-vraag="${esc(q)}" rows="2" maxlength="2000" placeholder="Typ hier jullie antwoord…">${esc(ant[q]||'')}</textarea></label>`).join('')}
     ${m?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}
-    <div class="actions" style="margin-top:0"><button class="btn primary" type="submit" ${busy?'disabled':''}>${klaar?'Bewaren':'Vragenlijst versturen'}</button></div></form></section>`;
+    <div class="vl-actions"><button class="btn primary" type="submit" id="vlDef" ${busy?'disabled':''}>${klaar?'Wijzigingen definitief insturen':'Definitief insturen'}</button><button class="btn" type="button" id="vlConcept" ${busy?'disabled':''}>${concept||klaar?'Concept opslaan':'Eerst als concept opslaan'}</button></div>
+   </form></section>`;
 }
 /* ---- contract ---- */
 function renderContract(){
@@ -237,8 +282,8 @@ document.addEventListener('submit',async e=>{
   if(f.dataset&&f.dataset.ofaf){e.preventDefault();if(busy)return;const id=f.dataset.ofaf;const bericht=($('#aftxt-'+id)||{}).value||'';
     if(!bericht.trim()){msg['of:'+id]={ok:false,t:'Laat even weten waarom, of wat er anders mag.'};render();return}
     busy=true;render();try{await api('/offerte/'+encodeURIComponent(id)+'/afwijzen',{bericht});ofOpen={};await herlaad();msg['of:'+id]={ok:true,t:'Bedankt voor jullie feedback — ik bekijk het en kom met een aangepast voorstel.'}}catch(err){msg['of:'+id]={ok:false,t:err.message}}finally{busy=false}render();return}
-  if(f.id==='vform'){e.preventDefault();if(busy)return;const antwoorden={};f.querySelectorAll('[data-vraag]').forEach(t=>antwoorden[t.dataset.vraag]=t.value);
-    busy=true;render();try{await api('/vragenlijst',{antwoorden});await herlaad();msg.vragen={ok:true,t:'Bedankt, jullie antwoorden zijn bewaard!'}}catch(err){msg.vragen={ok:false,t:err.message}}finally{busy=false}render();const el=$('#vragenlijst');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
+  if(f.id==='vform'){e.preventDefault();if(busy)return;
+    const antw=vlAntwoorden();busy=true;render();try{await api('/vragenlijst',{antwoorden:antw,concept:false});await herlaad();msg.vragen={ok:true,t:'Bedankt! Jullie antwoorden zijn definitief doorgestuurd. Ik ga ermee aan de slag.'}}catch(err){msg.vragen={ok:false,t:err.message}}finally{busy=false}render();const el=$('#vragenlijst');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
   if(f.id==='cform'){e.preventDefault();if(busy)return;const naam=$('#c-naam').value.trim();const akkoord=$('#c-akkoord').checked;const cv=$('#sig');
     const fout=t=>{const el=$('#cmsg');if(el)el.innerHTML=`<p class="err">${esc(t)}</p>`};
     if(naam.length<3){fout('Vul je volledige naam in.');return}
@@ -248,6 +293,19 @@ document.addEventListener('submit',async e=>{
     try{await api('/contract/teken',{naam,akkoord,handtekening});await herlaad();msg.contract={ok:true,t:'Het contract is getekend. Bedankt!'}}catch(err){msg.contract={ok:false,t:err.message}}finally{busy=false}render();const el=$('#contract');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
 });
 init();
+/* ---- vragenlijst: concept-knop + auto-save + progress ---- */
+document.addEventListener('click',async e=>{
+  if(e.target.id==='vlConcept'&&!busy){
+    e.preventDefault();clearTimeout(vlTimer);const antw=vlAntwoorden();busy=true;render();
+    try{await api('/vragenlijst',{antwoorden:antw,concept:true});await herlaad();msg.vragen={ok:true,t:'Jullie concept is bewaard. Je kan later terugkomen en verder aanvullen.'}}
+    catch(err){msg.vragen={ok:false,t:err.message}}finally{busy=false}render();
+    const el=$('#vragenlijst');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
+});
+document.addEventListener('input',e=>{
+  if(e.target.closest('#vform')&&e.target.dataset.vraag){vlUpdateProgress();vlAutoSave()}
+});
+/* initial progress update after render */
+const _origRender=render;render=function(){_origRender();setTimeout(vlUpdateProgress,0)};
 </script>
 </body>
 </html>
