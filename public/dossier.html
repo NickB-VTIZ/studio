@@ -72,7 +72,7 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 </head>
 <body>
 <div class="wrap">
-  <div class="mark"><div class="logo">justPIXIT.be</div><span class="tag">jullie dossier</span></div>
+  <div class="mark"><div class="logo">justPIXIT.be</div></div>
   <div class="sheet"><div class="sheet-in" id="main"><p class="center-msg">Even geduld…</p></div></div>
   <p class="foot">justPIXIT · trouwuitnodigingen en geboortekaartjes</p>
 </div>
@@ -101,14 +101,12 @@ function render(){
   const openOf=(me.offertes||[]).some(o=>o.status==='Verstuurd');
   const toonVragen=me.vragenlijst&&me.vragenlijst.nodig&&me.vragenlijst.vragen.length;
   const toonContract=me.contract&&me.contract.bestandId;
-  $('#main').innerHTML=`<div class="hero"><h1>Hoi ${esc(me.voornaam||'daar')}</h1><p>${me.gestopt?(me.fase==='geannuleerd'?'Jullie kennismakingsgesprek werd geannuleerd. Plan gerust een nieuw moment wanneer het past.':'Dit traject werd afgesloten. Jullie zijn altijd welkom voor een nieuw project.'):'Hier vinden jullie alles rond jullie project bij justPIXIT: de afspraak, de offerte en de volgende stappen.'}</p>${me.gestopt?'<div class="actions" style="justify-content:center"><a class="btn primary" href="/afspraak">Plan een nieuw moment</a></div>':''}</div><hr class="rule">
+  $('#main').innerHTML=`<div class="hero"><h1>Hoi ${esc(me.voornaam||'daar')}</h1><p>${me.gestopt?(me.fase==='geannuleerd'?'Dit traject werd geannuleerd. Jullie zijn altijd welkom voor een nieuw project.':'Dit traject werd afgesloten. Jullie zijn altijd welkom voor een nieuw project.'):'Ik begin binnenkort aan jullie ontwerpje! Maar hiervoor heb ik nog enkele gegevens nodig.<br>Kunnen jullie voor mij de onderstaande lijst invullen?'}</p></div><hr class="rule">
    ${openOf?renderOffertes():''}
    ${toonVragen?renderVragenlijst():''}
    ${toonContract?renderContract():''}
-   <section class="blok" id="afspraak">${renderAfspraak()}</section>
    ${!openOf&&(me.offertes||[]).length?renderOffertes():''}
-   ${(me.bijlages||[]).length?renderBijlages():''}
-   <section class="blok"><div class="bhead"><h2>Waar staan we?</h2></div>${renderTraject()}</section>`;
+   ${(me.bijlages||[]).length?renderBijlages():''}`;
   if(toonContract&&!me.contract.getekend)setTimeout(initSig,0);
 }
 /* ---- afspraak ---- */
