@@ -7,15 +7,16 @@
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap">
 <style>
-/* Dossier met persoonlijke code (geen login): afspraak, offerte, vragenlijst, contract. Zelfde papier-en-inkt-stijl. */
-:root{--paper:#F2F4EF;--card:#FBFBF8;--ink:#1C2A24;--ink-soft:#56655D;--green:#2C5A4C;--green-ink:#F7FAF6;--sage:#DDE7E0;--sage-deep:#C3D3C8;--line:#D2DBD3;--hair:#C8D2C9;--warn-bg:#F7E6DD;--warn-ink:#8A4B2E;--ok-bg:#E3EFE7;--ok-ink:#2C6A4C;--f-display:"Fraunces",Georgia,serif;--f-ui:"Figtree",system-ui,sans-serif;color-scheme:light}
+@font-face{font-family:'California';src:url('/fonts/California.otf') format('opentype');font-display:swap}
+/* Dossier met persoonlijke code (geen login): afspraak, offerte, vragenlijst, contract. Warme justPIXIT-huisstijl. */
+:root{--paper:#d2c5b8;--card:#FFFFFF;--ink:#474747;--ink-soft:#7a7068;--green:#7d5d44;--green-ink:#FFFFFF;--sage:#e8ddd3;--sage-deep:#cdbfb2;--line:#c9bba9;--hair:#c4b5a4;--warn-bg:#F7E6DD;--warn-ink:#8A4B2E;--ok-bg:#e8ddd3;--ok-ink:#5c4433;--f-display:"California",Georgia,cursive;--f-ui:"DM Sans",system-ui,sans-serif;color-scheme:light}
 *{box-sizing:border-box}html,body{margin:0}body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.55;padding-inline:18px;-webkit-font-smoothing:antialiased}
 h1,h2,h3,p{margin:0}button,input,textarea{font:inherit;color:inherit}
 .wrap{max-width:860px;margin:0 auto;padding-block:40px 72px}@media (max-width:560px){.wrap{padding-block:26px 48px}}
-.mark{text-align:center;margin-bottom:30px}.mark .logo{font-family:var(--f-display);font-size:21px}.mark .logo b{font-weight:500}.mark .tag{display:block;margin-top:3px;font-size:12.5px;color:var(--ink-soft)}
-.sheet{background:var(--card);border:1px solid var(--hair);border-radius:4px;box-shadow:0 1px 0 var(--hair),0 18px 40px -28px rgba(28,42,36,.4);padding:6px}.sheet-in{border:1px solid var(--line);border-radius:3px;padding:clamp(22px,4vw,44px)}
+.mark{text-align:center;margin-bottom:30px}.mark .logo{font-family:var(--f-ui);font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:var(--green);font-weight:600}.mark .tag{display:block;margin-top:5px;font-family:var(--f-display);font-size:18px;color:var(--ink-soft);letter-spacing:.01em}
+.sheet{background:var(--card);border:1px solid var(--hair);border-radius:8px;box-shadow:0 1px 0 var(--hair),0 18px 40px -28px rgba(125,93,68,.25);padding:6px}.sheet-in{border:1px solid var(--line);border-radius:6px;padding:clamp(22px,4vw,44px)}
 .hero{text-align:center;max-width:34rem;margin:0 auto 6px}.hero h1{font-family:var(--f-display);font-weight:400;font-size:clamp(28px,5.5vw,42px);line-height:1.05}.hero p{margin:12px auto 0;color:var(--ink-soft)}
 .rule{border:0;border-top:1px solid var(--line);max-width:70px;margin:26px auto}
 section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
@@ -25,7 +26,7 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 .recap .k{font-size:12.5px;color:var(--ink-soft)}.recap .v{font-size:15.5px}.recap .v.big{font-family:var(--f-display);font-size:20px;line-height:1.2}
 .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center}
 .btn{border:1px solid var(--line);background:var(--card);padding:12px 20px;border-radius:3px;cursor:pointer;font-weight:500;font-size:15px;text-decoration:none;color:var(--ink);display:inline-block}
-.btn:hover{border-color:var(--green)}.btn.primary{background:var(--green);color:var(--green-ink);border-color:var(--green)}.btn.primary:hover{background:#244c40}.btn:disabled{opacity:.55;cursor:default}
+.btn:hover{border-color:var(--green)}.btn.primary{background:var(--green);color:var(--green-ink);border-color:var(--green)}.btn.primary:hover{background:#65492f}.btn:disabled{opacity:.55;cursor:default}
 .btn.ghost{border-color:transparent;background:none;color:var(--ink-soft);padding-inline:8px}.btn.ghost:hover{color:var(--green)}.btn.small{padding:8px 14px;font-size:14px}.btn.danger{color:var(--warn-ink)}
 .err{color:var(--warn-ink);background:var(--warn-bg);padding:11px 14px;border-radius:3px;font-size:14.5px;margin-top:10px}.ok{color:var(--ok-ink);background:var(--ok-bg);padding:11px 14px;border-radius:3px;font-size:14.5px;margin-top:10px}
 .note{font-size:13.5px;color:var(--ink-soft)}.center-msg{text-align:center;color:var(--ink-soft);padding:40px 0}
@@ -72,7 +73,7 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 </head>
 <body>
 <div class="wrap">
-  <div class="mark"><div class="logo">just<b>PIXIT</b></div><span class="tag">jullie dossier</span></div>
+  <div class="mark"><div class="logo">justPIXIT.be</div><span class="tag">jullie dossier</span></div>
   <div class="sheet"><div class="sheet-in" id="main"><p class="center-msg">Even geduld…</p></div></div>
   <p class="foot">justPIXIT · trouwuitnodigingen en geboortekaartjes</p>
 </div>
@@ -240,7 +241,7 @@ function renderContract(){
 }
 let sigDirty=false;
 function initSig(){
-  const cv=$('#sig');if(!cv)return;const ctx=cv.getContext('2d');ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#1C2A24';
+  const cv=$('#sig');if(!cv)return;const ctx=cv.getContext('2d');ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#474747';
   const scale=()=>{const r=cv.getBoundingClientRect();return {x:cv.width/r.width,y:cv.height/r.height,r}};
   let tekenen=false;sigDirty=false;
   const pos=e=>{const s=scale();return {x:(e.clientX-s.r.left)*s.x,y:(e.clientY-s.r.top)*s.y}};
