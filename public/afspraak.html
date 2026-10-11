@@ -7,25 +7,19 @@
 <meta name="description" content="Plan een vrijblijvend kennismakingsgesprek met justPIXIT voor jullie trouwuitnodigingen of geboortekaartje.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap">
 <style>
 /* Uitnodiging-stijl: een gecentreerde "kaart" op warm papier, met inktgroen en fijne haarlijnen.
    Boven de sfeer en de drie feiten; daaronder de kalender en tijden naast elkaar; daarna het formulier. */
 :root{
-  --paper:#F2F4EF;         /* zacht, licht groen-getint papier (geen cream-cliché) */
-  --card:#FBFBF8;          /* iets lichter kaartvlak */
-  --ink:#1C2A24;           /* diep groen-zwart, voor tekst */
-  --ink-soft:#56655D;      /* gedempt */
-  --green:#2C5A4C;         /* merkgroen, het accent */
-  --green-ink:#F7FAF6;
-  --sage:#DDE7E0;          /* zachte disc voor vrije dagen */
-  --sage-deep:#C3D3C8;
-  --line:#D2DBD3;          /* haarlijn */
-  --hair:#C8D2C9;
-  --warn-bg:#F7E6DD; --warn-ink:#8A4B2E;
-  --ok-bg:#E3EFE7; --ok-ink:#2C6A4C;
-  --f-display:"Fraunces",Georgia,"Times New Roman",serif;
-  --f-ui:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --paper:#F5F2EF;--card:#FFFFFF;--ink:#2c2623;--ink-soft:#6b6460;
+  --green:#7d5d44;--green-ink:#FFFFFF;
+  --sage:#ede6df;--sage-deep:#ddd5cc;
+  --line:#ddd6cf;--hair:#d5cec7;
+  --warn-bg:#F7E6DD;--warn-ink:#8A4B2E;
+  --ok-bg:#ede6df;--ok-ink:#5c4433;
+  --f-display:"DM Sans",system-ui,sans-serif;
+  --f-ui:"DM Sans",system-ui,sans-serif;
   color-scheme:light;
 }
 *{box-sizing:border-box}
@@ -44,39 +38,39 @@ button,input,textarea,select{font:inherit;color:inherit}
 
 /* wordmerk */
 .mark{text-align:center;margin-bottom:30px}
-.mark .logo{font-family:var(--f-display);font-size:21px;letter-spacing:.01em}
-.mark .logo b{font-weight:500}
-.mark .tag{display:block;margin-top:3px;font-size:12.5px;color:var(--ink-soft);letter-spacing:.02em}
+.mark .logo{font-family:var(--f-ui);font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:#7d5d44;font-weight:600}
+.mark .logo b{font-weight:600}
+.mark .tag{display:block;margin-top:5px;font-family:var(--f-ui);font-size:14px;color:var(--ink-soft);letter-spacing:.08em;font-style:italic}
 
 /* de uitnodigingskaart met dubbele haarlijn-rand */
 .sheet{
-  background:var(--card);border:1px solid var(--hair);border-radius:4px;
-  box-shadow:0 1px 0 var(--hair), 0 18px 40px -28px rgba(28,42,36,.4);
+  background:var(--card);border:1px solid var(--hair);border-radius:8px;
+  box-shadow:0 1px 0 var(--hair), 0 18px 40px -28px rgba(125,93,68,.25);
   padding:6px;
 }
-.sheet-in{border:1px solid var(--line);border-radius:3px;padding:clamp(22px,4vw,44px)}
+.sheet-in{border:1px solid var(--line);border-radius:6px;padding:clamp(22px,4vw,44px)}
 
 /* hero in de kaart */
 .hero{text-align:center;max-width:34rem;margin:0 auto 10px}
-.hero h1{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,6vw,46px);line-height:1.05;letter-spacing:-.01em;overflow-wrap:break-word;hyphens:auto}
+.hero h1{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,5vw,38px);line-height:1.15;overflow-wrap:break-word;hyphens:auto}
 .hero p{margin:14px auto 0;color:var(--ink-soft);max-width:30rem}
 .facts{display:flex;justify-content:center;flex-wrap:wrap;gap:10px 28px;margin:22px 0 4px}
 .fact{display:flex;flex-direction:column;align-items:center;gap:1px}
 .fact .k{font-size:12px;color:var(--ink-soft)}
-.fact .v{font-family:var(--f-display);font-size:16px}
+.fact .v{font-family:var(--f-display);font-weight:600;font-size:16px}
 .rule{border:0;border-top:1px solid var(--line);max-width:70px;margin:26px auto}
 
 /* stap-koppen (echte volgorde, dus genummerd, maar rustig gezet) */
 .stephead{display:flex;align-items:baseline;gap:10px;margin:0 0 16px}
-.stephead .no{font-family:var(--f-display);font-style:italic;font-size:18px;color:var(--green)}
-.stephead h2{font-family:var(--f-display);font-weight:400;font-size:21px}
+.stephead .no{font-family:var(--f-display);font-style:italic;font-size:18px;color:var(--green);font-weight:600}
+.stephead h2{font-family:var(--f-display);font-weight:600;font-size:21px}
 
 /* twee kolommen: kalender + tijden */
 .booker{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,16rem);gap:30px;align-items:start}
 @media (max-width:620px){.booker{grid-template-columns:1fr;gap:26px}}
 
 .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.cal-head h3{font-family:var(--f-display);font-weight:400;font-size:19px;text-transform:capitalize}
+.cal-head h3{font-family:var(--f-display);font-weight:600;font-size:18px;text-transform:capitalize}
 .nav{display:flex;gap:7px}
 .nav button{border:1px solid var(--line);background:var(--card);width:38px;height:38px;border-radius:50%;cursor:pointer;color:var(--ink);font-size:17px;display:grid;place-items:center;line-height:1}
 .nav button:hover:not(:disabled){border-color:var(--green);color:var(--green)}
@@ -109,7 +103,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 /* gekozen moment + formulier */
 .chosen{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:14px 18px;margin-bottom:26px}
 .chosen .lab{font-size:12px;color:var(--ink-soft)}
-.chosen .when{font-family:var(--f-display);font-size:19px;margin-top:2px}
+.chosen .when{font-family:var(--f-display);font-weight:600;font-size:18px;margin-top:2px}
 .form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 @media (max-width:560px){.form{grid-template-columns:1fr}}
 .full{grid-column:1/-1}
@@ -122,7 +116,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 .btn{border:1px solid var(--line);background:var(--card);padding:13px 22px;border-radius:3px;cursor:pointer;font-weight:500;font-size:15px}
 .btn:hover{border-color:var(--green)}
 .btn.primary{background:var(--green);color:var(--green-ink);border-color:var(--green)}
-.btn.primary:hover{background:#244c40}
+.btn.primary:hover{background:#65492f}
 .btn.primary:disabled{opacity:.55;cursor:default}
 .btn.ghost{border-color:transparent;background:none;color:var(--ink-soft);padding-inline:8px}
 .btn.ghost:hover{color:var(--green)}
@@ -134,7 +128,7 @@ a.btn{text-decoration:none;color:var(--ink);display:inline-block}
 /* bevestiging */
 .done{text-align:center;max-width:32rem;margin:0 auto}
 .done .seal{width:58px;height:58px;border-radius:50%;background:var(--green);color:var(--green-ink);display:grid;place-items:center;margin:0 auto 20px;font-family:var(--f-display);font-size:30px}
-.done h2{font-family:var(--f-display);font-weight:400;font-size:clamp(26px,5vw,36px);line-height:1.1}
+.done h2{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,5vw,36px);line-height:1.1}
 .done .intro{color:var(--ink-soft);margin:14px auto 22px}
 .done .recap{text-align:left;display:inline-grid;gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:18px 22px;margin-bottom:22px}
 .done .recap .row{display:grid;grid-template-columns:5.5rem 1fr;gap:14px;align-items:baseline}
