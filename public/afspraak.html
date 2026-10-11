@@ -152,6 +152,19 @@ a.btn{text-decoration:none;color:var(--ink);display:inline-block}
   <p class="foot">justPIXIT · trouwuitnodigingen en geboortekaartjes</p>
 </div>
 <script>
+/* Dynamische stijl uit Beheer */
+fetch('/api/stijl').then(r=>r.json()).then(s=>{
+  const r=document.documentElement.style;const k=s.kleuren||{};
+  if(k.paper)r.setProperty('--paper',k.paper);if(k.card)r.setProperty('--card',k.card);
+  if(k.ink)r.setProperty('--ink',k.ink);if(k['ink-soft'])r.setProperty('--ink-soft',k['ink-soft']);
+  if(k.accent){r.setProperty('--green',k.accent);document.querySelectorAll('.mark .logo').forEach(el=>el.style.color=k.accent)}
+  if(k['accent-ink'])r.setProperty('--green-ink',k['accent-ink']);
+  if(k.sage)r.setProperty('--sage',k.sage);if(k.line){r.setProperty('--line',k.line);r.setProperty('--hair',k.line)}
+  if(s.font){const f="'"+s.font+"',system-ui,sans-serif";r.setProperty('--f-display',f);r.setProperty('--f-ui',f);
+    if(!document.querySelector('link[href*="'+s.font.replace(/ /g,'+')+'"]')){const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(s.font)+':ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap';document.head.appendChild(l)}}
+  if(s.logo){const el=document.querySelector('.mark .logo');if(el){const parts=s.logo.match(/^(.*?)([A-Z][A-Z]+)$/);if(parts)el.innerHTML=parts[1]+'<b>'+parts[2]+'</b>';else el.textContent=s.logo}}
+  if(s.tagline!=null){const el=document.querySelector('.mark .tag');if(el)el.textContent=s.tagline}
+}).catch(()=>{});
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad=n=>String(n).padStart(2,'0');

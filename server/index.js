@@ -505,6 +505,7 @@ function limited(key, max, windowMs) {
 setInterval(() => { const now = Date.now(); for (const [k, arr] of hits) if (!arr.some(t => now - t < 36e5)) hits.delete(k); }, 6e5).unref();
 
 function instellingen() { return store.get('instellingen', 'algemeen') || {}; }
+function stijlConfig() { const alg = instellingen(); const s = alg.stijl || {}; return { kleuren: s.kleuren || {}, font: s.font || 'DM Sans', logo: s.logo || 'justPIXIT', tagline: s.tagline || '' }; }
 function boekingConfig() { return Object.assign({}, boekingDefaults(), instellingen().boeking || {}); }
 function publicBase(req) { return BASE_URL || `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`; }
 
@@ -563,6 +564,8 @@ async function api(req, res, url) {
     res.setHeader('Set-Cookie', sidCookie(req, makeSession(uid), 30 * 86400));
     return json(res, 200, { ok: true, role: u.role, redirect: u.role === 'admin' ? '/app' : '/mijn' });
   }
+
+  if (p === '/api/stijl' && m === 'GET') { return json(res, 200, stijlConfig()); }
 
   if (p === '/api/boeking/slots' && m === 'GET') {
     const cfg = boekingConfig();

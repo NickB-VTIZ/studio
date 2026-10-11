@@ -240,6 +240,11 @@ aside{display:grid;gap:18px;position:sticky;top:calc(env(safe-area-inset-top,0px
 .beheer{display:grid;gap:28px}
 .beheer>section>h2{font-family:var(--f-display);font-weight:400;font-size:22px;margin-bottom:4px}
 .beheer>section>p{margin:0 0 14px;color:var(--muted);max-width:65ch}
+.color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.color-swatch{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.color-swatch input[type=color]{width:36px;height:36px;border:1px solid var(--line);border-radius:6px;cursor:pointer;padding:2px;background:var(--surface)}
+.color-swatch .label{font-size:13px;color:var(--muted)}.color-swatch .hex{font-family:monospace;font-size:12px;color:var(--muted)}
+.stijl-preview{border:1px solid var(--line);border-radius:8px;padding:24px;display:flex;flex-direction:column;gap:12px;align-items:center}
 .lists{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
 .lists .sec{padding:16px 18px;display:grid;gap:10px;align-content:start}
 .lists h3{font-size:13px;font-weight:600}
@@ -390,6 +395,12 @@ const DEFAULTS={
   afzender:'Liesbeth\njustPIXIT',
   vragenlijsten:{Huwelijk:['§Gegevens drukwerk','Naam bruid (zoals je deze op de uitnodiging wilt hebben vermeld)','Naam bruidegom (zoals je deze op de uitnodiging wilt hebben vermeld)','Huwelijksdatum','Trouwlocatie — Naam','Trouwlocatie — Adres','Ceremonie — Tijdstip (indien van toepassing)','Ceremonie — Locatie (indien van toepassing)','Receptie — Tijdstip (indien van toepassing)','Receptie — Locatie (indien van toepassing)','RSVP — Datum waarvoor men aan- of afwezigheid dient te bevestigen','RSVP — Manier + gegevens waarop zij dit dienen te bevestigen (vb website, mail, telefoon, …)','Dresscode (indien van toepassing)','Cadeautips (vb cadeaulijst, envelop, …)','Zijn er nog andere gegevens die jullie graag op de uitnodiging hadden?','Datum wanneer jullie graag de uitnodigingen klaar willen hebben (de aangewezen verzenddatum is 6-8 weken voor het huwelijk)','§Ontwerp','Zijn er elementen dat jij mooi vindt dat je zeker terug wilt zien komen in je uitnodiging? (Lettertype, kleuren, symbolen, tekeningen, …)','Heb jij enkele voorbeelden of stijlen van uitnodigingen die je mooi vindt? (Pinterest is hier de place to be voor)'],Geboorte:['Naam van de baby (en eventueel tweede naam)','Geboortedatum en -uur, gewicht en lengte','Namen van de ouders','Namen van broers/zussen, meter en peter','Hoeveel kaartjes hebben jullie nodig?','Welke stijl spreekt jullie aan? (kleuren, illustraties, voorbeelden)','Komt er een foto op het kaartje?','Welke tekst of quote willen jullie erbij?','Gegevens voor kraambezoek of een geboortelijst?','Nog iets dat ik zeker moet weten?'],Ander:['Wat wil je laten ontwerpen?','Voor wanneer heb je het nodig?','Hoeveel exemplaren?','Welke stijl of sfeer spreekt je aan?','Nog iets dat ik zeker moet weten?']},
   boeking:{actief:true,titel:'Kennismakingsgesprek',intro:'In een vrijblijvend gesprek van een uurtje bekijken we jullie wensen voor de uitnodigingen of het geboortekaartje, en hoe ik daar iets unieks van maak.',locatie:'Online via videocall, of bij mij thuis',duur:60,buffer:15,dagen:{1:true,2:true,3:true,4:true,5:false,6:false,0:false},blokken:[{van:'09:30',tot:'12:00'},{van:'19:00',tot:'21:30'}],minUren:48,maxWeken:8,geblokkeerd:[],types:['Huwelijk','Geboorte','Ander'],vragen:['Hoe hebben jullie justPIXIT gevonden?'],bevestiging:'Bedankt voor jullie aanvraag! Jullie afspraak staat vast. Ik kijk ernaar uit om jullie te leren kennen.',afzender:'Liesbeth · justPIXIT'},
+  stijl:{
+    kleuren:{paper:'#F5F2EF',card:'#FFFFFF',ink:'#2c2623','ink-soft':'#6b6460',accent:'#7d5d44','accent-ink':'#FFFFFF',sage:'#ede6df',line:'#ddd6cf'},
+    font:'DM Sans',
+    logo:'justPIXIT',
+    tagline:'jullie persoonlijke pagina'
+  },
   mails:{
     opvolging:'Hoi {voornaam},\n\nIk hoop dat alles goed gaat met jullie! Een tweetal weken geleden stuurde ik jullie de offerte door. Hebben jullie al de tijd gehad om ze rustig te bekijken?\n\nAls er nog vragen zijn of als jullie iets willen aanpassen, laat het gerust weten. Ik denk graag mee.\n\nWarme groetjes,\n{afzender}',
     onboarding:'Hoi {voornaam},\n\nWat fijn dat jullie voor justPIXIT kiezen! In bijlage vinden jullie het onboardingspakket en een korte vragenlijst.\n\nVan zodra ik de ingevulde vragenlijst terug heb, plan ik jullie ontwerp in en laat ik weten wanneer jullie de eerste digitale proef mogen verwachten.\n\nTot snel!\n{afzender}',
@@ -427,6 +438,11 @@ function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!store
   if(stored.planning)for(const k in c.planning){const n=Number(stored.planning[k]);if(Number.isFinite(n)&&n>=0)c.planning[k]=n}
   if(Number.isFinite(Number(stored.btw)))c.btw=Number(stored.btw);
   if(stored.mails)for(const k in c.mails)if(typeof stored.mails[k]==='string')c.mails[k]=stored.mails[k];
+  if(stored.stijl&&typeof stored.stijl==='object'){
+    if(stored.stijl.kleuren&&typeof stored.stijl.kleuren==='object')for(const k in c.stijl.kleuren)if(typeof stored.stijl.kleuren[k]==='string'&&/^#[0-9a-fA-F]{6}$/.test(stored.stijl.kleuren[k]))c.stijl.kleuren[k]=stored.stijl.kleuren[k];
+    if(typeof stored.stijl.font==='string')c.stijl.font=stored.stijl.font;
+    if(typeof stored.stijl.logo==='string')c.stijl.logo=stored.stijl.logo;
+    if(typeof stored.stijl.tagline==='string')c.stijl.tagline=stored.stijl.tagline}
   if(typeof stored.afzender==='string')c.afzender=stored.afzender;
   if(stored.vragenlijsten&&typeof stored.vragenlijsten==='object')for(const t in stored.vragenlijsten)if(Array.isArray(stored.vragenlijsten[t]))c.vragenlijsten[t]=stored.vragenlijsten[t].map(String);
   if(stored.boeking&&typeof stored.boeking==='object'){const b=stored.boeking;for(const k in c.boeking){if(b[k]===undefined)continue;
@@ -1231,13 +1247,13 @@ document.addEventListener('click',e=>{
 
 /* ---------- beheer ---------- */
 let beheerOpen=false, cfgTimer=null, cfgChain=Promise.resolve(), resetMail=null;
-const BEHEER_TABS=[['afspraken','Afspraken & portaal'],['mails','E-mails'],['fiche','Fiche & planning'],['systeem','Systeem']];
+const BEHEER_TABS=[['afspraken','Afspraken & portaal'],['mails','E-mails'],['fiche','Fiche & planning'],['stijl','Stijl'],['systeem','Systeem']];
 let beheerTab='afspraken';try{const b=localStorage.getItem('jp-beheer');if(BEHEER_TABS.some(t=>t[0]===b))beheerTab=b}catch(e){}
 function vBeheer(){
-  const intro={afspraken:'Wanneer klanten een gesprek kunnen boeken, welke videocall je aanbiedt en hun persoonlijke pagina.',mails:'Welke mails automatisch vertrekken en wat erin staat. Test je e-mail en bekijk wat er verstuurd werd.',fiche:'De keuzes in de kennismakingsfiche, en de termijnen waarmee Vandaag en de planning rekenen.',systeem:'Versie en updates van de app.'}[beheerTab];
+  const intro={afspraken:'Wanneer klanten een gesprek kunnen boeken, welke videocall je aanbiedt en hun persoonlijke pagina.',mails:'Welke mails automatisch vertrekken en wat erin staat. Test je e-mail en bekijk wat er verstuurd werd.',fiche:'De keuzes in de kennismakingsfiche, en de termijnen waarmee Vandaag en de planning rekenen.',stijl:'De kleuren, het lettertype en het logo op je publieke pagina\'s (afspraken, login, portaal, dossier).',systeem:'Versie en updates van de app.'}[beheerTab];
   return `<div class="vhead"><div><h1>Beheer</h1><p>${esc(intro)} Wijzigingen worden meteen bewaard.</p></div><div class="spacer"></div><span class="savestate" id="cfgstate">Alles opgeslagen</span></div>
   <div class="tabs" role="tablist" style="margin-bottom:22px">${BEHEER_TABS.map(([id,l])=>`<button role="tab" aria-selected="${beheerTab===id}" data-btab="${id}">${esc(l)}</button>`).join('')}</div>
-  <div class="beheer">${({afspraken:beheerAfspraken,mails:beheerMails,fiche:beheerFiche,systeem:beheerSysteem})[beheerTab]()}</div>`;
+  <div class="beheer">${({afspraken:beheerAfspraken,mails:beheerMails,fiche:beheerFiche,stijl:beheerStijl,systeem:beheerSysteem})[beheerTab]()}</div>`;
 }
 function beheerSysteem(){
   return `<section><h2>Mijn account</h2><p>Je inlogadres en wachtwoord voor dit beheer. Hiermee meld je je aan op de startpagina.</p>
@@ -1378,6 +1394,30 @@ function beheerMails(){
     <div class="mailgrid"><div class="sec"><h3 style="font-size:13px;font-weight:600">Ondertekening <code>{afzender}</code></h3><textarea id="mail-afzender" data-afzender="1" style="min-height:80px" aria-label="Ondertekening">${esc(cfg.afzender)}</textarea></div>${auto}</div></section>
    <section><h2>Mails om te kopiëren</h2><p>Deze stelt het systeem klaar op de klantpagina (onder “Nu te doen”); je kopieert ze en verstuurt ze zelf.</p><div class="mailgrid">${kopie}</div></section>`;
 }
+function beheerStijl(){
+  const k=cfg.stijl.kleuren;
+  const KLEUR_LABELS={paper:'Achtergrond',card:'Kaart / wit vlak',ink:'Tekst (donker)','ink-soft':'Tekst (licht)',accent:'Accentkleur (knoppen, links)','accent-ink':'Tekst op accent',sage:'Achtergrond licht accent',line:'Lijnen & randen'};
+  const FONTS=['DM Sans','Inter','Poppins','Lato','Nunito','Source Sans 3','Roboto','Figtree','Bricolage Grotesque','Playfair Display'];
+  const colors=Object.keys(KLEUR_LABELS).map(key=>`<div class="color-swatch"><input type="color" id="stijl-${key}" data-stijlkleur="${key}" value="${esc(k[key]||'#000000')}"><div><div class="label">${esc(KLEUR_LABELS[key])}</div><div class="hex" id="stijl-hex-${key}">${esc(k[key]||'')}</div></div></div>`).join('');
+  return `<section><h2>Kleuren</h2><p>De kleuren op je publieke pagina's: afspraken, login, portaal en dossier. Klik op een kleur om ze aan te passen.</p>
+    <div class="color-grid">${colors}</div></section>
+   <section><h2>Lettertype</h2><p>Het lettertype op je publieke pagina's. Dit wordt geladen van Google Fonts.</p>
+    <div class="sec" style="max-width:460px;display:grid;gap:14px">
+     <label class="fld"><span>Lettertype</span><select id="stijl-font" data-stijl="font">${FONTS.map(f=>`<option ${cfg.stijl.font===f?'selected':''}>${esc(f)}</option>`).join('')}</select></label>
+     <div id="stijl-font-preview" style="font-family:'${esc(cfg.stijl.font)}',system-ui,sans-serif;font-size:18px;padding:14px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">Aa Bb Cc 1234 — ${esc(cfg.stijl.font)}</div>
+    </div></section>
+   <section><h2>Logo & tagline</h2><p>De naam en de ondertitel die verschijnen op je publieke pagina's.</p>
+    <div class="sec" style="max-width:460px;display:grid;gap:14px">
+     <label class="fld"><span>Logonaam</span><input id="stijl-logo" data-stijl="logo" value="${esc(cfg.stijl.logo)}"></label>
+     <label class="fld"><span>Tagline</span><input id="stijl-tagline" data-stijl="tagline" value="${esc(cfg.stijl.tagline)}"></label>
+     <div class="stijl-preview" id="stijl-logo-preview" style="background:${esc(k.paper)}">
+       <span style="font-family:'${esc(cfg.stijl.font)}',system-ui,sans-serif;font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:${esc(k.accent)};font-weight:600">${esc(cfg.stijl.logo)}</span>
+       <span style="font-family:'${esc(cfg.stijl.font)}',system-ui,sans-serif;font-size:14px;color:${esc(k['ink-soft'])};letter-spacing:.08em;font-style:italic">${esc(cfg.stijl.tagline)}</span>
+     </div>
+    </div></section>
+   <section><h2>Terugzetten</h2><p>Herstel alle stijlinstellingen naar de standaardwaarden.</p>
+    <button class="btn ghost" id="stijl-reset">Standaard stijl herstellen</button></section>`;
+}
 function beheerAfspraken(){
   return `<section><h2>Online afspraken</h2><p>Zo ziet je afsprakenpagina eruit en wanneer klanten een gesprek kunnen boeken. Link: <code>${esc(serverInfo.base)}/afspraak</code> <button class="btn small ghost" id="copyBoekLink">Kopieer</button></p>
     <div class="sec" style="display:grid;gap:14px">
@@ -1447,6 +1487,14 @@ document.addEventListener('click',async e=>{const t=e.target.closest('#agendaCop
   if(t.id==='agendaNew'){const m=$('#agendaMsg');if(m)m.textContent='Bezig…';
     try{await fetch('/api/agenda/nieuw',{method:'POST',credentials:'same-origin'});await laadAgenda();toast('Nieuwe agenda-link gemaakt')}catch(e2){if(m)m.textContent='Mislukt'}return}
 });
+/* stijl events */
+document.addEventListener('input',e=>{const el=e.target;
+  if(el.dataset.stijlkleur){cfg.stijl.kleuren[el.dataset.stijlkleur]=el.value;const h=$('#stijl-hex-'+el.dataset.stijlkleur);if(h)h.textContent=el.value;saveCfg();return}
+  if(el.dataset.stijl==='font'){cfg.stijl.font=el.value;const p=$('#stijl-font-preview');if(p){p.style.fontFamily="'"+el.value+"',system-ui,sans-serif";p.textContent='Aa Bb Cc 1234 — '+el.value}saveCfg();return}
+  if(el.dataset.stijl==='logo'){cfg.stijl.logo=el.value;saveCfg();return}
+  if(el.dataset.stijl==='tagline'){cfg.stijl.tagline=el.value;saveCfg();return}
+});
+document.addEventListener('click',e=>{if(e.target.id==='stijl-reset'){cfg.stijl=JSON.parse(JSON.stringify(DEFAULTS.stijl));rerenderBeheer();saveCfg(true);toast('Standaard stijl hersteld')}});
 function saveCfg(now){clearTimeout(cfgTimer);const st=$('#cfgstate');if(st)st.textContent='Opslaan…';
   const run=()=>{cfgTimer=null;if(!db)return;const data=JSON.parse(JSON.stringify(cfg));
     cfgChain=cfgChain.then(()=>db.doc('instellingen/algemeen').set(data)).then(()=>{const s2=$('#cfgstate');if(s2&&!cfgTimer)s2.textContent='Alles opgeslagen'},e=>{const s2=$('#cfgstate');if(s2)s2.textContent='Niet opgeslagen ('+(e&&e.code||'fout')+')'})};
