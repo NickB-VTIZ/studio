@@ -363,10 +363,15 @@ const FASES=[
 const GESTOPT=new Set(['geen_deal','geannuleerd']);const stopped=k=>GESTOPT.has(k.fase);
 const FI=Object.fromEntries(FASES.map((f,i)=>[f.k,i]));
 const ACTIVE=FASES.filter(f=>!['afgerond','geen_deal','geannuleerd'].includes(f.k));
-const PRODUCTEN=[
+const PRODUCTEN_HUWELIJK=[
  [[0,'drukwerk','Drukwerk'],[1,'savethedate','Save the date'],[1,'uitnodiging','Uitnodiging'],[2,'receptiekaartjes','Receptiekaartjes'],[1,'menukaarten','Menukaarten'],[1,'naamkaartjes','Naamkaartjes'],[1,'banner','Banner'],[1,'stoelafwezigen','Stoel voor afwezigen'],[1,'drukwerkAnder','Ander:'],[0,'vows','Vows']],
  [[0,'bedankjes','Bedankjes'],[1,'vulling','Vulling'],[1,'verpakking','Verpakking'],[1,'afwerking','Afwerking'],[2,'clips','Clips'],[2,'lint','Lint'],[2,'stickers','Stickers'],[2,'kaartjes','Kaartjes'],[2,'vinyl','Vinyl'],[0,'decoratie','Decoratie'],[1,'flowerhoop','Flowerhoop'],[1,'gastenboek','Gastenboek'],[1,'enveloppendoos','Enveloppendoos']]
 ];
+const PRODUCTEN_GEBOORTE=[
+ [[0,'geboortekaartje','Geboortekaartje'],[1,'babyborrelkaartje','Babyborrel kaartje']],
+ [[0,'doopsuiker','Doopsuiker'],[1,'suikerbonen','Suikerbonen'],[1,'verpakking','Verpakking'],[1,'afwerking','Afwerking'],[2,'clips','Clips'],[2,'lint','Lint'],[2,'stickers','Stickers'],[2,'vinyl','Vinyl'],[0,'decoratie','Decoratie'],[1,'flowerhoop','Flowerhoop'],[1,'houtennaam','Houten naam'],[1,'memorybox','Memorybox'],[1,'kraamboekje','Kraamboekje']]
+];
+function getProducten(type){return type==='Geboorte'?PRODUCTEN_GEBOORTE:PRODUCTEN_HUWELIJK}
 const DEFAULTS={
   lijsten:{
     bron:['Instagram','Website','Via via','Huwelijksbeurs','Andere'],
@@ -605,9 +610,24 @@ function txt(p,label,o={}){const v=get(work,p)??'';return `<label class="fld ${o
 function area(p,label,o={}){const v=get(work,p)??'';return `<label class="fld full"><span>${esc(label)}</span><textarea id="${fid(p)}" data-f="${p}" rows="${o.rows||3}" ${o.ph?`placeholder="${esc(o.ph)}"`:''}>${esc(v)}</textarea></label>`}
 function radio(p,label,opts){const v=get(work,p)??'';if(v&&!opts.includes(v))opts=opts.concat([v]);return `<div class="radiorow full"><span>${esc(label)}</span><div class="opts" role="radiogroup" aria-label="${esc(label)}">${opts.map((o,i)=>`<label><input type="radio" id="${fid(p)}-${i}" name="${p}" data-f="${p}" value="${esc(o)}" ${v===o?'checked':''}>${esc(o)}</label>`).join('')}</div></div>`}
 
+function renderProductenTree(){
+  const prods=getProducten(get(work,'type')||'Huwelijk');
+  const tree=prods.map(col=>`<ul>${col.map(([lv,key,l])=>{const p='fiche.producten.'+key;
+     const extra=key==='drukwerkAnder'?`<input type="text" id="${fid('fiche.drukwerkAnderTekst')}" data-f="fiche.drukwerkAnderTekst" value="${esc(get(work,'fiche.drukwerkAnderTekst')||'')}" aria-label="Ander drukwerk">`:'';
+     return `<li class="l${lv}"><label><input type="checkbox" id="${fid(p)}" data-f="${p}" ${get(work,p)?'checked':''}>${esc(l)}</label>${extra}</li>`}).join('')}</ul>`).join('');
+  const el=document.getElementById('producten-tree');
+  if(el)el.innerHTML=tree;
+}
+function updateConditionalSections(){
+  const type=get(work,'type')||'Huwelijk';
+  const su=document.getElementById('sec-uitnodiging');if(su)su.style.display=(type==='Huwelijk'&&get(work,'fiche.producten.drukwerk'))?'':'none';
+  const sb=document.getElementById('sec-bedankjes');if(sb)sb.style.display=(type==='Huwelijk'&&get(work,'fiche.producten.bedankjes'))?'':'none';
+  const sbb=document.getElementById('sec-babyborrel');if(sbb)sbb.style.display=(type==='Geboorte'&&get(work,'fiche.producten.babyborrelkaartje'))?'':'none';
+}
 function vKlant(){
   const k=work;
-  const tree=PRODUCTEN.map(col=>`<ul>${col.map(([lv,key,l])=>{const p='fiche.producten.'+key;
+  const prods=getProducten(get(work,'type')||'Huwelijk');
+  const tree=prods.map(col=>`<ul>${col.map(([lv,key,l])=>{const p='fiche.producten.'+key;
      const extra=key==='drukwerkAnder'?`<input type="text" id="${fid('fiche.drukwerkAnderTekst')}" data-f="fiche.drukwerkAnderTekst" value="${esc(get(work,'fiche.drukwerkAnderTekst')||'')}" aria-label="Ander drukwerk">`:'';
      return `<li class="l${lv}"><label><input type="checkbox" id="${fid(p)}" data-f="${p}" ${get(work,p)?'checked':''}>${esc(l)}</label>${extra}</li>`}).join('')}</ul>`).join('');
   return `<button class="btn ghost back" data-nav="back">← Terug</button>
@@ -631,7 +651,7 @@ function vKlant(){
       ${radio('bron','Hoe gevonden?',cfg.lijsten.bron)}
       ${(()=>{const br=get(work,'bron')||'';const show=br==='Huwelijksbeurs'||br==='Andere';const lbl=br==='Huwelijksbeurs'?'Welke beurs?':'Hoe?';return `<label class="fld full" id="brondetail-wrap" style="display:${show?'':'none'}"><span>${esc(lbl)}</span><input id="${fid('bronDetail')}" data-f="bronDetail" value="${esc(get(work,'bronDetail')||'')}"></label>`})()}
     </div></section>
-    <section class="sec"><h2>Producten &amp; diensten</h2><div class="tree">${tree}</div></section>
+    <section class="sec"><h2>Producten &amp; diensten</h2><div class="tree" id="producten-tree">${tree}</div></section>
     <section class="sec"><h2>Stijl &amp; sfeer</h2><div class="grid2">
       ${txt('fiche.stijl.thema','Thema / concept')}${txt('fiche.stijl.kleuren','Kleuren')}
       ${txt('fiche.stijl.lettertype','Lettertype')}${txt('fiche.stijl.inspiratie','Inspiratie / voorbeelden')}
@@ -662,6 +682,14 @@ function vKlant(){
       <button type="button" class="btn ghost" id="addBedankje" style="margin-top:.25rem">+ Optie toevoegen</button>
       </div>
     </section>
+    <section class="sec" id="sec-babyborrel" style="display:${(get(work,'type')==='Geboorte'&&get(work,'fiche.producten.babyborrelkaartje'))?'':'none'}"><h2>Babyborrel</h2><div class="grid2">
+      ${txt('fiche.babyborrel.datum','Datum babyborrel',{type:'date'})}
+      ${txt('fiche.babyborrel.tijdstip','Tijdstip')}
+      ${txt('fiche.babyborrel.locatie','Locatie')}
+      ${txt('fiche.babyborrel.adres','Adres',{full:true})}
+      ${txt('fiche.babyborrel.aantal','Aantal kaartjes')}
+      ${area('fiche.babyborrel.extra','Extra wensen of gegevens',{rows:2})}
+    </div></section>
     <section class="sec"><h2>Extra's &amp; ideeën</h2><div class="grid2">${area('fiche.extras','',{rows:3,ph:'bv. sticker met namen voor op de spiegel'})}</div></section>
     <section class="sec"><h2>Afspraken voor offerte &amp; planning</h2><div class="grid2">
       ${area('fiche.offerte.opties','Wat moet er op de offerte?',{rows:2,ph:'bv. beide opties: aparte uitnodiging + aparte kaartjes'})}
@@ -895,7 +923,7 @@ async function createKlant(ev){
   const bronDetail=(bron==='Huwelijksbeurs'||bron==='Andere')?v('brondetail'):'';
   const doc={naam,type:(document.querySelector('input[name="n-type"]:checked')||{}).value||'',bron,bronDetail,
     email:v('email'),telefoon:v('telefoon'),straat:v('straat'),postcode:v('postcode'),gemeente:v('gemeente'),kennismaking:v('kennismaking'),datumEvent:v('datumEvent'),deadline:v('deadline'),gasten:'',budget:'',ontwerpDatum:'',
-    fase:'ingepland',faseDatums:{ingepland:t},fiche:{producten:{},stijl:{},uitnodiging:{},bedankjes:{opties:[{notities:'',aantal:'',verpakking:'',afwerking:''}]},offerte:{},notities:notitie,extras:''},
+    fase:'ingepland',faseDatums:{ingepland:t},fiche:{producten:{},stijl:{},uitnodiging:{},bedankjes:{opties:[{notities:'',aantal:'',verpakking:'',afwerking:''}]},babyborrel:{},offerte:{},notities:notitie,extras:''},
     logboek:[{d:t,t:'Klant aangemaakt'+(notitie?': '+notitie:'')}],aangemaakt:new Date().toISOString(),bijgewerkt:new Date().toISOString()};
   const slug=naam.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'klant';
   const id=slug+'-'+Math.random().toString(36).slice(2,6);
@@ -948,6 +976,8 @@ document.addEventListener('input',e=>{
   else{setp(work,p,val); queue(p.split('.')[0]);}
   if(p==='fiche.producten.drukwerk'){const s=document.getElementById('sec-uitnodiging');if(s)s.style.display=val?'':'none'}
   if(p==='fiche.producten.bedankjes'){const s=document.getElementById('sec-bedankjes');if(s)s.style.display=val?'':'none'}
+  if(p==='fiche.producten.babyborrelkaartje'){const s=document.getElementById('sec-babyborrel');if(s)s.style.display=val?'':'none'}
+  if(p==='type'){renderProductenTree();updateConditionalSections()}
   if(p==='bron'){const w=document.getElementById('brondetail-wrap');if(w){w.style.display=(val==='Huwelijksbeurs'||val==='Andere')?'':'none';const s=w.querySelector('span');if(s)s.textContent=val==='Huwelijksbeurs'?'Welke beurs?':'Hoe?'}}
   if(['naam','type','kennismaking','deadline','ontwerpDatum'].includes(p))renderSide();
 });

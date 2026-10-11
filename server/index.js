@@ -203,10 +203,25 @@ const STANDAARD_VRAGENLIJSTEN = {
     'Zijn er elementen dat jij mooi vindt dat je zeker terug wilt zien komen in je uitnodiging? (Lettertype, kleuren, symbolen, tekeningen, …)',
     'Heb jij enkele voorbeelden of stijlen van uitnodigingen die je mooi vindt? (Pinterest is hier de place to be voor)',
   ],
-  Geboorte: ['Naam van de baby (en eventueel tweede naam)', 'Geboortedatum en -uur, gewicht en lengte', 'Namen van de ouders', 'Namen van broers/zussen, meter en peter', 'Hoeveel kaartjes hebben jullie nodig?', 'Welke stijl spreekt jullie aan? (kleuren, illustraties, voorbeelden)', 'Komt er een foto op het kaartje?', 'Welke tekst of quote willen jullie erbij?', 'Gegevens voor kraambezoek of een geboortelijst?', 'Nog iets dat ik zeker moet weten?'],
+  Geboorte: [
+    '§Geboortekaartje',
+    'Naam van de baby (en eventueel tweede naam)', 'Geboortedatum en -uur, gewicht en lengte', 'Namen van de ouders', 'Namen van broers/zussen, meter en peter', 'Hoeveel kaartjes hebben jullie nodig?', 'Welke stijl spreekt jullie aan? (kleuren, illustraties, voorbeelden)', 'Komt er een foto op het kaartje?', 'Welke tekst of quote willen jullie erbij?', 'Gegevens voor kraambezoek of een geboortelijst?', 'Nog iets dat ik zeker moet weten?',
+    '§Babyborrel',
+    'Datum babyborrel', 'Tijdstip', 'Locatie + adres', 'Hoeveel kaartjes hebben jullie nodig?', 'Welke tekst of boodschap komt erop?', 'Nog iets dat ik zeker moet weten voor het babyborrelkaartje?',
+  ],
   Ander: ['Wat wil je laten ontwerpen?', 'Voor wanneer heb je het nodig?', 'Hoeveel exemplaren?', 'Welke stijl of sfeer spreekt je aan?', 'Nog iets dat ik zeker moet weten?'],
 };
-function vragenlijstVoor(k) { const alg = instellingen(); const lijsten = Object.assign({}, STANDAARD_VRAGENLIJSTEN, alg.vragenlijsten || {}); const t = k.type && lijsten[k.type] ? k.type : (lijsten.Ander ? 'Ander' : Object.keys(lijsten)[0]); return (lijsten[t] || []).map(String).filter(Boolean); }
+function vragenlijstVoor(k) {
+  const alg = instellingen(); const lijsten = Object.assign({}, STANDAARD_VRAGENLIJSTEN, alg.vragenlijsten || {});
+  const t = k.type && lijsten[k.type] ? k.type : (lijsten.Ander ? 'Ander' : Object.keys(lijsten)[0]);
+  let vragen = (lijsten[t] || []).map(String).filter(Boolean);
+  // Babyborrel section: only include when babyborrelkaartje is checked in fiche
+  if (t === 'Geboorte' && !(k.fiche && k.fiche.producten && k.fiche.producten.babyborrelkaartje)) {
+    let skip = false;
+    vragen = vragen.filter(q => { if (q === '§Babyborrel') { skip = true; return false; } if (skip && q.startsWith('§')) { skip = false; } return !skip; });
+  }
+  return vragen;
+}
 function contractInfo(k) { const c = k.contract || {}; const b = c.bestandId ? bestandOpSchijf(c.bestandId) : null; return { bestandId: c.bestandId || '', naam: b ? b.naam : '', verstuurdOp: c.verstuurdOp || '', getekend: c.getekend ? { naam: c.getekend.naam, op: c.getekend.op } : null }; }
 // Schrijfactie vanuit de app samenvoegen met wat er intussen server-side veranderde (klant via dossier/portaal):
 // - PATCH: enkel de meegestuurde velden; PUT: hele fiche, maar server-velden blijven staan
