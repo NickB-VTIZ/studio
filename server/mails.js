@@ -57,4 +57,4 @@ function bouwMail(sjabloon, waarden, knoppen = {}, optioneel = []) {
   return { text: vul(t, w), html: vulHtml(t, w, knoppen) };
 }
 
-module.exports = { STANDAARD_MAILS, vul, vulHtml, escHtml, bouwMail };
+module.exports = { STANDAARD_MAILS, vul, vulHtml, escHtml, bouwMail, wrapMail };

@@ -83,6 +83,25 @@ a.btn{text-decoration:none}
 .acc-panel h2{margin:0 0 4px;font-family:var(--f-display);font-size:22px;font-weight:400}
 .acc-panel .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
 .acc-panel .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px}
+.mail-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:70;align-items:center;justify-content:center;padding:20px}
+.mail-overlay.open{display:flex}
+.mail-panel{background:var(--surface);border-radius:14px;width:min(640px,100%);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 14px 48px rgba(0,0,0,.22);overflow:hidden}
+.mail-head{display:flex;align-items:center;gap:10px;padding:20px 24px 14px;border-bottom:1px solid var(--line)}
+.mail-head h2{margin:0;font-family:var(--f-display);font-size:21px;font-weight:400}
+.mail-x{margin-left:auto;background:none;border:0;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:6px}
+.mail-x:hover{background:var(--sunk);color:var(--ink)}
+.mail-scroll{padding:18px 24px;overflow-y:auto;display:grid;gap:14px}
+.mail-scroll textarea{resize:vertical;min-height:140px;line-height:1.5}
+.mail-atts{display:grid;gap:8px}
+.mail-atts .label{margin-bottom:2px}
+.mail-att-row{display:flex;align-items:center;gap:10px;background:var(--sunk);border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+.mail-att-row input[type=checkbox]{flex:none;width:17px;height:17px;accent-color:var(--accent)}
+.mail-att-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mail-att-row .tag{font-size:11px;color:var(--accent);background:var(--accent-soft);border-radius:5px;padding:2px 7px;white-space:nowrap}
+.mail-att-row .sz{font-size:12px;color:var(--muted);white-space:nowrap}
+.mail-att-none{color:var(--muted);font-size:13px;background:var(--sunk);border-radius:9px;padding:11px 13px}
+.mail-foot{display:flex;align-items:center;gap:12px;padding:14px 24px;border-top:1px solid var(--line);flex-wrap:wrap}
+.mail-foot-btns{display:flex;gap:8px;margin-left:auto}
 
 main{padding-block:24px 64px}
 .banner{background:var(--warn-soft);color:var(--ink);border-radius:var(--r);padding:12px 16px;margin-bottom:16px}
@@ -449,6 +468,18 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
     </div>
   </div>
 </div>
+<div class="mail-overlay" id="mailOverlay">
+  <div class="mail-panel">
+    <div class="mail-head"><h2 id="mailTitel">E-mail versturen</h2><button class="mail-x" id="mailClose" aria-label="Sluiten">×</button></div>
+    <div class="mail-scroll">
+      <label class="fld"><span>Aan</span><input id="mail-to" type="email" autocomplete="off" placeholder="klant@voorbeeld.be"></label>
+      <label class="fld"><span>Onderwerp</span><input id="mail-subject" type="text"></label>
+      <label class="fld"><span>Bericht</span><textarea id="mail-text" rows="11"></textarea></label>
+      <div id="mail-att"></div>
+    </div>
+    <div class="mail-foot"><span class="hint" id="mailMsg"></span><div class="mail-foot-btns"><button class="btn ghost" id="mailCancel">Annuleer</button><button class="btn primary" id="mailSend">Verzenden</button></div></div>
+  </div>
+</div>
 <div class="toast" id="toast" hidden></div>
 
 <script>
@@ -668,7 +699,7 @@ function render(){
       if(work.fiche&&work.fiche.bedankjes&&!Array.isArray(work.fiche.bedankjes.opties)){const b=work.fiche.bedankjes;const o1={notities:b.ideeen||'',aantal:b.aantal||'',verpakking:'',afwerking:''};if(b.thema)o1.notities=(b.thema+(o1.notities?'\n'+o1.notities:'')); const opties=[o1];if(b.optie1)opties.push({notities:b.optie1,aantal:'',verpakking:'',afwerking:''});if(b.optie2)opties.push({notities:b.optie2,aantal:'',verpakking:'',afwerking:''});work.fiche.bedankjes={opties};if(opties.some(o=>Object.values(o).some(v=>v))){if(!work.fiche.producten)work.fiche.producten={};work.fiche.producten.bedankjes=true;queue('fiche')}}
       /* migrate old single notities-string → dated notitieLog */
       if(work.fiche&&typeof work.fiche.notities==='string'&&work.fiche.notities.trim()&&!Array.isArray(work.fiche.notitieLog)){work.fiche.notitieLog=[{d:(work.aangemaakt||'').slice(0,10)||today(),t:work.fiche.notities.trim(),ts:nowTs()}];work.fiche.notities='';queue('fiche')}
-      klantTab='overzicht';notitieEdit=null;
+      notitieEdit=null;
       app.innerHTML=vKlant();renderSide();renderNotitieLog();if(work.nieuw){work.nieuw=false;queue('nieuw')}}
     else renderSide();
   }
@@ -980,15 +1011,60 @@ function renderVragenlijstTab(){
     }).join('')}</dl></section>`;
 }
 async function klantPost(pad,body){const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+pad,{method:body===null?'DELETE':'POST',headers:{'Content-Type':'application/json'},body:body===null?undefined:JSON.stringify(body||{}),credentials:'same-origin'});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw new Error(j.error||'Mislukt');return j}
+/* ---------- e-mail verzendmodal ---------- */
+let mailCtx=null, mailBijlagen=[];
+function fmtBytes(n){n=Number(n)||0;if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(0)+' KB';return (n/1048576).toFixed(1)+' MB'}
+const MAIL_TITELS={offerte:'Offerte versturen',nagoedkeuring:'Voorschot, contract & vragenlijst versturen'};
+const MAIL_ATT_LABEL={offerte:'Offerte',factuur:'Voorschotfactuur',contract:'Contract'};
+function renderMailAtt(){
+  const box=$('#mail-att');if(!box)return;
+  if(!mailBijlagen.length){box.innerHTML='<div class="mail-att-none">Geen documenten om mee te sturen. De klant krijgt enkel de link naar zijn dossier in de mail.</div>';return}
+  box.innerHTML=`<div class="mail-atts"><div class="label">Bijlagen <span class="hint">(vink uit wat je niet meestuurt)</span></div>${mailBijlagen.map(f=>`<label class="mail-att-row"><input type="checkbox" data-att="${esc(f.id)}" ${f.checked?'checked':''}><span class="nm">${esc(f.naam)}</span><span class="tag">${esc(MAIL_ATT_LABEL[f.soort]||'Bijlage')}</span><span class="sz">${fmtBytes(f.size)}</span></label>`).join('')}</div>`;
+}
+async function openMailModal(soort,offerteId){
+  if(!work)return;const msg=$('#mailMsg');if(msg){msg.style.color='var(--muted)';msg.textContent=''}
+  $('#mailTitel').textContent=MAIL_TITELS[soort]||'E-mail versturen';
+  $('#mail-to').value='';$('#mail-subject').value='';$('#mail-text').value='Laden…';$('#mail-att').innerHTML='';
+  const sendBtn=$('#mailSend');if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Verzenden'}
+  $('#mailOverlay').classList.add('open');
+  try{
+    const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/mail-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({soort,offerteId}),credentials:'same-origin'}).then(x=>x.json());
+    if(r.error){$('#mail-text').value='';if(msg){msg.style.color='var(--late)';msg.textContent=r.error}return}
+    mailCtx={soort:r.soort,offerteId:r.offerteId};
+    mailBijlagen=(r.bijlagen||[]).map(f=>Object.assign({checked:true},f));
+    $('#mail-to').value=r.to||'';$('#mail-subject').value=r.subject||'';$('#mail-text').value=r.body||'';
+    renderMailAtt();$('#mail-to').focus();
+  }catch(e){$('#mail-text').value='';if(msg){msg.style.color='var(--late)';msg.textContent='Kon de mail niet laden'}}
+}
+function closeMailModal(){$('#mailOverlay').classList.remove('open');mailCtx=null;mailBijlagen=[]}
+async function verstuurMailModal(){
+  if(!mailCtx||!work)return;const msg=$('#mailMsg'),btn=$('#mailSend');
+  const to=$('#mail-to').value.trim(),subject=$('#mail-subject').value.trim(),body=$('#mail-text').value.trim();
+  const fout=t=>{if(msg){msg.style.color='var(--late)';msg.textContent=t}};
+  if(!to){fout('Vul een e-mailadres in.');$('#mail-to').focus();return}
+  if(!subject){fout('Het onderwerp mag niet leeg zijn.');return}
+  if(!body){fout('Het bericht mag niet leeg zijn.');return}
+  const bijlageIds=[...document.querySelectorAll('#mail-att input[data-att]:checked')].map(c=>c.dataset.att);
+  btn.disabled=true;btn.textContent='Versturen…';if(msg)msg.textContent='';
+  try{
+    const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/mail-verstuur',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({soort:mailCtx.soort,offerteId:mailCtx.offerteId,to,subject,body,bijlageIds}),credentials:'same-origin'}).then(x=>x.json());
+    if(r.error){fout(r.error);btn.disabled=false;btn.textContent='Verzenden';return}
+    closeMailModal();toast('Gemaild naar '+r.to+' ('+r.bijlagen+' bijlage'+(r.bijlagen===1?'':'n')+')');await herlaadKlant();
+  }catch(e){fout('Versturen mislukt');btn.disabled=false;btn.textContent='Verzenden'}
+}
+document.addEventListener('click',e=>{
+  if(e.target.closest('#mailClose,#mailCancel')){closeMailModal();return}
+  if(e.target.id==='mailOverlay'){closeMailModal();return}
+  if(e.target.closest('#mailSend')){verstuurMailModal();return}
+});
 document.addEventListener('click',async e=>{
   const t=e.target.closest('#vpAnnuleer,#vsToggle,#ngSend,[data-bjdel],[data-ofmail]');if(!t||!work)return;
   if(t.id==='vpAnnuleer'){const reden=prompt('Afspraak van '+fmtDT(work.kennismaking)+' annuleren? Het agenda-item wordt verwijderd en de fiche gaat naar "Gesprek geannuleerd".\n\nReden (optioneel, komt in de mail naar de klant):');if(reden===null)return;
     t.disabled=true;try{const r=await klantPost('/annuleer',{reden});toast('Afspraak geannuleerd'+(r.gemaild?' — klant verwittigd':''));await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
   if(t.id==='vsToggle'){const vs=work.voorschot||{};t.disabled=true;try{await klantPost('/voorschot',{betaald:!vs.betaald});toast(vs.betaald?'Voorschot op niet betaald':'Voorschot als betaald gemarkeerd');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
-  if(t.id==='ngSend'){t.disabled=true;t.textContent='Versturen…';try{const r=await klantPost('/na-goedkeuring',{});toast('Gemaild naar '+work.email+' ('+r.bijlagen+' bijlage'+(r.bijlagen===1?'':'n')+')');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false;t.textContent='Mail voorschotfactuur, contract & vragenlijst'}return}
+  if(t.id==='ngSend'){openMailModal('nagoedkeuring');return}
   if(t.dataset.bjdel){if(!confirm('Bijlage "'+t.dataset.naam+'" verwijderen?'))return;try{await klantPost('/bijlage/'+t.dataset.bjdel,null);toast('Bijlage verwijderd');await herlaadKlant()}catch(err){toast(err.message)}return}
-  if(t.dataset.ofmail){const o=findOf(t.dataset.ofmail);if(!o)return;const extra=prompt('Offerte "'+(o.titel||'Offerte')+'" mailen naar '+work.email+' met '+(o.bestanden||[]).length+' bijlage(n).\n\nPersoonlijk woordje bovenaan de mail (optioneel):','');if(extra===null)return;
-    t.disabled=true;t.textContent='Versturen…';try{const r=await klantPost('/offerte/'+encodeURIComponent(o.id)+'/verstuur',{bericht:extra});toast('Offerte gemaild ('+r.bijlagen+' bijlage'+(r.bijlagen===1?'':'n')+')');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false;t.textContent='Verstuur per mail'}return}
+  if(t.dataset.ofmail){const o=findOf(t.dataset.ofmail);if(!o)return;openMailModal('offerte',o.id);return}
 });
 document.addEventListener('change',async e=>{
   const inp=e.target;if(inp.id!=='bjFile'||!work)return;const f=inp.files&&inp.files[0];if(!f)return;const soort=($('#bjSoort')||{}).value||'ander';const msg=$('#bjMsg');
@@ -1875,7 +1951,7 @@ function openAccountPanel(){
   ov.classList.add('open');
 }
 function closeAccountPanel(){const ov=$('#accOverlay');if(ov)ov.classList.remove('open')}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAccountPanel();$('#profileWrap')?.classList.remove('open')}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAccountPanel();if(typeof closeMailModal==='function')closeMailModal();$('#profileWrap')?.classList.remove('open')}});
 
 /* ---------- koppelingen (aparte pagina) ---------- */
 let koppelOpen=false, koppelData=null;

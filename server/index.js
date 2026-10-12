@@ -15,7 +15,21 @@ const { sendMail, smtpConfig } = require('./smtp');
 const { resendConfig, sendViaResend, testResend } = require('./resend');
 const { twilioConfig, sendWhatsApp, testTwilio } = require('./twilio');
 const { maakUBL } = require('./ubl');
-const { STANDAARD_MAILS, vul, bouwMail } = require('./mails');
+const { STANDAARD_MAILS, vul, bouwMail, escHtml, wrapMail } = require('./mails');
+// Vrije mailtekst (door de beheerder bewerkt in de modal) → eenvoudige HTML-mail: escape, URLs klikbaar, regeleindes behouden.
+function tekstNaarHtmlMail(body) {
+  const urlRe = /(https?:\/\/[^\s]+)/g; let out = '', last = 0, m;
+  while ((m = urlRe.exec(body))) { out += escHtml(body.slice(last, m.index)); const u = m[1]; out += '<a href="' + escHtml(u) + '" style="color:#2C6A4C">' + escHtml(u) + '</a>'; last = m.index + u.length; }
+  out += escHtml(body.slice(last));
+  return wrapMail(out.replace(/\n/g, '<br>'));
+}
+// Beschikbare bijlagen voor een mailsoort (offerte-PDF's, of voorschotfactuur + contract).
+function mailBijlagenVoor(k, soort, offerteId) {
+  const uit = [], push = (id, naam, s) => { const b = bestandOpSchijf(id); if (!b) return; let size = 0; try { size = fs.statSync(b.pad).size; } catch (e) {} uit.push({ id, naam: naam || b.naam, soort: s, type: b.type, size }); };
+  if (soort === 'offerte') { const o = (k.offertes || []).find(x => x.id === offerteId); if (o) (o.bestanden || []).forEach(f => push(f.id, f.naam, 'offerte')); }
+  else if (soort === 'nagoedkeuring') { (k.bijlages || []).filter(f => f.soort === 'factuur').forEach(f => push(f.id, f.naam, 'factuur')); if (k.contract && k.contract.bestandId) { const cn = (k.bijlages || []).find(f => f.id === k.contract.bestandId); push(k.contract.bestandId, cn && cn.naam, 'contract'); } }
+  return uit;
+}
 const { fasenVoor, FASES, FI: FI_SERVER, GESTOPT } = require('./fases');
 const { BEHEER_MODULES, BEHEER_TABS, PORTAAL_MODULES, ALLE_MODULES, MODULE_IDS,
   MODULE_GROEPEN, GROEP_IDS, groepNaarTabs, TAB_MAP } = require('./modules');
@@ -997,6 +1011,62 @@ async function api(req, res, url) {
     const b = await readJson(req, 10e3).catch(() => ({}));
     try { const r = await verstuurOfferte(ofVerstuurMatch[1], ofVerstuurMatch[2], req, { bericht: b.bericht }); return json(res, 200, r); }
     catch (e) { return json(res, e.status || 500, { error: e.message }); }
+  }
+  // Mail-preview: standaard ontvanger, onderwerp, berichttekst en beschikbare bijlagen voor de verzendmodal.
+  const mailPrevMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/mail-preview$/);
+  if (mailPrevMatch && m === 'POST') {
+    const k = store.get('klanten', mailPrevMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    const soort = b.soort === 'offerte' ? 'offerte' : b.soort === 'nagoedkeuring' ? 'nagoedkeuring' : '';
+    if (!soort) return json(res, 400, { error: 'Onbekende mailsoort' });
+    if (!k.wijzigCode) { k.wijzigCode = crypto.randomBytes(9).toString('base64url'); store.set('klanten', mailPrevMatch[1], k); }
+    let subject = '', body = '';
+    if (soort === 'offerte') {
+      const o = (k.offertes || []).find(x => x.id === b.offerteId); if (!o) return json(res, 404, { error: 'Offerte niet gevonden' });
+      const basis = mailBasis(k, req, { offerte: o.titel || 'Offerte', totaal: euro(offerteTotalen(o).tot), geldigTot: o.geldigTot || '-', bericht: '' });
+      const mm = bouwMail(sjablonen().offerteVerstuurd, basis, { dossierlink: dossierKnop(req, k, 'Bekijk en bevestig de offerte') });
+      subject = `Offerte ${o.titel && o.titel !== 'Offerte' ? '"' + o.titel + '" ' : ''}van justPIXIT`; body = mm.text;
+    } else {
+      const factuur = (k.bijlages || []).filter(f => f.soort === 'factuur'), contract = k.contract && k.contract.bestandId ? [1] : [];
+      const basis = mailBasis(k, req, { bericht: '', heeftFactuur: factuur.length ? 'ja' : 'nee', heeftContract: contract.length ? 'ja' : 'nee' });
+      const mm = bouwMail(sjablonen().naGoedkeuringKlant, basis, { dossierlink: dossierKnop(req, k, 'Vragenlijst invullen & contract tekenen') });
+      subject = 'Volgende stap: voorschot, contract en vragenlijst – justPIXIT'; body = mm.text;
+    }
+    body = body.replace(/\n{3,}/g, '\n\n').trim();
+    return json(res, 200, { ok: true, to: k.email || '', subject, body, bijlagen: mailBijlagenVoor(k, soort, b.offerteId), soort, offerteId: b.offerteId || '' });
+  }
+  // Mail versturen vanuit de modal met aangepaste ontvanger, onderwerp, tekst en gekozen bijlagen.
+  const mailSendMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/mail-verstuur$/);
+  if (mailSendMatch && m === 'POST') {
+    const id = mailSendMatch[1], k = store.get('klanten', id); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    if (!mailActief()) return json(res, 400, { error: 'E-mail is niet ingesteld (zie Koppelingen).' });
+    const b = await readJson(req, 100e3).catch(() => ({}));
+    const soort = b.soort === 'offerte' ? 'offerte' : b.soort === 'nagoedkeuring' ? 'nagoedkeuring' : '';
+    if (!soort) return json(res, 400, { error: 'Onbekende mailsoort' });
+    const to = String(b.to || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json(res, 400, { error: 'Vul een geldig e-mailadres in.' });
+    const subject = String(b.subject || '').trim(), body = String(b.body || '').trim();
+    if (!subject) return json(res, 400, { error: 'Het onderwerp mag niet leeg zijn.' });
+    if (!body) return json(res, 400, { error: 'Het bericht mag niet leeg zijn.' });
+    const beschikbaar = mailBijlagenVoor(k, soort, b.offerteId);
+    const gekozen = Array.isArray(b.bijlageIds) ? b.bijlageIds.map(String) : beschikbaar.map(x => x.id);
+    const ids = beschikbaar.filter(x => gekozen.includes(x.id));
+    const attachments = ids.map(x => bijlageVan(x.id)).filter(Boolean);
+    const r = await verstuurMail({ to, subject, text: body, html: tekstNaarHtmlMail(body), attachments }, { soort: soort === 'offerte' ? 'offerte verstuurd' : 'na goedkeuring (voorschot/contract/vragenlijst)' });
+    if (!r.ok) return json(res, 502, { error: 'Mail versturen mislukt: ' + r.error });
+    const vandaag = vandaagBE();
+    if (soort === 'offerte') {
+      const o = (k.offertes || []).find(x => x.id === b.offerteId);
+      if (o) { o.status = 'Verstuurd'; o.datum = o.datum || vandaag; o.verstuurdOp = vandaag; delete o.klantReactie; delete o.afgewezenOp; }
+      logboek(k, `Offerte "${o ? o.titel || 'Offerte' : '?'}" gemaild naar ${to} (${attachments.length} bijlage${attachments.length === 1 ? '' : 'n'})`, 'offerte');
+      if (['gehad', 'ingepland'].includes(k.fase)) { k.fase = 'offerte'; k.faseDatums = Object.assign({}, k.faseDatums, { offerte: vandaag }); logboek(k, 'Fase → Offerte verstuurd', 'fase'); }
+      k.offerteTs = new Date().toISOString();
+    } else {
+      k.naGoedkeuringVerstuurdOp = vandaag; if (k.contract && k.contract.bestandId && ids.some(x => x.soort === 'contract')) k.contract.verstuurdOp = vandaag;
+      logboek(k, `Voorschotfactuur, contract en vragenlijst gemaild naar ${to} (${attachments.length} bijlage${attachments.length === 1 ? '' : 'n'})`, 'offerte');
+    }
+    store.set('klanten', id, k);
+    return json(res, 200, { ok: true, bijlagen: attachments.length, to });
   }
   // Bijlages op de fiche (factuur, contract, ander) — het bestand zelf komt binnen via /api/upload.
   const bijlageMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/bijlage(?:\/([a-f0-9]{32}))?$/);
