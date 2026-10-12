@@ -284,6 +284,37 @@ aside{display:grid;gap:18px;position:sticky;top:calc(env(safe-area-inset-top,0px
 .onew .newdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--late);flex:none}
 .onew .ot{flex:1}
 .onew .og{font-size:12px;color:var(--muted);white-space:nowrap}
+/* klant-dashboard: full-width command center */
+.detail.solo{grid-template-columns:minmax(0,1fr)}
+.detail.solo #side{display:none}
+.dash{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.dash-wide{grid-column:1/-1}
+@media(max-width:860px){.dash{grid-template-columns:minmax(0,1fr)}}
+/* traject-widget */
+.tw-body{padding:14px 18px 16px;display:grid;gap:14px}
+.tw-chips{display:flex;gap:10px;flex-wrap:wrap}
+.tw-chip{background:var(--sunk);border-radius:9px;padding:7px 12px;display:grid;gap:1px;min-width:92px}
+.tw-chip b{font-family:var(--f-display);font-weight:400;font-size:17px;font-variant-numeric:tabular-nums;line-height:1.15}
+.tw-chip small{font-size:11px;color:var(--muted)}
+.tw-chip.warn{background:var(--warn-soft)}.tw-chip.warn b{color:var(--warn)}
+.tw-chip.bad{background:var(--late-soft)}.tw-chip.bad b{color:var(--late)}
+.tw-flow{padding:2px 0;margin:0}
+.tw-flow li{padding-left:0;padding-right:0}
+.tw-flow li::before{left:8px}
+.tw-flow li.tw-more .mk{border-style:dashed;background:transparent}
+.tw-flow li.tw-more button{all:unset;cursor:pointer;font-size:12px;color:var(--muted)}
+.tw-flow li.tw-more button:hover{text-decoration:underline}
+.tw-actie{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;background:var(--accent-soft);border-radius:10px;padding:11px 14px;flex-wrap:wrap}
+.tw-actie .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.tw-actie p{margin:2px 0 0;font-weight:600}
+.tw-foot{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+/* na-goedkeuring checklist */
+.ckrow{display:flex;align-items:center;gap:10px;background:var(--sunk);border-radius:9px;padding:9px 12px}
+.ckrow .ck{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff}
+.ckrow.done .ck{background:var(--ok);border-color:var(--ok)}
+.ckrow .ck-txt{flex:1;min-width:0;display:grid}
+.ckrow .ck-txt b{font-weight:600;font-size:13px}
+.ckrow .ck-txt span{font-size:12px;color:var(--muted)}
 .notitie-add{display:flex;gap:10px;align-items:flex-start;margin-bottom:14px}
 .notitie-add textarea{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 11px;font:inherit;resize:vertical}
 .notitie-add button{flex:none;margin-top:1px}
@@ -790,7 +821,7 @@ function vKlant(){
      return `<li class="l${lv}"><label><input type="checkbox" id="${fid(p)}" data-f="${p}" ${get(work,p)?'checked':''}>${esc(l)}</label>${extra}</li>`}).join('')}</ul>`).join('');
   return `<button class="btn ghost back" data-nav="back">← Terug</button>
   <div class="khead" id="khead"></div>
-  <div class="detail"><div class="sheet">
+  <div class="detail${klantTab==='overzicht'?' solo':''}" id="detail"><div class="sheet">
     <div class="tabs" role="tablist" id="tabs"></div>
     <div class="sheet" id="tab-overzicht" role="tabpanel" ${klantTab!=='overzicht'?'hidden':''}></div>
     <div class="sheet" id="tab-fiche" role="tabpanel" ${klantTab!=='fiche'?'hidden':''}>
@@ -873,20 +904,21 @@ function renderSide(){
   const nOf=(k.offertes||[]).length;
   const TABS=[['overzicht','Overzicht'],['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['vragenlijst','Vragenlijst'],['bijlages','Bijlages'],['logboek','Logboek']];
   $('#tabs').innerHTML=TABS.map(([id,l])=>`<button role="tab" id="tabbtn-${id}" aria-selected="${klantTab===id}" data-tab="${id}">${l}${hasNew(k,id)?'<span class="newdot" title="Nieuw sinds je laatst keek"></span><span class="sr">(nieuw)</span>':''}</button>`).join('');
-  const cur=FI[k.fase]??0, fd=k.faseDatums||{}, plan=planning(k);
-  const flow=FASES.map((f,i)=>{
-    if(GESTOPT.has(f.k)&&f.k!==k.fase)return '';
-    const st=stopped(k)?(f.k===k.fase?'cur':(fd[f.k]?'done':'todo')):(i<cur?'done':i===cur?'cur':'todo');
-    const pl=plan[f.k]||{};let dt='',cls='',sub='';
-    if(st==='done'){dt=pl.d?fmt(pl.d):'';if(pl.skipped)sub='overgeslagen'}
-    else if(st==='cur'){dt=fd[f.k]?fmt(fd[f.k]):'';sub=fd[f.k]?'nu · sinds '+Math.max(0,-diffDays(fd[f.k]))+' d':'nu'}
-    else if(pl.d){dt=fmt(pl.d);cls=pl.shift?'shift':'plan';sub=f.k==='opvolging'?'enkel indien nodig':(pl.shift?'gepland · verschoven naar vandaag':'gepland')}
-    if(f.k==='gehad'&&st==='todo'&&k.kennismaking)sub='gesprek '+esc(fmtDT(k.kennismaking));
-    return `<li class="${st}"><span class="mk"></span><button data-fase="${f.k}" title="Zet in deze fase">${esc(f.l)}</button><span class="d ${cls}">${dt}</span>${sub?`<span class="s">${sub}</span>`:''}</li>`}).join('');
-  const total=FI.afgerond, pct=stopped(k)?0:Math.round(Math.min(cur,total)/total*100);
-  const dl=deadlineHtml(k,plan);
-  const next=FASES[cur+1]&&!GESTOPT.has(FASES[cur+1].k)&&!stopped(k)?FASES[cur+1]:null;
-  const M=mails(k);
+  const overz=klantTab==='overzicht';
+  const det=$('#detail');if(det)det.classList.toggle('solo',overz);
+  if(overz){$('#side').innerHTML='';}
+  else{$('#side').innerHTML=`${stopPanels(k)}${afspraakPanel(k)}${dossierPanel(k)}${naGoedkeuringPanel(k)}${trajectWidget(k)}${whatsappPanel(k)}${logboekPanel(k)}`;}
+  if(klantTab==='overzicht')renderOverzichtTab();
+  if(klantTab==='offerte'&&!ofMounted)renderOffertes();
+  if(klantTab==='planning')renderPlanningTab();
+  if(klantTab==='vragenlijst')renderVragenlijstTab();
+  if(klantTab==='bijlages')renderBijlagesTab();
+  if(klantTab==='logboek'&&logEdit===null&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tab-logboek')))renderLogTab();
+  $('#delsec').innerHTML=confirmDel?`<div class="confirm">Deze klant en de hele fiche definitief verwijderen? <button class="btn small danger" id="delYes">Ja, verwijder</button><button class="btn small" id="delNo">Annuleer</button></div>`:`<button class="btn small ghost danger" id="delAsk">Klant verwijderen</button>`;
+}
+
+/* ---------- afspraak verplaatsen & klantenportaal (zijbalk) ---------- */
+function stopPanels(k){
   const stopPanel=stopForm?`<section class="panel" id="stopform"><header><h2>Klant gaat niet door</h2></header><div class="todo-card">
      <p style="color:var(--muted);font-size:13px">Waarom niet? Zo zie je later wat de meest voorkomende redenen zijn.</p>
      <div class="opts">${cfg.lijsten.stopReden.map((r,i)=>`<label><input type="radio" name="stopreden" id="stopr-${i}" value="${esc(r)}" ${work.stopReden===r?'checked':''}>${esc(r)}</label>`).join('')}</div>
@@ -898,50 +930,91 @@ function renderSide(){
      ${k.stopNa?`<p style="font-size:13px;color:var(--muted)">Gestopt na: ${esc(fase(k.stopNa).l)}</p>`:''}
      ${k.herContact?`<p style="font-size:13px">Opnieuw contacteren op <b>${fmt(k.herContact)}</b></p>`:''}
      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-fase="${esc(k.stopNa&&k.stopNa!=='geen_deal'?k.stopNa:'gehad')}">Heractiveer${k.stopNa&&k.stopNa!=='geen_deal'?' → '+esc(fase(k.stopNa).l):''}</button><button class="btn small ghost" id="stopEdit">Reden aanpassen</button></div></div></section>`:'';
-  $('#side').innerHTML=`${stopPanel}${stoppedPanel}
-   ${afspraakPanel(k)}${naGoedkeuringPanel(k)}
-   <section class="panel"><header><h2>Traject &amp; planning</h2><span class="count" style="margin-left:auto">${stopped(k)?'gestopt':'fase '+(Math.min(cur,total)+1)+' van '+(total+1)}</span></header>
-    <div class="progress" style="margin-top:12px"><i style="width:${pct}%"></i></div>${dl}
-    <ol class="flow">${flow}</ol>
-    ${k.datumEvent?`<div class="dlrow none" style="margin-bottom:10px">Event op ${fmt(k.datumEvent)}</div>`:''}
-    <div class="flowfoot" style="border-top:0;padding-top:0"><button class="btn small ghost" data-tab="planning">Uitgebreide planning →</button></div>
-    <div class="flowfoot">${next?`<button class="btn primary small" data-fase="${next.k}">→ ${esc(next.l)}</button>`:''}${!stopped(k)&&k.fase!=='afgerond'?'<button class="btn small ghost" data-fase="geen_deal">Niet doorgegaan</button>':''}</div></section>
-   ${serverInfo.whatsapp&&k.telefoon?`<section class="panel"><header><h2>WhatsApp</h2></header><div class="todo-card">
+  return stopPanel+stoppedPanel;
+}
+function whatsappPanel(k){
+  if(!(serverInfo.whatsapp&&k.telefoon))return '';
+  return `<section class="panel"><header><h2>WhatsApp</h2></header><div class="todo-card">
      <textarea id="waText" rows="3" aria-label="WhatsApp-bericht" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:8px 10px">${esc('Hoi '+(voornaam(k.naam)||'')+', ')}</textarea>
-     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn small primary" id="waSend">Stuur naar ${esc(k.telefoon)}</button><span class="hint">via WhatsApp</span></div></div></section>`:''}
-   <section class="panel"><header><h2>Logboek</h2><button class="btn small ghost" style="margin-left:auto" data-tab="logboek">Alles (${(k.logboek||[]).length}) →</button></header>
+     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn small primary" id="waSend">Stuur naar ${esc(k.telefoon)}</button><span class="hint">via WhatsApp</span></div></div></section>`;
+}
+function logboekPanel(k){
+  return `<section class="panel"><header><h2>Logboek</h2><button class="btn small ghost" style="margin-left:auto" data-tab="logboek">Alles (${(k.logboek||[]).length}) →</button></header>
     <ul class="log">${logSorted(k).slice(0,3).map(({l})=>`<li><time>${fmt(l.d)}</time><span>${esc(l.t)}</span></li>`).join('')||'<li><span></span><span style="color:var(--muted)">Nog geen notities.</span></li>'}</ul>
     <form class="logadd" id="logform"><input id="logtxt" placeholder="bv. gebeld, voicemail ingesproken" aria-label="Notitie voor logboek"><button class="btn small">Voeg toe</button></form></section>`;
-  if(klantTab==='overzicht')renderOverzichtTab();
-  if(klantTab==='offerte'&&!ofMounted)renderOffertes();
-  if(klantTab==='planning')renderPlanningTab();
-  if(klantTab==='vragenlijst')renderVragenlijstTab();
-  if(klantTab==='bijlages')renderBijlagesTab();
-  if(klantTab==='logboek'&&logEdit===null&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tab-logboek')))renderLogTab();
-  $('#delsec').innerHTML=confirmDel?`<div class="confirm">Deze klant en de hele fiche definitief verwijderen? <button class="btn small danger" id="delYes">Ja, verwijder</button><button class="btn small" id="delNo">Annuleer</button></div>`:`<button class="btn small ghost danger" id="delAsk">Klant verwijderen</button>`;
 }
-
-/* ---------- afspraak verplaatsen & klantenportaal (zijbalk) ---------- */
+// Compacte traject-widget: progress + tijd + venster van stappen (vorige · huidige · +2) + primaire CTA.
+function trajectWidget(k){
+  if(stopped(k)){
+    const d=(k.faseDatums||{})[k.fase];
+    return `<section class="panel tw"><header><h2>Traject</h2><span class="chip g-stop" style="margin-left:auto">${esc(fase(k.fase).l)}${d?' · '+fmt(d):''}</span></header><div class="tw-body"><p class="hint" style="margin:0">Dit traject is gestopt.</p></div></section>`;
+  }
+  const cur=FI[k.fase]??0,total=FI.afgerond,pct=Math.round(Math.min(cur,total)/total*100);
+  const plan=planning(k),fd=k.faseDatums||{};
+  const next=FASES[cur+1]&&!GESTOPT.has(FASES[cur+1].k)?FASES[cur+1]:null;
+  const a=actie(k),d=a?dueLabel(a.due):null;
+  // Tijd-chips (deadline / event / kennismaking)
+  const tb=[];
+  if(k.deadline&&k.fase!=='afgerond'){const n=diffDays(k.deadline);tb.push(`<span class="tw-chip ${n<0?'bad':n<=14?'warn':''}"><b>${n<0?(-n)+' d te laat':n===0?'vandaag':'nog '+n+' d'}</b><small>deadline ${fmt(k.deadline)}</small></span>`)}
+  if(k.datumEvent){const n=diffDays(k.datumEvent);tb.push(`<span class="tw-chip"><b>${n<0?'geweest':n===0?'vandaag':'over '+n+' d'}</b><small>event ${fmt(k.datumEvent)}</small></span>`)}
+  if(k.kennismaking&&cur<=FI.gehad){const n=diffDays(k.kennismaking);tb.push(`<span class="tw-chip"><b>${n<0?'geweest':n===0?'vandaag':'over '+n+' d'}</b><small>kennismaking</small></span>`)}
+  // Venster van stappen: vorige, huidige, +2
+  const startI=Math.max(0,cur-1),endI=Math.min(total,cur+2);
+  let rows='';
+  if(startI>0)rows+=`<li class="tw-more"><span class="mk"></span><button data-tab="planning">${startI} eerdere stap${startI===1?'':'pen'} tonen</button></li>`;
+  for(let i=startI;i<=endI;i++){
+    const f=FASES[i];if(GESTOPT.has(f.k))continue;
+    const st=i<cur?'done':i===cur?'cur':'todo';
+    const pl=plan[f.k]||{};let dt='',cls='',sub='';
+    if(st==='done'){dt=pl.d?fmt(pl.d):'';if(pl.skipped)sub='overgeslagen'}
+    else if(st==='cur'){dt=fd[f.k]?fmt(fd[f.k]):'';sub=fd[f.k]?'nu · sinds '+Math.max(0,-diffDays(fd[f.k]))+' d':'nu'}
+    else if(pl.d){dt=fmt(pl.d);cls=pl.shift?'shift':'plan';sub=f.k==='opvolging'?'enkel indien nodig':(pl.shift?'gepland · verschoven':'gepland')}
+    if(f.k==='gehad'&&st==='todo'&&k.kennismaking)sub='gesprek '+esc(fmtDT(k.kennismaking));
+    rows+=`<li class="${st}"><span class="mk"></span><button data-fase="${f.k}" title="Zet in deze fase">${esc(f.l)}</button><span class="d ${cls}">${dt}</span>${sub?`<span class="s">${sub}</span>`:''}</li>`;
+  }
+  if(endI<total)rows+=`<li class="tw-more"><span class="mk"></span><button data-tab="planning">nog ${total-endI} stap${(total-endI)===1?'':'pen'} tonen</button></li>`;
+  const actieHtml=a?`<div class="tw-actie"><div class="tw-actie-txt"><span class="lbl">Aangeraden actie</span><p>${esc(a.t)}</p></div>${d?`<span class="due ${d.c}">${d.t}</span>`:''}</div>`:'';
+  const cta=next?`<button class="btn primary" data-fase="${next.k}">→ ${esc(next.l)}</button>`:(k.fase==='afgerond'?'<span class="chip ok">Traject afgerond</span>':'');
+  return `<section class="panel tw"><header><h2>Traject</h2><span class="count" style="margin-left:auto">fase ${Math.min(cur,total)+1} van ${total+1}</span></header>
+    <div class="tw-body">
+      <div class="progress" style="margin:0"><i style="width:${pct}%"></i></div>
+      ${tb.length?`<div class="tw-chips">${tb.join('')}</div>`:''}
+      <ol class="flow tw-flow">${rows}</ol>
+      ${actieHtml}
+      <div class="tw-foot">${cta}<button class="btn small ghost" data-tab="planning">Volledige planning →</button>${k.fase!=='afgerond'?'<button class="btn small ghost" data-fase="geen_deal">Niet doorgegaan</button>':''}</div>
+    </div></section>`;
+}
+// Dossier & klantportaal — apart, licht blok (dossierlink altijd, portaaltoegang vanaf de samenwerking).
+function dossierPanel(k){
+  if(stopped(k))return '';
+  const portaalKlaar=FI[k.fase]>=FI.goedgekeurd;
+  return `<section class="panel"><header><h2>Dossier &amp; portaal</h2></header><div class="todo-card" style="display:grid;gap:8px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="wzCopy" title="Persoonlijke link zonder account: afspraak verzetten, offerte bevestigen, vragenlijst, contract tekenen">Dossierlink kopiëren</button></div>
+    <span class="hint">De dossierlink werkt zonder account en volstaat tot en met het contract.</span>
+    ${portaalKlaar?`<div style="border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px">
+      <div class="label">Klantportaal (account met wachtwoord)</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="plMail" ${k.email?'':'disabled'} title="${k.email?'Maakt een portaalaccount en mailt een uitnodiging naar '+esc(k.email):'Vul eerst een e-mailadres in op de fiche'}">Toegang geven &amp; mailen</button><button class="btn small ghost" id="plCopy" ${k.email?'':'disabled'}>Uitnodigingslink kopiëren</button></div>
+      <span class="hint">Geef portaaltoegang zodra het voorschot betaald is en de samenwerking start.</span>
+     </div>`:''}
+   </div></section>`;
+}
 function afspraakPanel(k){
   if(k.fase==='geen_deal')return '';
   if(k.fase==='geannuleerd')return `<section class="panel"><header><h2>Gesprek geannuleerd</h2><span class="chip g-stop" style="margin-left:auto">${fmt((k.faseDatums||{}).geannuleerd)}</span></header><div class="todo-card" style="display:grid;gap:8px">${k.geannuleerdeAfspraak?`<p>Het gesprek van <b>${esc(fmtDT(k.geannuleerdeAfspraak))}</b> werd geannuleerd; het agenda-item is verwijderd.</p>`:''}<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-fase="${esc(k.stopNa&&!GESTOPT.has(k.stopNa)?k.stopNa:'ingepland')}">Heractiveer fiche</button><button class="btn small ghost" id="wzCopy">Dossierlink kopiëren</button></div><span class="hint">Heractiveer de fiche en vul een nieuw tijdstip in, of laat de klant zelf een nieuw moment boeken via de afsprakenpagina.</span></div></section>`;
+  if(FI[k.fase]>FI.gehad)return '';
   const kanMailen=!!(serverInfo.mail&&k.email);
   const nu=new Date(), nuLokaal=isoDay(nu)+'T'+pad(nu.getHours())+':'+pad(nu.getMinutes());
   const toekomst=k.kennismaking&&k.kennismaking>=nuLokaal;
   const form=vpOpen?`<div style="display:grid;gap:8px;margin-top:4px">
      <label class="fld"><span>Nieuw moment</span><input type="datetime-local" id="vpSlot" value="${esc(k.kennismaking||'')}" step="300"></label>
      <label class="opts" style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="vpMail" ${kanMailen?'checked':'disabled'}>Klant verwittigen per mail${kanMailen?'':' <span class="hint">(geen e-mail of mailkoppeling)</span>'}</label>
-     <p class="hint" style="margin:0">Outlook/Teams en Zoom worden mee verplaatst; de videolink blijft dezelfde. Je mag buiten je boekingsblokken kiezen, enkel botsingen met een ander gesprek worden geweigerd.</p>
+     <p class="hint" style="margin:0">Outlook/Teams en Zoom verhuizen mee; de videolink blijft dezelfde.</p>
      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" id="vpGo" ${vpBusy?'disabled':''}>${vpBusy?'Bezig…':'Verplaats'}</button><button class="btn small ghost" id="vpCancel">Annuleer</button></div></div>`:'';
-  return `<section class="panel"><header><h2>Afspraak &amp; Mijn pagina</h2>${k.kennismaking?`<span class="count" style="margin-left:auto">${esc(fmtDT(k.kennismaking))}</span>`:''}</header><div class="todo-card" style="display:grid;gap:10px">
+  return `<section class="panel"><header><h2>Afspraak</h2>${k.kennismaking?`<span class="count" style="margin-left:auto">${esc(fmtDT(k.kennismaking))}</span>`:''}</header><div class="todo-card" style="display:grid;gap:10px">
     ${k.videolink?`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px"><a class="btn small" href="${esc(k.videolink)}" target="_blank" rel="noopener">Deelnemen aan ${esc(k.videoprovider||'videocall')} ↗</a><button class="btn small ghost" data-copytext="${esc(k.videolink)}">Kopieer link</button></div>`:''}
     ${vpMsg?`<div class="dlrow ${vpMsg.ok?'ok':'bad'}" style="margin:0"><b>${esc(vpMsg.t)}</b>${vpMsg.sub?`<span>${esc(vpMsg.sub)}</span>`:''}</div>`:''}
     ${form||`<div style="display:flex;gap:8px;flex-wrap:wrap">${k.kennismaking?`<button class="btn small" id="vpOpen">${toekomst?'Verplaatsen':'Nieuw moment plannen'}</button>${toekomst?'<button class="btn small ghost danger" id="vpAnnuleer" title="Verwijdert het agenda-item (Outlook/Teams, Zoom) en zet de fiche op Gesprek geannuleerd">Annuleer afspraak</button>':''}`:'<button class="btn small" id="vpOpen">Kennismaking inplannen</button>'}</div>`}
-    <div style="border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px">
-     <div class="label">Toegang tot Mijn pagina (klantenportaal)</div>
-     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" id="plMail" ${k.email?'':'disabled'} title="${k.email?'Maakt een portaalaccount en mailt een uitnodiging naar '+esc(k.email):'Vul eerst een e-mailadres in op de fiche'}">Toegang geven &amp; mailen</button><button class="btn small ghost" id="plCopy" ${k.email?'':'disabled'} title="Maakt een uitnodigingslink (een week geldig) om te kopiëren">Uitnodigingslink kopiëren</button><button class="btn small ghost" id="wzCopy" title="Persoonlijke dossierlink van de klant (zonder account): afspraak verzetten/annuleren, offerte bevestigen, vragenlijst, contract — staat ook in de mails">Dossierlink kopiëren</button></div>
-     <span class="hint">De dossierlink werkt zonder account en volstaat tot en met het tekenen van het contract. Geef pas toegang tot het portaal (account met wachtwoord) zodra het voorschot betaald is en de samenwerking start.</span>
-    </div></div></section>`;
+   </div></section>`;
 }
 async function herlaadKlant(){flushSave();mounted=null;await db.load().catch(()=>{});await new Promise(r=>setTimeout(r,30));render()}
 document.addEventListener('click',async e=>{
@@ -966,18 +1039,18 @@ document.addEventListener('click',async e=>{
 function naGoedkeuringPanel(k){
   if(stopped(k)||FI[k.fase]<FI.goedgekeurd||k.fase==='afgerond')return '';
   const vs=k.voorschot||{},vl=k.vragenlijst||{},c=k.contract||{};
-  const rij=(ok,t,sub)=>`<div class="dlrow ${ok?'ok':'none'}" style="margin:0"><b>${ok?'✓ ':''}${esc(t)}</b>${sub?`<span>${sub}</span>`:''}</div>`;
   const factuur=(k.bijlages||[]).filter(f=>f.soort==='factuur').length;
   const allesBinnen=vs.betaald&&vl.ingevuldOp;
+  const row=(ok,title,sub,action)=>`<div class="ckrow ${ok?'done':''}"><span class="ck">${ok?'✓':''}</span><div class="ck-txt"><b>${esc(title)}</b>${sub?`<span>${esc(sub)}</span>`:''}</div>${action||''}</div>`;
   return `<section class="panel"><header><h2>Na goedkeuring</h2>${k.naGoedkeuringVerstuurdOp?`<span class="count" style="margin-left:auto">gemaild ${fmt(k.naGoedkeuringVerstuurdOp)}</span>`:''}</header><div class="todo-card" style="display:grid;gap:8px">
-    ${rij(vs.betaald,'Voorschot '+(vs.betaald?'betaald'+(vs.op?' op '+fmt(vs.op):''):'nog niet betaald'),`<button class="btn small ${vs.betaald?'ghost':''}" id="vsToggle">${vs.betaald?'Terug op niet betaald':'Markeer als betaald'}</button>`)}
-    ${rij(!!vl.ingevuldOp,'Vragenlijst '+(vl.ingevuldOp?'ontvangen op '+fmt(vl.ingevuldOp):(vl.conceptOp?'concept bewaard (nog niet definitief)':'nog niet ingevuld')),(vl.ingevuldOp||vl.conceptOp)?'<button class="btn small ghost" data-tab="vragenlijst">Bekijk antwoorden →</button>':'<span class="hint">De klant vult ze in via zijn dossier.</span>')}
-    ${rij(!!c.getekend,c.getekend?'Contract getekend door '+esc(c.getekend.naam)+' op '+fmt(c.getekend.op.slice(0,10)):(c.bestandId?'Contract verstuurd, nog niet getekend':'Nog geen contract geüpload'),c.bestandId?'':'<button class="btn small ghost" data-tab="bijlages">Upload bij Bijlages →</button>')}
+    ${row(vs.betaald,'Voorschot',vs.betaald?('betaald'+(vs.op?' op '+fmt(vs.op):'')):'nog niet betaald',`<button class="btn small ${vs.betaald?'ghost':''}" id="vsToggle">${vs.betaald?'Ongedaan':'Betaald'}</button>`)}
+    ${row(!!vl.ingevuldOp,'Vragenlijst',vl.ingevuldOp?('ontvangen op '+fmt(vl.ingevuldOp)):(vl.conceptOp?'concept bewaard':'nog niet ingevuld'),(vl.ingevuldOp||vl.conceptOp)?'<button class="btn small ghost" data-tab="vragenlijst">Bekijk →</button>':'')}
+    ${row(!!c.getekend,'Contract',c.getekend?('getekend door '+c.getekend.naam):(c.bestandId?'verstuurd, nog niet getekend':'nog niet geüpload'),c.bestandId?'':'<button class="btn small ghost" data-tab="bijlages">Upload →</button>')}
     <div style="border-top:1px solid var(--line);padding-top:10px;display:grid;gap:6px">
-     <button class="btn small ${k.naGoedkeuringVerstuurdOp?'':'primary'}" id="ngSend" ${k.email&&serverInfo.mail?'':'disabled'} title="${k.email?(serverInfo.mail?'Mailt de voorschotfactuur en het contract als bijlage, met de link naar vragenlijst en handtekening':'Stel eerst e-mail in bij Koppelingen'):'Vul eerst een e-mailadres in'}">${k.naGoedkeuringVerstuurdOp?'Opnieuw mailen: voorschot, contract & vragenlijst':'Mail voorschotfactuur, contract & vragenlijst'}</button>
-     <span class="hint">${factuur?factuur+' factuur':'Geen factuur'} en ${c.bestandId?'een contract':'geen contract'} als bijlage · de klant krijgt de dossierlink om de vragenlijst in te vullen en het contract te tekenen.</span>
+     <button class="btn small ${k.naGoedkeuringVerstuurdOp?'':'primary'}" id="ngSend" ${k.email&&serverInfo.mail?'':'disabled'} title="${k.email?(serverInfo.mail?'Opent de verzendmodal: voorschotfactuur en contract als bijlage, met de link naar vragenlijst en handtekening':'Stel eerst e-mail in bij Koppelingen'):'Vul eerst een e-mailadres in'}">${k.naGoedkeuringVerstuurdOp?'Opnieuw mailen':'Onboarding mailen'}</button>
+     <span class="hint">Voorschotfactuur ${factuur?'✓':'(nog niet)'} + contract ${c.bestandId?'✓':'(nog niet)'} als bijlage, met de dossierlink.</span>
     </div>
-    ${allesBinnen&&k.fase==='goedgekeurd'?`<div class="nudge">Voorschot betaald en vragenlijst binnen — je kan het ontwerp inplannen. <button class="btn small primary" data-fase="ontwerp_gepland">→ Ontwerp ingepland</button></div>`:''}
+    ${allesBinnen&&k.fase==='goedgekeurd'?`<div class="nudge">Voorschot betaald en vragenlijst binnen — plan het ontwerp in. <button class="btn small primary" data-fase="ontwerp_gepland">→ Ontwerp ingepland</button></div>`:''}
    </div></section>`;
 }
 const BIJLAGE_SOORT={offerte:'Offerte',factuur:'Voorschotfactuur',contract:'Contract',contract_getekend:'Handtekening',ander:'Bijlage'};
@@ -1234,34 +1307,22 @@ function markSeen(tab){if(!work||!['logboek','offerte','vragenlijst','bijlages']
 /* ---------- overzicht (dashboard) tab ---------- */
 function renderOverzichtTab(){
   const box=$('#tab-overzicht');if(!box||!work)return;const k=work;
-  const a=(!stopForm&&!stopped(k))?actie(k):null;const d=a?dueLabel(a.due):null;
-  const cur=FI[k.fase]??0,total=FI.afgerond,pct=stopped(k)?0:Math.round(Math.min(cur,total)/total*100);
-  const next=FASES[cur+1]&&!GESTOPT.has(FASES[cur+1].k)&&!stopped(k)?FASES[cur+1]:null;
-  // Tijd-tegels
-  const tiles=[];
-  if(k.deadline&&!stopped(k)&&k.fase!=='afgerond'){const n=diffDays(k.deadline);tiles.push(`<div class="otile ${n<0?'bad':n<=14?'warn':''}"><b>${n<0?(-n)+' d te laat':n===0?'vandaag':'nog '+n+' d'}</b><span>deadline ${fmt(k.deadline)}</span></div>`)}
-  if(k.datumEvent){const n=diffDays(k.datumEvent);tiles.push(`<div class="otile"><b>${n<0?'geweest':n===0?'vandaag':'nog '+n+' d'}</b><span>event ${fmt(k.datumEvent)}</span></div>`)}
-  if(k.kennismaking&&FI[k.fase]<=FI.gehad){const n=diffDays(k.kennismaking);tiles.push(`<div class="otile"><b>${n<0?'geweest':n===0?'vandaag':'nog '+n+' d'}</b><span>kennismaking ${esc(fmtDT(k.kennismaking))}</span></div>`)}
   // Nieuw sinds laatst
   const nieuwMsg={vragenlijst:'Nieuwe antwoorden op de vragenlijst',offerte:'Reactie of wijziging bij een offerte',bijlages:'Contract getekend',logboek:'Nieuwe notitie in het logboek'};
   const nieuwLabel={vragenlijst:'Vragenlijst',offerte:'Offerte',bijlages:'Bijlages',logboek:'Logboek'};
   const nieuw=['vragenlijst','offerte','bijlages','logboek'].filter(t=>hasNew(k,t));
-  // Voortgang
-  const voortgang=stopped(k)
-    ? `<div class="dlrow none" style="margin:0">Dit traject is gestopt — ${esc(fase(k.fase).l)}.</div>`
-    : `<div class="ohead">${faseChip(k.fase)}<span class="hint">fase ${Math.min(cur,total)+1} van ${total+1}</span></div>
-       <div class="progress" style="margin:12px 0 0"><i style="width:${pct}%"></i></div>
-       ${next?`<p class="hint" style="margin:10px 0 0">Volgende fase: <b>${esc(next.l)}</b></p>`:(k.fase==='afgerond'?'<p class="hint" style="margin:10px 0 0">Dit traject is afgerond.</p>':'')}`;
-  // Aangeraden volgende actie (compact)
-  const actiePaneel=a
-    ? `<div class="otodo"><div class="otodo-top"><p>${esc(a.t)}</p><span class="due ${d.c}">${d.t}</span></div>
-       <div class="otodo-btns">${next?`<button class="btn small primary" data-fase="${next.k}">→ ${esc(next.l)}</button>`:''}${a.mail?`<button class="btn small" data-copy="${a.mail}">Kopieer mailtekst</button>`:''}${a.mail2?`<button class="btn small ghost" data-copy="${a.mail2}">Herinnering</button>`:''}</div></div>`
-    : (stopped(k)?'<p class="hint" style="margin:0">Geen openstaande actie — dit traject is gestopt.</p>':'<p class="hint" style="margin:0">Geen openstaande actie op dit moment.</p>');
-  box.innerHTML=`
-   <section class="sec"><h2>Voortgang</h2>${voortgang}</section>
-   <section class="sec"><h2>Aangeraden volgende actie</h2>${actiePaneel}</section>
-   ${tiles.length?`<section class="sec"><h2>Tijd</h2><div class="otiles">${tiles.join('')}</div></section>`:''}
-   ${nieuw.length?`<section class="sec"><h2>Nieuw sinds je laatst keek</h2><div class="onew">${nieuw.map(t=>`<button data-tab="${t}"><span class="newdot"></span><span class="ot">${esc(nieuwMsg[t])}</span><span class="og">${esc(nieuwLabel[t])} →</span></button>`).join('')}</div></section>`:''}`;
+  const nieuwHtml=nieuw.length?`<section class="panel"><header><h2>Nieuw sinds je laatst keek</h2></header><div class="todo-card"><div class="onew">${nieuw.map(t=>`<button data-tab="${t}"><span class="newdot"></span><span class="ot">${esc(nieuwMsg[t])}</span><span class="og">${esc(nieuwLabel[t])} →</span></button>`).join('')}</div></div></section>`:'';
+  const stoppedNow=stopForm||k.fase==='geen_deal';
+  box.innerHTML=`<div class="dash">
+   ${stoppedNow?`<div class="dash-wide">${stopPanels(k)}</div>`:''}
+   <div class="dash-wide">${trajectWidget(k)}</div>
+   ${afspraakPanel(k)}
+   ${naGoedkeuringPanel(k)}
+   ${nieuwHtml}
+   ${dossierPanel(k)}
+   ${whatsappPanel(k)}
+   ${logboekPanel(k)}
+  </div>`;
 }
 /* ---------- notities op de fiche (met datum, Notion-stijl) ---------- */
 function renderNotitieLog(){
