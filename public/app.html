@@ -248,6 +248,23 @@ aside{display:grid;gap:18px;position:sticky;top:calc(env(safe-area-inset-top,0px
 .flowfoot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
 .todo-card{padding:14px 18px;display:grid;gap:10px}
 .todo-card p{margin:0}
+.ohead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.otiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.otile{background:var(--sunk);border-radius:10px;padding:14px 16px;display:grid;gap:3px}
+.otile b{font-family:var(--f-display);font-size:22px;font-weight:400;font-variant-numeric:tabular-nums;line-height:1.1}
+.otile span{font-size:12px;color:var(--muted)}
+.otile.warn{background:var(--warn-soft)}.otile.warn b{color:var(--warn)}
+.otile.bad{background:var(--late-soft)}.otile.bad b{color:var(--late)}
+.otodo{background:var(--accent-soft);border-radius:10px;padding:14px 16px;display:grid;gap:10px}
+.otodo-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.otodo-top p{margin:0;font-weight:600}
+.otodo-btns{display:flex;gap:8px;flex-wrap:wrap}
+.onew{display:grid;gap:8px}
+.onew button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:11px 14px;cursor:pointer;font:inherit;color:var(--ink)}
+.onew button:hover{background:var(--accent-soft)}
+.onew .newdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--late);flex:none}
+.onew .ot{flex:1}
+.onew .og{font-size:12px;color:var(--muted);white-space:nowrap}
 .mail{white-space:pre-wrap;background:var(--sunk);border-radius:8px;padding:10px 12px;font-size:13px;max-height:180px;overflow:auto}
 .log{list-style:none;margin:0;padding:0 18px 12px;display:grid;gap:8px;max-height:280px;overflow:auto}
 .log li{font-size:13px;display:grid;grid-template-columns:72px minmax(0,1fr);gap:8px}
@@ -607,10 +624,10 @@ function planning(k){
 /* ---------- state ---------- */
 let db=null, sample=null, klanten=[], loaded=false, showEnded=false;
 let view={v:'vandaag'}; let work=null; let mounted=null; let pendingTop={}; let saveTimer=null; let chain=Promise.resolve();
-let search='', filterType='', confirmDel=false, klantTab='fiche', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null, vpOpen=false, vpMsg=null, vpBusy=false;
+let search='', filterType='', confirmDel=false, klantTab='overzicht', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null, vpOpen=false, vpMsg=null, vpBusy=false;
 // Na het inloggen start de beheerder altijd op "Vandaag".
 
-function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;ofConfirm=null;vpOpen=false;vpMsg=null;if(v==='klant'){klantTab='fiche';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
+function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;ofConfirm=null;vpOpen=false;vpMsg=null;if(v==='klant'){klantTab='overzicht';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
   try{if(v!=='klant'&&v!=='nieuw')localStorage.setItem('jp-view',v)}catch(e){}
   render();window.scrollTo(0,0)}
 
@@ -730,6 +747,7 @@ function vKlant(){
   <div class="khead" id="khead"></div>
   <div class="detail"><div class="sheet">
     <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="sheet" id="tab-overzicht" role="tabpanel" ${klantTab!=='overzicht'?'hidden':''}></div>
     <div class="sheet" id="tab-fiche" role="tabpanel" ${klantTab!=='fiche'?'hidden':''}>
     <section class="sec"><h2>Klantgegevens</h2><div class="grid2">
       ${txt('naam','Naam klant / koppel',{full:true})}
@@ -808,7 +826,7 @@ function renderSide(){
     <div class="sub">${faseChip(k.fase)}${k.voorbeeld?'<span class="chip vb">voorbeeld</span>':''}${k.kennismaking?`<span>Kennismaking ${esc(fmtDT(k.kennismaking))}</span>`:''}${k.deadline?`<span>· deadline ${fmt(k.deadline)}</span>`:''}</div></div>
     <span class="savestate" id="savestate">${saveTimer?'Opslaan…':'Alles opgeslagen'}</span>`;
   const nOf=(k.offertes||[]).length;
-  const TABS=[['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['vragenlijst','Vragenlijst'],['bijlages','Bijlages'],['logboek','Logboek']];
+  const TABS=[['overzicht','Overzicht'],['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['vragenlijst','Vragenlijst'],['bijlages','Bijlages'],['logboek','Logboek']];
   $('#tabs').innerHTML=TABS.map(([id,l])=>`<button role="tab" id="tabbtn-${id}" aria-selected="${klantTab===id}" data-tab="${id}">${l}${hasNew(k,id)?'<span class="newdot" title="Nieuw sinds je laatst keek"></span><span class="sr">(nieuw)</span>':''}</button>`).join('');
   const cur=FI[k.fase]??0, fd=k.faseDatums||{}, plan=planning(k);
   const flow=FASES.map((f,i)=>{
@@ -836,9 +854,6 @@ function renderSide(){
      ${k.herContact?`<p style="font-size:13px">Opnieuw contacteren op <b>${fmt(k.herContact)}</b></p>`:''}
      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-fase="${esc(k.stopNa&&k.stopNa!=='geen_deal'?k.stopNa:'gehad')}">Heractiveer${k.stopNa&&k.stopNa!=='geen_deal'?' → '+esc(fase(k.stopNa).l):''}</button><button class="btn small ghost" id="stopEdit">Reden aanpassen</button></div></div></section>`:'';
   $('#side').innerHTML=`${stopPanel}${stoppedPanel}
-   ${a&&!stopForm&&!stopped(k)?`<section class="panel"><header><h2>Nu te doen</h2><span class="due ${d.c}" style="margin-left:auto">${d.t}</span></header><div class="todo-card"><p>${esc(a.t)}</p>
-     ${a.mail?`<div class="mail" id="mailtxt">${esc(M[a.mail])}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small" data-copy="${a.mail}">Kopieer mail</button>${a.mail2?`<button class="btn small" data-copy="${a.mail2}">Kopieer herinnering</button>`:''}${k.email?`<button class="btn small ghost" data-copy="__email">${esc(k.email)}</button>`:''}</div>`:''}
-   </div></section>`:''}
    ${afspraakPanel(k)}${naGoedkeuringPanel(k)}
    <section class="panel"><header><h2>Traject &amp; planning</h2><span class="count" style="margin-left:auto">${stopped(k)?'gestopt':'fase '+(Math.min(cur,total)+1)+' van '+(total+1)}</span></header>
     <div class="progress" style="margin-top:12px"><i style="width:${pct}%"></i></div>${dl}
@@ -852,6 +867,7 @@ function renderSide(){
    <section class="panel"><header><h2>Logboek</h2><button class="btn small ghost" style="margin-left:auto" data-tab="logboek">Alles (${(k.logboek||[]).length}) →</button></header>
     <ul class="log">${logSorted(k).slice(0,3).map(({l})=>`<li><time>${fmt(l.d)}</time><span>${esc(l.t)}</span></li>`).join('')||'<li><span></span><span style="color:var(--muted)">Nog geen notities.</span></li>'}</ul>
     <form class="logadd" id="logform"><input id="logtxt" placeholder="bv. gebeld, voicemail ingesproken" aria-label="Notitie voor logboek"><button class="btn small">Voeg toe</button></form></section>`;
+  if(klantTab==='overzicht')renderOverzichtTab();
   if(klantTab==='offerte'&&!ofMounted)renderOffertes();
   if(klantTab==='planning')renderPlanningTab();
   if(klantTab==='vragenlijst')renderVragenlijstTab();
@@ -1125,6 +1141,38 @@ function hasNew(k,tab){const g=(k.gezien||{})[tab]||'';
 function markSeenNow(tab){work.gezien=Object.assign({},work.gezien,{[tab]:nowTs()});queue('gezien')}
 function markSeen(tab){if(!work||!['logboek','offerte','vragenlijst','bijlages'].includes(tab))return;if(!hasNew(work,tab))return;work.gezien=Object.assign({},work.gezien,{[tab]:nowTs()});queue('gezien')}
 
+/* ---------- overzicht (dashboard) tab ---------- */
+function renderOverzichtTab(){
+  const box=$('#tab-overzicht');if(!box||!work)return;const k=work;
+  const a=(!stopForm&&!stopped(k))?actie(k):null;const d=a?dueLabel(a.due):null;
+  const cur=FI[k.fase]??0,total=FI.afgerond,pct=stopped(k)?0:Math.round(Math.min(cur,total)/total*100);
+  const next=FASES[cur+1]&&!GESTOPT.has(FASES[cur+1].k)&&!stopped(k)?FASES[cur+1]:null;
+  // Tijd-tegels
+  const tiles=[];
+  if(k.deadline&&!stopped(k)&&k.fase!=='afgerond'){const n=diffDays(k.deadline);tiles.push(`<div class="otile ${n<0?'bad':n<=14?'warn':''}"><b>${n<0?(-n)+' d te laat':n===0?'vandaag':'nog '+n+' d'}</b><span>deadline ${fmt(k.deadline)}</span></div>`)}
+  if(k.datumEvent){const n=diffDays(k.datumEvent);tiles.push(`<div class="otile"><b>${n<0?'geweest':n===0?'vandaag':'nog '+n+' d'}</b><span>event ${fmt(k.datumEvent)}</span></div>`)}
+  if(k.kennismaking&&FI[k.fase]<=FI.gehad){const n=diffDays(k.kennismaking);tiles.push(`<div class="otile"><b>${n<0?'geweest':n===0?'vandaag':'nog '+n+' d'}</b><span>kennismaking ${esc(fmtDT(k.kennismaking))}</span></div>`)}
+  // Nieuw sinds laatst
+  const nieuwMsg={vragenlijst:'Nieuwe antwoorden op de vragenlijst',offerte:'Reactie of wijziging bij een offerte',bijlages:'Contract getekend',logboek:'Nieuwe notitie in het logboek'};
+  const nieuwLabel={vragenlijst:'Vragenlijst',offerte:'Offerte',bijlages:'Bijlages',logboek:'Logboek'};
+  const nieuw=['vragenlijst','offerte','bijlages','logboek'].filter(t=>hasNew(k,t));
+  // Voortgang
+  const voortgang=stopped(k)
+    ? `<div class="dlrow none" style="margin:0">Dit traject is gestopt — ${esc(fase(k.fase).l)}.</div>`
+    : `<div class="ohead">${faseChip(k.fase)}<span class="hint">fase ${Math.min(cur,total)+1} van ${total+1}</span></div>
+       <div class="progress" style="margin:12px 0 0"><i style="width:${pct}%"></i></div>
+       ${next?`<p class="hint" style="margin:10px 0 0">Volgende fase: <b>${esc(next.l)}</b></p>`:(k.fase==='afgerond'?'<p class="hint" style="margin:10px 0 0">Dit traject is afgerond.</p>':'')}`;
+  // Aangeraden volgende actie (compact)
+  const actiePaneel=a
+    ? `<div class="otodo"><div class="otodo-top"><p>${esc(a.t)}</p><span class="due ${d.c}">${d.t}</span></div>
+       <div class="otodo-btns">${next?`<button class="btn small primary" data-fase="${next.k}">→ ${esc(next.l)}</button>`:''}${a.mail?`<button class="btn small" data-copy="${a.mail}">Kopieer mailtekst</button>`:''}${a.mail2?`<button class="btn small ghost" data-copy="${a.mail2}">Herinnering</button>`:''}</div></div>`
+    : (stopped(k)?'<p class="hint" style="margin:0">Geen openstaande actie — dit traject is gestopt.</p>':'<p class="hint" style="margin:0">Geen openstaande actie op dit moment.</p>');
+  box.innerHTML=`
+   <section class="sec"><h2>Voortgang</h2>${voortgang}</section>
+   <section class="sec"><h2>Aangeraden volgende actie</h2>${actiePaneel}</section>
+   ${tiles.length?`<section class="sec"><h2>Tijd</h2><div class="otiles">${tiles.join('')}</div></section>`:''}
+   ${nieuw.length?`<section class="sec"><h2>Nieuw sinds je laatst keek</h2><div class="onew">${nieuw.map(t=>`<button data-tab="${t}"><span class="newdot"></span><span class="ot">${esc(nieuwMsg[t])}</span><span class="og">${esc(nieuwLabel[t])} →</span></button>`).join('')}</div></section>`:''}`;
+}
 /* ---------- planning tab ---------- */
 const PLAN_ROWS=['ingepland','gehad','offerte','opvolging','goedgekeurd','ontwerp_gepland','ontwerp_bezig','proef_digitaal','proefdruk','drukwerk','afgerond'];
 function deadlineHtml(k,plan){
@@ -1315,7 +1363,7 @@ document.addEventListener('drop',e=>{const d=e.target.closest&&e.target.closest(
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-tab],[data-factuur],[data-ofstop],[data-ofnew],[data-ofaddrow],[data-ofdelrow],[data-ofdel],[data-ofdelyes],[data-ofcancel],[data-ofdup],[data-ofcopy],[data-ofphase],[data-ofdelfile],[data-ofdelfileyes]');
   if(!t||!work)return;const D=t.dataset;
-  if(D.tab){klantTab=D.tab;markSeen(klantTab);['fiche','planning','logboek','offerte','vragenlijst','bijlages'].forEach(x=>{$('#tab-'+x).hidden=klantTab!==x});if(klantTab==='offerte')renderOffertes();if(klantTab==='logboek')renderLogTab();if(klantTab==='vragenlijst')renderVragenlijstTab();if(klantTab==='bijlages')renderBijlagesTab();renderSide();const tb=$('#tabs');if(tb&&tb.getBoundingClientRect().top<0)tb.scrollIntoView({block:'start'});return}
+  if(D.tab){klantTab=D.tab;markSeen(klantTab);['overzicht','fiche','planning','logboek','offerte','vragenlijst','bijlages'].forEach(x=>{$('#tab-'+x).hidden=klantTab!==x});if(klantTab==='overzicht')renderOverzichtTab();if(klantTab==='offerte')renderOffertes();if(klantTab==='logboek')renderLogTab();if(klantTab==='vragenlijst')renderVragenlijstTab();if(klantTab==='bijlages')renderBijlagesTab();renderSide();const tb=$('#tabs');if(tb&&tb.getBoundingClientRect().top<0)tb.scrollIntoView({block:'start'});return}
   if(D.ofstop){if(!work.stopReden)work.stopReden='Te duur';stopForm=true;renderSide();const sp=$('#stopform');if(sp)sp.scrollIntoView({block:'center',behavior:'smooth'});return}
   if(D.ofnew){work.offertes=(work.offertes||[]).concat([newOfferte()]);ofChanged(true);return}
   if(D.ofaddrow){findOf(D.ofaddrow).regels.push({oms:'',aantal:'',prijs:''});ofChanged(true);const i=findOf(D.ofaddrow).regels.length-1;const n=$(`#of-${D.ofaddrow}-r${i}-oms`);if(n)n.focus();return}
