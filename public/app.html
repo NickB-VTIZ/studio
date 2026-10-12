@@ -57,6 +57,33 @@ nav button[aria-current="true"]{background:var(--accent-soft);color:var(--ink)}
 a.btn{text-decoration:none}
 .btn.danger{color:var(--late)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* profile dropdown */
+.profile-trigger{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;text-transform:uppercase;letter-spacing:-.02em;transition:border-color .15s}
+.profile-trigger:hover,.profile-wrap.open .profile-trigger{border-color:var(--accent)}
+.profile-wrap{position:relative}
+.profile-dd{display:none;position:absolute;right:0;top:calc(100% + 8px);width:280px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:50;overflow:hidden}
+.profile-wrap.open .profile-dd{display:block}
+.profile-dd .dd-head{padding:16px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center}
+.profile-dd .dd-avatar{width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;text-transform:uppercase}
+.profile-dd .dd-info{min-width:0}
+.profile-dd .dd-name{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-dd .dd-email{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-dd .dd-items{padding:6px 0}
+.profile-dd .dd-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;font-size:13px;font-weight:500;border:0;background:none;width:100%;text-align:left;color:var(--ink)}
+.profile-dd .dd-item:hover{background:var(--sunk)}
+.profile-dd .dd-item .dd-icon{width:18px;text-align:center;font-size:15px;color:var(--muted);flex-shrink:0}
+.profile-dd .dd-sep{height:1px;background:var(--line);margin:4px 0}
+.profile-dd .dd-item.danger{color:var(--late)}
+
+/* account panel (modal) */
+.acc-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:60;align-items:center;justify-content:center}
+.acc-overlay.open{display:flex}
+.acc-panel{background:var(--surface);border-radius:14px;width:min(440px,calc(100vw - 32px));max-height:90vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.18);padding:28px}
+.acc-panel h2{margin:0 0 4px;font-family:var(--f-display);font-size:22px;font-weight:400}
+.acc-panel .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+.acc-panel .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px}
+
 main{padding-block:24px 64px}
 .banner{background:var(--warn-soft);color:var(--ink);border-radius:var(--r);padding:12px 16px;margin-bottom:16px}
 
@@ -362,11 +389,38 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
   <div class="spacer"></div>
   <a class="btn ghost" href="/afspraak" target="_blank" rel="noopener" title="Publieke boekingspagina">Afsprakenpagina ↗</a>
   <button class="btn primary" id="newBtn">+ Nieuwe klant</button>
-  <button class="btn ghost small" id="themeBtn" title="Wissel tussen licht en donker" aria-label="Wissel thema"></button>
-  <span id="versieBadge" class="chip" style="cursor:pointer" title="Versie-informatie"></span>
-  <button class="btn ghost small" id="logoutBtn" title="Afmelden">Afmelden</button>
+  <div class="profile-wrap" id="profileWrap">
+    <button class="profile-trigger" id="profileBtn" title="Account &amp; instellingen" aria-label="Profielmenu"></button>
+    <div class="profile-dd" id="profileDd">
+      <div class="dd-head">
+        <div class="dd-avatar" id="ddAvatar"></div>
+        <div class="dd-info"><div class="dd-name" id="ddName"></div><div class="dd-email" id="ddEmail"></div></div>
+      </div>
+      <div class="dd-items">
+        <button class="dd-item" id="ddAccount"><span class="dd-icon">👤</span> Mijn account</button>
+        <button class="dd-item" id="ddTheme"><span class="dd-icon">☾</span> <span id="ddThemeLabel">Donker thema</span></button>
+        <div class="dd-sep"></div>
+        <button class="dd-item" id="ddVersion"><span class="dd-icon">ℹ</span> <span id="ddVersionLabel">Versie</span></button>
+        <button class="dd-item" id="ddBeheer"><span class="dd-icon">⚙</span> Beheer</button>
+        <div class="dd-sep"></div>
+        <button class="dd-item danger" id="ddLogout"><span class="dd-icon">↪</span> Afmelden</button>
+      </div>
+    </div>
+  </div>
 </div></div>
 <main class="wrap" id="app"><p class="empty">Klanten laden…</p></main>
+<div class="acc-overlay" id="accOverlay">
+  <div class="acc-panel">
+    <h2>Mijn account</h2>
+    <p class="sub">Je inlogadres en wachtwoord voor justPIXIT Studio.</p>
+    <div style="display:grid;gap:12px">
+      <label class="fld"><span>E-mailadres</span><input id="acc-email" type="email" autocomplete="username"></label>
+      <label class="fld"><span>Nieuw wachtwoord <span class="hint">(laat leeg om te behouden)</span></span><input id="acc-nieuw" type="password" autocomplete="new-password" placeholder="minstens 8 tekens"></label>
+      <label class="fld"><span>Huidig wachtwoord <span class="hint">(ter bevestiging)</span></span><input id="acc-huidig" type="password" autocomplete="current-password"></label>
+      <div class="actions"><button class="btn primary" id="accSave">Bewaren</button><button class="btn ghost" id="accClose">Annuleer</button><span class="hint" id="accMsg"></span></div>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast" hidden></div>
 
 <script>
@@ -1289,14 +1343,8 @@ function vBeheer(){
   <div class="beheer">${({afspraken:beheerAfspraken,mails:beheerMails,fiche:beheerFiche,vragenlijsten:beheerVragenlijsten,stijl:beheerStijl,koppelingen:beheerKoppelingenTab,systeem:beheerSysteem})[beheerTab]()}</div>`;
 }
 function beheerSysteem(){
-  return `<section><h2>Mijn account</h2><p>Je inlogadres en wachtwoord voor dit beheer. Hiermee meld je je aan op de startpagina.</p>
-    <div class="sec" style="display:grid;gap:12px;max-width:460px">
-     <label class="fld"><span>E-mailadres</span><input id="acc-email" type="email" value="${esc(serverInfo.account||'')}" autocomplete="username"></label>
-     <label class="fld"><span>Nieuw wachtwoord <span class="hint">(laat leeg om te behouden)</span></span><input id="acc-nieuw" type="password" autocomplete="new-password" placeholder="minstens 8 tekens"></label>
-     <label class="fld"><span>Huidig wachtwoord <span class="hint">(ter bevestiging)</span></span><input id="acc-huidig" type="password" autocomplete="current-password"></label>
-     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="accSave">Account bewaren</button><span class="hint" id="accMsg"></span></div>
-    </div></section>
-   <section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
+  return `<section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
+   <section><h2>Mijn account</h2><p>Je inlogadres en wachtwoord wijzig je via het profielmenu rechtsboven.</p><button class="btn" id="openAccountPanel">Account openen →</button></section>
    <section><h2>Koppelingen</h2><p>E-mail (Resend), WhatsApp, Office 365, Zoom en facturatie stel je in op het tabblad Koppelingen hierboven.</p><button class="btn" data-btab="koppelingen">Naar Koppelingen →</button></section>`;
 }
 /* ---------- Gebruikersbeheer (apart tabblad) ---------- */
@@ -1393,6 +1441,8 @@ async function bewaarAccount(){
     if(r.error){if(msg){msg.style.color='var(--late)';msg.textContent=r.error}return}
     serverInfo.account=r.email;if(msg){msg.style.color='var(--ok)';msg.textContent='Bewaard.'+(nieuw?' Je nieuwe wachtwoord is actief.':'')}
     const n=$('#acc-nieuw'),h=$('#acc-huidig');if(n)n.value='';if(h)h.value='';
+    updateProfileUI();
+    setTimeout(()=>closeAccountPanel(),1200);
   }catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Bewaren mislukt'}}
 }
 document.addEventListener('click',e=>{if(e.target.closest('#accSave'))bewaarAccount()});
@@ -1652,12 +1702,12 @@ function apiAssets(){
 }
 // Niet (meer) aangemeld → naar de gezamenlijke inlogpagina op /.
 function showLogin(){loaded=false;document.body.classList.remove('ingelogd');location.replace('/');}
-document.addEventListener('click',async e=>{const t=e.target.closest('#logoutBtn,#copyBoekLink');if(!t)return;
-  if(t.id==='logoutBtn'){await fetch('/api/logout',{method:'POST',credentials:'same-origin'});location.reload()}
+document.addEventListener('click',async e=>{const t=e.target.closest('#ddLogout,#copyBoekLink');if(!t)return;
+  if(t.id==='ddLogout'){await fetch('/api/logout',{method:'POST',credentials:'same-origin'});location.reload()}
   if(t.id==='copyBoekLink')copy(serverInfo.base+'/afspraak');});
 
 /* ---------- versie & updates ---------- */
-function setVersieBadge(){const el=$('#versieBadge');if(el)el.textContent='v'+(serverInfo.versie||'?')}
+function setVersieBadge(){const el=$('#ddVersionLabel');if(el)el.textContent='Versie '+(serverInfo.versie||'?')}
 async function laadVersiePaneel(){
   const box=$('#versiePaneel');if(!box)return;
   let info=null;try{info=await (await fetch('/api/version',{credentials:'same-origin'})).json()}catch(e){}
@@ -1695,18 +1745,49 @@ async function doeUpdate(){
   };
   setTimeout(poll,5000);
 }
-document.addEventListener('click',e=>{const t=e.target.closest('#updateBtn,#checkBtn,#versieBadge');if(!t)return;
+document.addEventListener('click',e=>{const t=e.target.closest('#updateBtn,#checkBtn');if(!t)return;
   if(t.id==='updateBtn')return doeUpdate();
   if(t.id==='checkBtn'){laadVersiePaneel();toast('Gecontroleerd')}
-  if(t.id==='versieBadge')return go('beheer');
 });
 
 /* ---------- thema ---------- */
 function huidigThema(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'}
-function setThemeBtn(){const b=$('#themeBtn');if(b)b.textContent=huidigThema()==='dark'?'☀ Licht':'☾ Donker'}
+function setThemeBtn(){const icon=$('#ddTheme .dd-icon');const label=$('#ddThemeLabel');if(icon)icon.textContent=huidigThema()==='dark'?'☀':'☾';if(label)label.textContent=huidigThema()==='dark'?'Licht thema':'Donker thema'}
 function wisselThema(){const n=huidigThema()==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);try{localStorage.setItem('jp-theme',n)}catch(e){}setThemeBtn()}
-document.addEventListener('click',e=>{if(e.target.closest('#themeBtn'))wisselThema()});
+document.addEventListener('click',e=>{if(e.target.closest('#ddTheme')){e.stopPropagation();wisselThema()}});
 setThemeBtn();
+
+/* ---------- profiel dropdown ---------- */
+function profileInitial(){return (serverInfo.voornaam||serverInfo.account||'?')[0].toUpperCase()}
+function profileDisplayName(){const vn=serverInfo.voornaam||'';const n=serverInfo.naam||'';return [vn,n].filter(Boolean).join(' ')||serverInfo.account||''}
+function updateProfileUI(){
+  const btn=$('#profileBtn');if(btn)btn.textContent=profileInitial();
+  const av=$('#ddAvatar');if(av)av.textContent=profileInitial();
+  const nm=$('#ddName');if(nm)nm.textContent=profileDisplayName();
+  const em=$('#ddEmail');if(em)em.textContent=serverInfo.account||'';
+  setThemeBtn();setVersieBadge();
+}
+document.addEventListener('click',e=>{
+  const wrap=$('#profileWrap');
+  if(e.target.closest('#profileBtn')){e.stopPropagation();if(wrap)wrap.classList.toggle('open');return}
+  if(!e.target.closest('.profile-dd')&&wrap)wrap.classList.remove('open');
+});
+document.addEventListener('click',e=>{
+  if(e.target.closest('#ddAccount')||e.target.closest('#openAccountPanel')){openAccountPanel();$('#profileWrap')?.classList.remove('open')}
+  if(e.target.closest('#ddVersion')){$('#profileWrap')?.classList.remove('open');go('beheer');beheerTab='systeem';rerenderBeheer()}
+  if(e.target.closest('#ddBeheer')){$('#profileWrap')?.classList.remove('open');go('beheer')}
+  if(e.target.closest('#accClose')||e.target.id==='accOverlay')closeAccountPanel();
+});
+function openAccountPanel(){
+  const ov=$('#accOverlay');if(!ov)return;
+  const em=$('#acc-email');if(em)em.value=serverInfo.account||'';
+  const n=$('#acc-nieuw');if(n)n.value='';
+  const h=$('#acc-huidig');if(h)h.value='';
+  const msg=$('#accMsg');if(msg)msg.textContent='';
+  ov.classList.add('open');
+}
+function closeAccountPanel(){const ov=$('#accOverlay');if(ov)ov.classList.remove('open')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAccountPanel();$('#profileWrap')?.classList.remove('open')}});
 
 /* ---------- koppelingen (aparte pagina) ---------- */
 let koppelOpen=false, koppelData=null;
@@ -1862,7 +1943,7 @@ async function wisKoppeling(g){
     toast('Sleutels gewist');koppelOpen=false;await refreshServerInfo();render();}
   catch(e){if(msg)msg.textContent='Wissen mislukt'}
 }
-async function refreshServerInfo(){try{serverInfo=await (await fetch('/api/me',{credentials:'same-origin'})).json();setVersieBadge()}catch(e){}}
+async function refreshServerInfo(){try{serverInfo=await (await fetch('/api/me',{credentials:'same-origin'})).json();updateProfileUI()}catch(e){}}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-ksave],[data-ktest],[data-kwis],#factSave');if(!t)return;
   if(t.id==='factSave')return bewaarFacturatie();
   if(t.dataset.ksave)return bewaarKoppeling(t.dataset.ksave);
@@ -1878,7 +1959,7 @@ render();
   if(!me.ok){document.body.classList.add('ingelogd');dbFailed=true;render();return}
   serverInfo=await me.json();
   document.body.classList.add('ingelogd');
-  setVersieBadge();
+  updateProfileUI();
   db=apiDb();assets=apiAssets();sample=null;
   try{await db.load()}catch(e){if(e&&e.code!=='not_granted'){dbFailed=true;render()}return}
   db.collection('klanten').onSnapshot(snap=>{

@@ -850,7 +850,7 @@ async function api(req, res, url) {
   const admingu = authedAdmin(req);
   if (!admingu) return json(res, 401, { error: 'Niet aangemeld' });
 
-  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), office365: msVerbonden(), zoom: zoomActief(), versie: VERSION.version, account: admingu.email, rol: admingu.role, modules: rolModules(admingu.role) });
+  if (p === '/api/me') return json(res, 200, { ok: true, base: publicBase(req), mail: mailActief(), whatsapp: !!twilioConfig(effEnv()), facturen: verkoperKlaar(), office365: msVerbonden(), zoom: zoomActief(), versie: VERSION.version, account: admingu.email, voornaam: admingu.voornaam || '', naam: admingu.naam || '', rol: admingu.role, modules: rolModules(admingu.role) });
   if (p === '/api/account' && m === 'GET') return json(res, 200, { email: admingu.email });
   if (p === '/api/account' && m === 'POST') {
     const b = await readJson(req, 10e3).catch(() => ({}));
