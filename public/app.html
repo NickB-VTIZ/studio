@@ -265,6 +265,17 @@ aside{display:grid;gap:18px;position:sticky;top:calc(env(safe-area-inset-top,0px
 .onew .newdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--late);flex:none}
 .onew .ot{flex:1}
 .onew .og{font-size:12px;color:var(--muted);white-space:nowrap}
+.notitie-add{display:flex;gap:10px;align-items:flex-start;margin-bottom:14px}
+.notitie-add textarea{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 11px;font:inherit;resize:vertical}
+.notitie-add button{flex:none;margin-top:1px}
+.notelist{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.notelist li{background:var(--sunk);border-radius:10px;padding:11px 14px}
+.note-meta{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.note-meta time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.note-acts{margin-left:auto;display:flex;gap:2px;opacity:0;transition:opacity .12s}
+.notelist li:hover .note-acts{opacity:1}
+.note-txt{white-space:pre-wrap;line-height:1.5}
+.note-edit textarea{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;font:inherit;resize:vertical}
 .mail{white-space:pre-wrap;background:var(--sunk);border-radius:8px;padding:10px 12px;font-size:13px;max-height:180px;overflow:auto}
 .log{list-style:none;margin:0;padding:0 18px 12px;display:grid;gap:8px;max-height:280px;overflow:auto}
 .log li{font-size:13px;display:grid;grid-template-columns:72px minmax(0,1fr);gap:8px}
@@ -624,7 +635,7 @@ function planning(k){
 /* ---------- state ---------- */
 let db=null, sample=null, klanten=[], loaded=false, showEnded=false;
 let view={v:'vandaag'}; let work=null; let mounted=null; let pendingTop={}; let saveTimer=null; let chain=Promise.resolve();
-let search='', filterType='', confirmDel=false, klantTab='overzicht', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null, vpOpen=false, vpMsg=null, vpBusy=false;
+let search='', filterType='', confirmDel=false, klantTab='overzicht', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null, vpOpen=false, vpMsg=null, vpBusy=false, notitieEdit=null;
 // Na het inloggen start de beheerder altijd op "Vandaag".
 
 function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;ofConfirm=null;vpOpen=false;vpMsg=null;if(v==='klant'){klantTab='overzicht';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
@@ -655,7 +666,10 @@ function render(){
       if(work.locatie&&!work.gemeente&&!work.straat&&work.locatie!==work.videoprovider){work.gemeente=work.locatie;queue('gemeente')}
       /* migrate old flat bedankjes → opties array */
       if(work.fiche&&work.fiche.bedankjes&&!Array.isArray(work.fiche.bedankjes.opties)){const b=work.fiche.bedankjes;const o1={notities:b.ideeen||'',aantal:b.aantal||'',verpakking:'',afwerking:''};if(b.thema)o1.notities=(b.thema+(o1.notities?'\n'+o1.notities:'')); const opties=[o1];if(b.optie1)opties.push({notities:b.optie1,aantal:'',verpakking:'',afwerking:''});if(b.optie2)opties.push({notities:b.optie2,aantal:'',verpakking:'',afwerking:''});work.fiche.bedankjes={opties};if(opties.some(o=>Object.values(o).some(v=>v))){if(!work.fiche.producten)work.fiche.producten={};work.fiche.producten.bedankjes=true;queue('fiche')}}
-      app.innerHTML=vKlant();renderSide();if(work.nieuw){work.nieuw=false;queue('nieuw')}}
+      /* migrate old single notities-string → dated notitieLog */
+      if(work.fiche&&typeof work.fiche.notities==='string'&&work.fiche.notities.trim()&&!Array.isArray(work.fiche.notitieLog)){work.fiche.notitieLog=[{d:(work.aangemaakt||'').slice(0,10)||today(),t:work.fiche.notities.trim(),ts:nowTs()}];work.fiche.notities='';queue('fiche')}
+      klantTab='overzicht';notitieEdit=null;
+      app.innerHTML=vKlant();renderSide();renderNotitieLog();if(work.nieuw){work.nieuw=false;queue('nieuw')}}
     else renderSide();
   }
 }
@@ -809,7 +823,7 @@ function vKlant(){
       ${area('fiche.offerte.opties','Wat moet er op de offerte?',{rows:2,ph:'bv. beide opties: aparte uitnodiging + aparte kaartjes'})}
       ${txt('ontwerpDatum','Ontwerp ingepland op',{type:'date'})}
     </div></section>
-    <section class="sec"><h2>Notities</h2><div class="grid2">${area('fiche.notities','',{rows:6})}</div></section>
+    <section class="sec"><h2>Notities</h2><div id="notitie-body"></div></section>
     <section class="sec" id="delsec"></section>
     </div>
     <div class="sheet" id="tab-planning" role="tabpanel" ${klantTab!=='planning'?'hidden':''}></div>
@@ -1173,6 +1187,32 @@ function renderOverzichtTab(){
    ${tiles.length?`<section class="sec"><h2>Tijd</h2><div class="otiles">${tiles.join('')}</div></section>`:''}
    ${nieuw.length?`<section class="sec"><h2>Nieuw sinds je laatst keek</h2><div class="onew">${nieuw.map(t=>`<button data-tab="${t}"><span class="newdot"></span><span class="ot">${esc(nieuwMsg[t])}</span><span class="og">${esc(nieuwLabel[t])} →</span></button>`).join('')}</div></section>`:''}`;
 }
+/* ---------- notities op de fiche (met datum, Notion-stijl) ---------- */
+function renderNotitieLog(){
+  const box=$('#notitie-body');if(!box||!work)return;
+  if(!work.fiche)work.fiche={};
+  const log=Array.isArray(work.fiche.notitieLog)?work.fiche.notitieLog:[];
+  const sorted=log.map((n,i)=>({n,i})).sort((a,b)=>(b.n.d||'').localeCompare(a.n.d||'')||String(b.n.ts||'').localeCompare(String(a.n.ts||''))||b.i-a.i);
+  const keep=box.querySelector('#notitie-nieuw');const draft=keep?keep.value:'';
+  box.innerHTML=`<form class="notitie-add" id="notitie-form">
+     <textarea id="notitie-nieuw" rows="2" placeholder="Nieuwe notitie toevoegen…" aria-label="Nieuwe notitie">${esc(draft)}</textarea>
+     <button class="btn small primary" type="submit">Voeg toe</button></form>
+   ${sorted.length?`<ul class="notelist">${sorted.map(({n,i})=>`<li>${notitieEdit===i
+     ?`<div class="note-meta"><time>${fmt(n.d)}</time></div><div class="note-edit"><textarea id="note-edit-txt" rows="3" aria-label="Notitie aanpassen">${esc(n.t)}</textarea><div style="display:flex;gap:8px;margin-top:6px"><button class="btn small primary" data-notesave="${i}">Bewaar</button><button class="btn small ghost" data-notecancel="1">Annuleer</button></div></div>`
+     :`<div class="note-meta"><time>${fmt(n.d)}</time><span class="note-acts"><button class="iconbtn" data-noteedit="${i}" aria-label="Aanpassen">✎</button><button class="iconbtn" data-notedel="${i}" aria-label="Verwijderen">×</button></span></div><div class="note-txt">${esc(n.t)}</div>`}</li>`).join('')}</ul>`
+   :'<p class="hint" style="margin:10px 0 0">Nog geen notities. Voeg hierboven je eerste notitie toe — elke notitie krijgt automatisch de datum van vandaag.</p>'}`;
+}
+document.addEventListener('submit',e=>{if(e.target.id!=='notitie-form'||!work)return;e.preventDefault();
+  const ta=$('#notitie-nieuw');const tx=(ta&&ta.value||'').trim();if(!tx)return;
+  if(!work.fiche)work.fiche={};work.fiche.notitieLog=(work.fiche.notitieLog||[]).concat([{d:today(),t:tx,ts:nowTs()}]);
+  if(ta)ta.value='';notitieEdit=null;queue('fiche');renderNotitieLog();toast('Notitie toegevoegd');});
+document.addEventListener('click',e=>{const t=e.target.closest('[data-noteedit],[data-notedel],[data-notesave],[data-notecancel]');if(!t||!work)return;const D=t.dataset;
+  const log=(work.fiche&&work.fiche.notitieLog)||[];
+  if(D.noteedit!==undefined){notitieEdit=+D.noteedit;renderNotitieLog();const x=$('#note-edit-txt');if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length)}return}
+  if(D.notecancel){notitieEdit=null;renderNotitieLog();return}
+  if(D.notesave!==undefined){const i=+D.notesave;const x=$('#note-edit-txt');if(log[i]&&x){const nv=x.value.trim();if(nv)log[i].t=nv}notitieEdit=null;queue('fiche');renderNotitieLog();return}
+  if(D.notedel!==undefined){const i=+D.notedel;if(!confirm('Deze notitie verwijderen?'))return;log.splice(i,1);notitieEdit=null;queue('fiche');renderNotitieLog();return}
+});
 /* ---------- planning tab ---------- */
 const PLAN_ROWS=['ingepland','gehad','offerte','opvolging','goedgekeurd','ontwerp_gepland','ontwerp_bezig','proef_digitaal','proefdruk','drukwerk','afgerond'];
 function deadlineHtml(k,plan){
