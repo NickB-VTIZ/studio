@@ -167,10 +167,18 @@ tbody tr:hover{background:var(--sunk)}
 
 /* klant detail */
 .back{margin-bottom:12px}
-.khead{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:20px}
-.khead h1{font-family:var(--f-display);font-weight:400;font-size:34px;letter-spacing:-.015em;overflow-wrap:anywhere}
-.khead .sub{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center;color:var(--muted)}
-.savestate{font-size:12px;color:var(--muted);margin-left:auto;align-self:center}
+.khead{margin-bottom:20px}
+.kcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 22px}
+.kcard-top{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.kcard-name{display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-width:0}
+.kcard-name h1{font-family:var(--f-display);font-weight:400;font-size:30px;letter-spacing:-.015em;overflow-wrap:anywhere;margin:0;line-height:1.1}
+.kcard-status{margin-left:auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.kcard-status .chip{font-size:13px;padding:5px 12px}
+.kmeta-grid{display:flex;gap:14px 30px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+.kmeta{display:grid;gap:3px}
+.kmeta .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.kmeta b{font-weight:600;font-size:14px;font-variant-numeric:tabular-nums}
+.savestate{font-size:12px;color:var(--muted)}
 .detail{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:24px;align-items:start}
 @media (max-width:960px){.detail{grid-template-columns:minmax(0,1fr)}.detail aside{order:-1}}
 [hidden]{display:none!important}
@@ -898,9 +906,17 @@ function vKlant(){
 function renderSide(){
   const k=work; if(!k)return;
   const a=actie(k);const d=a?dueLabel(a.due):null;
-  $('#khead').innerHTML=`<div style="min-width:0"><span class="label">${esc(k.type||'Klant')}</span><h1>${esc(k.naam||'Naamloos')}</h1>
-    <div class="sub">${faseChip(k.fase)}${k.voorbeeld?'<span class="chip vb">voorbeeld</span>':''}${k.kennismaking?`<span>Kennismaking ${esc(fmtDT(k.kennismaking))}</span>`:''}${k.deadline?`<span>· deadline ${fmt(k.deadline)}</span>`:''}</div></div>
-    <span class="savestate" id="savestate">${saveTimer?'Opslaan…':'Alles opgeslagen'}</span>`;
+  const metaItems=[`<div class="kmeta"><span class="lbl">Type klant</span><b>${esc(k.type||'—')}</b></div>`];
+  if(k.kennismaking)metaItems.push(`<div class="kmeta"><span class="lbl">Kennismaking</span><b>${esc(fmtDT(k.kennismaking))}</b></div>`);
+  if(k.datumEvent)metaItems.push(`<div class="kmeta"><span class="lbl">Datum event</span><b>${fmt(k.datumEvent)}</b></div>`);
+  if(k.deadline)metaItems.push(`<div class="kmeta"><span class="lbl">Deadline</span><b>${fmt(k.deadline)}</b></div>`);
+  $('#khead').innerHTML=`<div class="kcard">
+    <div class="kcard-top">
+      <div class="kcard-name"><h1>${esc(k.naam||'Naamloos')}</h1>${k.voorbeeld?'<span class="chip vb">voorbeeld</span>':''}</div>
+      <div class="kcard-status">${faseChip(k.fase)}<span class="savestate" id="savestate">${saveTimer?'Opslaan…':'Alles opgeslagen'}</span></div>
+    </div>
+    <div class="kmeta-grid">${metaItems.join('')}</div>
+  </div>`;
   const nOf=(k.offertes||[]).length;
   const TABS=[['overzicht','Overzicht'],['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['vragenlijst','Vragenlijst'],['bijlages','Bijlages'],['logboek','Logboek']];
   $('#tabs').innerHTML=TABS.map(([id,l])=>`<button role="tab" id="tabbtn-${id}" aria-selected="${klantTab===id}" data-tab="${id}">${l}${hasNew(k,id)?'<span class="newdot" title="Nieuw sinds je laatst keek"></span><span class="sr">(nieuw)</span>':''}</button>`).join('');
