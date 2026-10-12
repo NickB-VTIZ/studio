@@ -68,6 +68,20 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 .vl-saved svg{width:14px;height:14px}
 .vl-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:4px}
 .vl-sec{font-family:var(--f-display);font-size:18px;font-weight:600;color:var(--green);margin:8px 0 -4px;padding-bottom:6px;border-bottom:1px solid var(--sage-deep)}
+.vl-desc{font-size:13px;color:var(--ink-soft);margin-top:-2px}
+.vl-choices{display:grid;gap:6px;margin-top:4px}
+.vl-choices label{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:15px;padding:8px 12px;border:1px solid var(--line);border-radius:3px;background:var(--card)}
+.vl-choices label:hover{border-color:var(--green)}
+.vl-choices input[type="radio"],.vl-choices input[type="checkbox"]{accent-color:var(--green);margin:0;flex-shrink:0}
+.vl-upload{display:grid;gap:8px}
+.vl-upload-drop{border:2px dashed var(--sage-deep);border-radius:3px;padding:20px;text-align:center;cursor:pointer;color:var(--ink-soft);font-size:14px;transition:border-color .15s,background .15s}
+.vl-upload-drop:hover,.vl-upload-drop.drag{border-color:var(--green);background:var(--sage)}
+.vl-upload-drop input[type="file"]{display:none}
+.vl-files{display:grid;gap:6px}
+.vl-file{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--sage);border-radius:3px;font-size:13.5px}
+.vl-file .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vl-file .rm{border:0;background:none;cursor:pointer;color:var(--ink-soft);font-size:16px;padding:0 4px}
+.vl-file .rm:hover{color:var(--warn-ink)}
 </style>
 </head>
 <body>
@@ -198,9 +212,19 @@ function offerteKaart(o){
 }
 /* ---- vragenlijst ---- */
 let vlTimer=null,vlSaving=false;
-function vlAntwoorden(){const ant={};document.querySelectorAll('#vform [data-vraag]').forEach(t=>ant[t.dataset.vraag]=t.value);return ant}
-function vlProgress(){const els=[...document.querySelectorAll('#vform [data-vraag]')];const filled=els.filter(t=>t.value.trim().length>0).length;return {filled,total:els.length,pct:els.length?Math.round(filled/els.length*100):0}}
-function isSection(q){return q.startsWith('§')}
+function vlAntwoorden(){
+  const ant={};const vragen=me.vragenlijst.vragen;
+  for(const q of vragen){
+    if(q.type==='kop')continue;
+    if(q.type==='keuze'){const r=document.querySelector('input[name="vl_'+q.id+'"]:checked');ant[q.id]=r?r.value:'';continue}
+    if(q.type==='meerkeuze'){ant[q.id]=[...document.querySelectorAll('input[name="vl_'+q.id+'"]:checked')].map(c=>c.value);continue}
+    if(q.type==='bestand'){const c=document.querySelector('[data-vlfiles="'+q.id+'"]');ant[q.id]=c?JSON.parse(c.dataset.vlfilesData||'[]'):[];continue}
+    const el=document.querySelector('[data-vraag="'+q.id+'"]');ant[q.id]=el?el.value:'';
+  }
+  return ant;
+}
+function vlProgress(){const vragen=me.vragenlijst.vragen.filter(q=>q.type!=='kop');const filled=vragen.filter(q=>{const a=vlAntwoorden()[q.id];if(Array.isArray(a))return a.length>0;return a&&String(a).trim().length>0}).length;return {filled,total:vragen.length,pct:vragen.length?Math.round(filled/vragen.length*100):0}}
+function isSection(q){return typeof q==='object'?q.type==='kop':String(q).startsWith('§')}
 function vlAutoSave(){
   clearTimeout(vlTimer);
   vlTimer=setTimeout(async()=>{
@@ -213,7 +237,20 @@ function vlAutoSave(){
 function vlUpdateProgress(){const p=vlProgress();const bar=document.querySelector('.vl-progress .bar i');const txt=document.getElementById('vlPct');if(bar)bar.style.width=p.pct+'%';if(txt)txt.textContent=p.filled+' van '+p.total+' ingevuld'}
 function renderVragenlijst(){
   const v=me.vragenlijst;const ant=v.antwoorden||{};const klaar=!!v.ingevuldOp;const concept=!!v.conceptOp&&!klaar;const m=msg.vragen;
+  const beantwoordbaar=v.vragen.filter(q=>q.type!=='kop');
   const statusPill=klaar?`<span class="pill ok">Definitief ingevuld op ${esc(fmtShort(v.ingevuldOp))}</span>`:(concept?'<span class="pill" style="background:var(--warn-bg);color:var(--warn-ink)">Concept bewaard</span>':'<span class="pill warn">Nog in te vullen</span>');
+  function renderField(q,n){
+    const desc=q.beschrijving?`<div class="vl-desc">${esc(q.beschrijving)}</div>`:'';
+    if(q.type==='kop')return `<h3 class="vl-sec">${esc(q.label)}</h3>`;
+    if(q.type==='tekst')return `<label class="fld"><span>${n}. ${esc(q.label)}</span>${desc}<input type="text" data-vraag="${esc(q.id)}" maxlength="500" placeholder="Typ hier jullie antwoord…" value="${esc(ant[q.id]||ant[q.label]||'')}"></label>`;
+    if(q.type==='datum')return `<label class="fld"><span>${n}. ${esc(q.label)}</span>${desc}<input type="date" data-vraag="${esc(q.id)}" value="${esc(ant[q.id]||ant[q.label]||'')}"></label>`;
+    if(q.type==='keuze'){const sel=ant[q.id]||ant[q.label]||'';return `<div class="fld"><span>${n}. ${esc(q.label)}</span>${desc}<div class="vl-choices">${(q.opties||[]).map(o=>`<label><input type="radio" name="vl_${esc(q.id)}" value="${esc(o)}"${sel===o?' checked':''}>${esc(o)}</label>`).join('')}</div></div>`}
+    if(q.type==='meerkeuze'){const sel=Array.isArray(ant[q.id])?ant[q.id]:(ant[q.label]?[ant[q.label]]:[]);return `<div class="fld"><span>${n}. ${esc(q.label)}</span>${desc}<div class="vl-choices">${(q.opties||[]).map(o=>`<label><input type="checkbox" name="vl_${esc(q.id)}" value="${esc(o)}"${sel.includes(o)?' checked':''}>${esc(o)}</label>`).join('')}</div></div>`}
+    if(q.type==='bestand'){const files=Array.isArray(ant[q.id])?ant[q.id]:[];return `<div class="fld"><span>${n}. ${esc(q.label)}</span>${desc}<div class="vl-upload"><div class="vl-upload-drop" data-vlupload="${esc(q.id)}"><span>Sleep bestanden hierheen of <u>klik om te uploaden</u></span><br><small>PDF, PNG, JPG of WebP · max 10 MB</small><input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" multiple></div><div class="vl-files" data-vlfiles="${esc(q.id)}" data-vlfiles-data='${esc(JSON.stringify(files))}'>${files.map(f=>`<div class="vl-file"><span class="name">${esc(f.naam||'bestand')}</span><button type="button" class="rm" data-vlfilerm="${esc(q.id)}" data-fid="${esc(f.id)}">×</button></div>`).join('')}</div></div></div>`}
+    /* lang (default) */
+    return `<label class="fld"><span>${n}. ${esc(q.label)}</span>${desc}<textarea data-vraag="${esc(q.id)}" rows="2" maxlength="2000" placeholder="Typ hier jullie antwoord…">${esc(ant[q.id]||ant[q.label]||'')}</textarea></label>`;
+  }
+  let n=0;
   return `<section class="blok" id="vragenlijst"><div class="bhead"><h2>Vragenlijst${me.type?' · '+esc(me.type.toLowerCase()):''}</h2>${statusPill}</div>
    <details class="vl-intro"${!klaar&&!concept?' open':''}>
      <summary>Hoe werkt deze vragenlijst?</summary>
@@ -229,8 +266,8 @@ function renderVragenlijst(){
      </div>
    </details>
    <form id="vform" class="card" style="display:grid;gap:16px">
-    <div class="vl-progress"><span id="vlPct">0 van ${v.vragen.filter(q=>!q.startsWith('§')).length} ingevuld</span><div class="bar"><i style="width:0%"></i></div><span class="vl-saved" id="vlSaved"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Bewaard</span></div>
-    ${(()=>{let n=0;return v.vragen.map(q=>{if(q.startsWith('§'))return `<h3 class="vl-sec">${esc(q.slice(1))}</h3>`;n++;return `<label class="fld"><span>${n}. ${esc(q)}</span><textarea data-vraag="${esc(q)}" rows="2" maxlength="2000" placeholder="Typ hier jullie antwoord…">${esc(ant[q]||'')}</textarea></label>`}).join('')})()}
+    <div class="vl-progress"><span id="vlPct">0 van ${beantwoordbaar.length} ingevuld</span><div class="bar"><i style="width:0%"></i></div><span class="vl-saved" id="vlSaved"><svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Bewaard</span></div>
+    ${v.vragen.map(q=>{if(q.type==='kop')return renderField(q,0);n++;return renderField(q,n)}).join('')}
     ${m?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}
     <div class="vl-actions"><button class="btn primary" type="submit" id="vlDef" ${busy?'disabled':''}>${klaar?'Wijzigingen definitief insturen':'Definitief insturen'}</button><button class="btn" type="button" id="vlConcept" ${busy?'disabled':''}>${concept||klaar?'Concept opslaan':'Eerst als concept opslaan'}</button></div>
    </form></section>`;
@@ -315,8 +352,38 @@ document.addEventListener('click',async e=>{
     const el=$('#vragenlijst');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
 });
 document.addEventListener('input',e=>{
-  if(e.target.closest('#vform')&&e.target.dataset.vraag){vlUpdateProgress();vlAutoSave()}
+  if(e.target.closest('#vform')&&(e.target.dataset.vraag||e.target.type==='date')){vlUpdateProgress();vlAutoSave()}
 });
+document.addEventListener('change',e=>{
+  if(e.target.closest('#vform')&&(e.target.type==='radio'||e.target.type==='checkbox')){vlUpdateProgress();vlAutoSave()}
+});
+/* file upload in vragenlijst */
+document.addEventListener('click',e=>{
+  const drop=e.target.closest('.vl-upload-drop');
+  if(drop){drop.querySelector('input[type="file"]').click();return}
+  const rm=e.target.closest('[data-vlfilerm]');
+  if(rm){const qid=rm.dataset.vlfilerm;const fid=rm.dataset.fid;const cont=document.querySelector('[data-vlfiles="'+qid+'"]');
+    if(cont){let files=JSON.parse(cont.dataset.vlfilesData||'[]');files=files.filter(f=>f.id!==fid);cont.dataset.vlfilesData=JSON.stringify(files);cont.innerHTML=files.map(f=>`<div class="vl-file"><span class="name">${esc(f.naam||'bestand')}</span><button type="button" class="rm" data-vlfilerm="${esc(qid)}" data-fid="${esc(f.id)}">×</button></div>`).join('');vlUpdateProgress();vlAutoSave()}return}
+});
+document.addEventListener('change',e=>{
+  const finp=e.target.closest('.vl-upload-drop input[type="file"]');
+  if(!finp)return;const drop=finp.closest('.vl-upload-drop');const qid=drop.dataset.vlupload;
+  const cont=document.querySelector('[data-vlfiles="'+qid+'"]');if(!cont)return;
+  const doUpload=async(file)=>{
+    const r=await fetch('/api/dossier/'+encodeURIComponent(code)+'/vragenlijst/upload',{method:'POST',headers:{'Content-Type':file.type,'X-Filename':encodeURIComponent(file.name)},body:file});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||'Upload mislukt')}return r.json()};
+  (async()=>{
+    for(const file of finp.files){
+      try{const res=await doUpload(file);let files=JSON.parse(cont.dataset.vlfilesData||'[]');files.push({id:res.id,naam:file.name});cont.dataset.vlfilesData=JSON.stringify(files);
+        cont.innerHTML+=`<div class="vl-file"><span class="name">${esc(file.name)}</span><button type="button" class="rm" data-vlfilerm="${esc(qid)}" data-fid="${esc(res.id)}">×</button></div>`;
+      }catch(err){const p=document.createElement('p');p.className='err';p.textContent=file.name+': '+err.message;cont.appendChild(p)}
+    }
+    finp.value='';vlUpdateProgress();vlAutoSave()})();
+});
+/* drag & drop for file uploads */
+document.addEventListener('dragover',e=>{const d=e.target.closest('.vl-upload-drop');if(d){e.preventDefault();d.classList.add('drag')}});
+document.addEventListener('dragleave',e=>{const d=e.target.closest('.vl-upload-drop');if(d)d.classList.remove('drag')});
+document.addEventListener('drop',e=>{const d=e.target.closest('.vl-upload-drop');if(!d)return;e.preventDefault();d.classList.remove('drag');const finp=d.querySelector('input[type="file"]');const dt=new DataTransfer();for(const f of e.dataTransfer.files)dt.items.add(f);finp.files=dt.files;finp.dispatchEvent(new Event('change',{bubbles:true}))});
 /* initial progress update after render */
 const _origRender=render;render=function(){_origRender();setTimeout(vlUpdateProgress,0)};
 </script>

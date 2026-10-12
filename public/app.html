@@ -323,6 +323,28 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
 .sb{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--sunk);color:var(--muted);justify-self:start;white-space:nowrap}
 .sb.telefoon{background:var(--warn-soft);color:var(--warn)}.sb.mail{color:var(--g-gesprek)}.sb.afspraak{background:var(--accent-soft);color:var(--accent)}.sb.fase{color:var(--g-ontwerp)}
 @media (prefers-reduced-motion:no-preference){.card,.rows li,.btn{transition:border-color .12s,background .12s}}
+/* ── Vragenlijst builder ── */
+.vl-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.vl-tabs button.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.vl-builder{display:grid;gap:0}
+.vl-fields{display:grid;gap:0}
+.vl-field{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:8px;margin-bottom:8px;position:relative}
+.vl-field.dragging{opacity:.4}
+.vl-field.drag-over{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.vl-field-kop{background:var(--sunk);border-left:3px solid var(--accent)}
+.vl-field-head{display:flex;align-items:center;gap:8px}
+.vl-drag{cursor:grab;color:var(--muted);font-size:18px;user-select:none;line-height:1;padding:0 2px}
+.vl-type-sel{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;color:var(--ink);min-width:120px}
+.vl-field-actions{margin-left:auto;display:flex;gap:2px}
+.vl-field-actions .iconbtn{font-size:14px}
+.vl-label-inp{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:14px;width:100%;box-sizing:border-box}
+.vl-field-kop .vl-label-inp{font-weight:600;font-size:15px}
+.vl-desc-inp{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 10px;font-family:inherit;font-size:12.5px;color:var(--muted);width:100%;box-sizing:border-box}
+.vl-opties{display:grid;gap:4px}
+.vl-opties label{font-size:12px}
+.vl-opties textarea{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:13px;resize:vertical;width:100%;box-sizing:border-box}
+.vl-add{padding:8px 0}
+@media(max-width:600px){.vl-field-head{flex-wrap:wrap}.vl-type-sel{min-width:100px;font-size:11px}}
 </style>
 </head>
 <body>
@@ -377,6 +399,11 @@ const PRODUCTEN_GEBOORTE=[
  [[0,'doopsuiker','Doopsuiker'],[1,'suikerbonen','Suikerbonen'],[1,'verpakking','Verpakking'],[1,'afwerking','Afwerking'],[2,'clips','Clips'],[2,'lint','Lint'],[2,'stickers','Stickers'],[2,'vinyl','Vinyl'],[0,'decoratie','Decoratie'],[1,'flowerhoop','Flowerhoop'],[1,'houtennaam','Houten naam'],[1,'memorybox','Memorybox'],[1,'kraamboekje','Kraamboekje']]
 ];
 function getProducten(type){return type==='Geboorte'?PRODUCTEN_GEBOORTE:PRODUCTEN_HUWELIJK}
+let _vlIdC=0;function vlId(){return 'q'+Date.now().toString(36)+(++_vlIdC).toString(36)}
+function vlV(type,label,extra){return Object.assign({id:vlId(),type,label},extra||{})}
+// Migreer oude string-vragen naar typed objects
+function migreerVraag(q){if(typeof q==='object'&&q.id&&q.type)return q;const s=String(q);if(s.startsWith('§'))return{id:vlId(),type:'kop',label:s.slice(1)};return{id:vlId(),type:'lang',label:s}}
+const VL_TYPES={kop:'Koptekst',tekst:'Kort antwoord',lang:'Lang antwoord',keuze:'Keuze (één)',meerkeuze:'Meerdere keuzes',bestand:'Bestand uploaden',datum:'Datum'};
 const DEFAULTS={
   lijsten:{
     bron:['Instagram','Website','Via via','Huwelijksbeurs','Andere'],
@@ -393,7 +420,7 @@ const DEFAULTS={
   btw:21,
   termijnen:{offerte:14,opvolging:14,herhaling:7,vragenlijst:7,proef:5,proefdruk:7,deadlineWaarschuwing:30},
   afzender:'Liesbeth\njustPIXIT',
-  vragenlijsten:{Huwelijk:['§Gegevens drukwerk','Naam bruid (zoals je deze op de uitnodiging wilt hebben vermeld)','Naam bruidegom (zoals je deze op de uitnodiging wilt hebben vermeld)','Huwelijksdatum','Trouwlocatie — Naam','Trouwlocatie — Adres','Ceremonie — Tijdstip (indien van toepassing)','Ceremonie — Locatie (indien van toepassing)','Receptie — Tijdstip (indien van toepassing)','Receptie — Locatie (indien van toepassing)','RSVP — Datum waarvoor men aan- of afwezigheid dient te bevestigen','RSVP — Manier + gegevens waarop zij dit dienen te bevestigen (vb website, mail, telefoon, …)','Dresscode (indien van toepassing)','Cadeautips (vb cadeaulijst, envelop, …)','Zijn er nog andere gegevens die jullie graag op de uitnodiging hadden?','Datum wanneer jullie graag de uitnodigingen klaar willen hebben (de aangewezen verzenddatum is 6-8 weken voor het huwelijk)','§Ontwerp','Zijn er elementen dat jij mooi vindt dat je zeker terug wilt zien komen in je uitnodiging? (Lettertype, kleuren, symbolen, tekeningen, …)','Heb jij enkele voorbeelden of stijlen van uitnodigingen die je mooi vindt? (Pinterest is hier de place to be voor)'],Geboorte:['Naam van de baby (en eventueel tweede naam)','Geboortedatum en -uur, gewicht en lengte','Namen van de ouders','Namen van broers/zussen, meter en peter','Hoeveel kaartjes hebben jullie nodig?','Welke stijl spreekt jullie aan? (kleuren, illustraties, voorbeelden)','Komt er een foto op het kaartje?','Welke tekst of quote willen jullie erbij?','Gegevens voor kraambezoek of een geboortelijst?','Nog iets dat ik zeker moet weten?'],Ander:['Wat wil je laten ontwerpen?','Voor wanneer heb je het nodig?','Hoeveel exemplaren?','Welke stijl of sfeer spreekt je aan?','Nog iets dat ik zeker moet weten?']},
+  vragenlijsten:{Huwelijk:[vlV('kop','Gegevens drukwerk'),vlV('tekst','Naam bruid (zoals je deze op de uitnodiging wilt hebben vermeld)'),vlV('tekst','Naam bruidegom (zoals je deze op de uitnodiging wilt hebben vermeld)'),vlV('datum','Huwelijksdatum'),vlV('tekst','Trouwlocatie — Naam'),vlV('tekst','Trouwlocatie — Adres'),vlV('tekst','Ceremonie — Tijdstip (indien van toepassing)'),vlV('tekst','Ceremonie — Locatie (indien van toepassing)'),vlV('tekst','Receptie — Tijdstip (indien van toepassing)'),vlV('tekst','Receptie — Locatie (indien van toepassing)'),vlV('datum','RSVP — Datum waarvoor men aan- of afwezigheid dient te bevestigen'),vlV('lang','RSVP — Manier + gegevens waarop zij dit dienen te bevestigen (vb website, mail, telefoon, …)'),vlV('tekst','Dresscode (indien van toepassing)'),vlV('tekst','Cadeautips (vb cadeaulijst, envelop, …)'),vlV('lang','Zijn er nog andere gegevens die jullie graag op de uitnodiging hadden?'),vlV('datum','Datum wanneer jullie graag de uitnodigingen klaar willen hebben',{beschrijving:'De aangewezen verzenddatum is 6-8 weken voor het huwelijk.'}),vlV('kop','Ontwerp'),vlV('lang','Zijn er elementen dat jij mooi vindt dat je zeker terug wilt zien komen in je uitnodiging?',{beschrijving:'Denk aan: lettertype, kleuren, symbolen, tekeningen, …'}),vlV('lang','Heb jij enkele voorbeelden of stijlen van uitnodigingen die je mooi vindt?',{beschrijving:'Pinterest is hier de place to be voor.'}),vlV('bestand','Upload eventuele inspiratiebeelden of bestanden')],Geboorte:[vlV('kop','Geboortekaartje'),vlV('tekst','Naam van de baby (en eventueel tweede naam)'),vlV('tekst','Geboortedatum en -uur, gewicht en lengte'),vlV('tekst','Namen van de ouders'),vlV('tekst','Namen van broers/zussen, meter en peter'),vlV('tekst','Hoeveel kaartjes hebben jullie nodig?'),vlV('lang','Welke stijl spreekt jullie aan?',{beschrijving:'Kleuren, illustraties, voorbeelden…'}),vlV('keuze','Komt er een foto op het kaartje?',{opties:['Ja','Nee','Weet ik nog niet']}),vlV('lang','Welke tekst of quote willen jullie erbij?'),vlV('lang','Gegevens voor kraambezoek of een geboortelijst?'),vlV('lang','Nog iets dat ik zeker moet weten?'),vlV('bestand','Upload eventuele foto of inspiratie'),vlV('kop','Babyborrel'),vlV('datum','Datum babyborrel'),vlV('tekst','Tijdstip'),vlV('tekst','Locatie + adres'),vlV('tekst','Hoeveel kaartjes hebben jullie nodig?'),vlV('lang','Welke tekst of boodschap komt erop?'),vlV('lang','Nog iets dat ik zeker moet weten voor het babyborrelkaartje?')],Ander:[vlV('lang','Wat wil je laten ontwerpen?'),vlV('datum','Voor wanneer heb je het nodig?'),vlV('tekst','Hoeveel exemplaren?'),vlV('lang','Welke stijl of sfeer spreekt je aan?'),vlV('bestand','Upload eventuele bestanden of voorbeelden'),vlV('lang','Nog iets dat ik zeker moet weten?')]},
   boeking:{actief:true,titel:'Kennismakingsgesprek',intro:'In een vrijblijvend gesprek van een uurtje bekijken we jullie wensen voor de uitnodigingen of het geboortekaartje, en hoe ik daar iets unieks van maak.',locatie:'Online via videocall, of bij mij thuis',duur:60,buffer:15,dagen:{1:true,2:true,3:true,4:true,5:false,6:false,0:false},blokken:[{van:'09:30',tot:'12:00'},{van:'19:00',tot:'21:30'}],minUren:48,maxWeken:8,geblokkeerd:[],types:['Huwelijk','Geboorte','Ander'],vragen:['Hoe hebben jullie justPIXIT gevonden?'],bevestiging:'Bedankt voor jullie aanvraag! Jullie afspraak staat vast. Ik kijk ernaar uit om jullie te leren kennen.',afzender:'Liesbeth · justPIXIT'},
   stijl:{
     kleuren:{paper:'#F5F2EF',card:'#FFFFFF',ink:'#2c2623','ink-soft':'#6b6460',accent:'#7d5d44','accent-ink':'#FFFFFF',sage:'#ede6df',line:'#ddd6cf'},
@@ -444,7 +471,7 @@ function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!store
     if(typeof stored.stijl.logo==='string')c.stijl.logo=stored.stijl.logo;
     if(typeof stored.stijl.tagline==='string')c.stijl.tagline=stored.stijl.tagline}
   if(typeof stored.afzender==='string')c.afzender=stored.afzender;
-  if(stored.vragenlijsten&&typeof stored.vragenlijsten==='object')for(const t in stored.vragenlijsten)if(Array.isArray(stored.vragenlijsten[t]))c.vragenlijsten[t]=stored.vragenlijsten[t].map(String);
+  if(stored.vragenlijsten&&typeof stored.vragenlijsten==='object')for(const t in stored.vragenlijsten)if(Array.isArray(stored.vragenlijsten[t]))c.vragenlijsten[t]=stored.vragenlijsten[t];
   if(stored.boeking&&typeof stored.boeking==='object'){const b=stored.boeking;for(const k in c.boeking){if(b[k]===undefined)continue;
     if(k==='dagen'&&typeof b.dagen==='object')c.boeking.dagen=Object.assign({},c.boeking.dagen,b.dagen);
     else if(['blokken','geblokkeerd','types','vragen'].includes(k)){if(Array.isArray(b[k]))c.boeking[k]=JSON.parse(JSON.stringify(b[k]))}
@@ -849,18 +876,25 @@ function renderBijlagesTab(){
 }
 function renderVragenlijstTab(){
   const box=$('#tab-vragenlijst');if(!box||!work)return;const k=work;const v=k.vragenlijst;
-  const vragen=cfg.vragenlijsten[k.type]||cfg.vragenlijsten.Ander||[];const ant=(v&&v.antwoorden)||{};
+  let vragen=(cfg.vragenlijsten[k.type]||cfg.vragenlijsten.Ander||[]).map(migreerVraag);
+  const ant=(v&&v.antwoorden)||{};
   const kop=`<section class="sec"><h2>Vragenlijst${k.type?' · '+esc(k.type):''}</h2>`;
-  const heeftAntwoorden=Object.values(ant).some(a=>a&&a.trim());
+  const beantwoordbaar=vragen.filter(q=>q.type!=='kop');
+  const heeftAntwoorden=Object.values(ant).some(a=>a&&(typeof a==='string'?a.trim():true));
   const conceptOnly=v&&v.conceptOp&&!v.ingevuldOp;
+  function antVal(q){const a=ant[q.id]!==undefined?ant[q.id]:(ant[q.label]!==undefined?ant[q.label]:undefined);if(a===undefined)return '';if(Array.isArray(a))return a.map(x=>typeof x==='object'?esc(x.naam||'bestand'):esc(x)).join(', ');return typeof a==='string'?a.trim():String(a)}
   if(!v||(!v.ingevuldOp&&!heeftAntwoorden)){box.innerHTML=kop+`<p class="hint">Nog niet ingevuld. De klant vult de vragenlijst in via zijn dossier (link in de mail na goedkeuring, of kopieer de dossierlink in de zijbalk). De vragen zelf pas je aan in Beheer → Fiche &amp; planning → Vragenlijsten.</p>
-     <div style="margin-top:14px"><div class="label" style="margin-bottom:6px">Vragen voor ${esc(k.type||'dit type')}</div><ol style="margin:0 0 0 18px;padding:0;color:var(--muted)">${vragen.map(q=>q.startsWith('§')?`</ol><div class="label" style="margin:12px 0 4px;color:var(--green)">${esc(q.slice(1))}</div><ol style="margin:0 0 0 18px;padding:0;color:var(--muted)">`:`<li>${esc(q)}</li>`).join('')}</ol></div></section>`;return}
+     <div style="margin-top:14px"><div class="label" style="margin-bottom:6px">Vragen voor ${esc(k.type||'dit type')}</div><ol style="margin:0 0 0 18px;padding:0;color:var(--muted)">${vragen.map(q=>q.type==='kop'?`</ol><div class="label" style="margin:12px 0 4px;color:var(--accent)">${esc(q.label)}</div><ol style="margin:0 0 0 18px;padding:0;color:var(--muted)">`:`<li>${esc(q.label)} <span class="hint" style="font-size:11px">(${esc(VL_TYPES[q.type]||q.type)})</span></li>`).join('')}</ol></div></section>`;return}
   const statusTxt=v.ingevuldOp?`<span class="chip ok" style="margin-left:auto">Definitief ingevuld op ${fmt(v.ingevuldOp)}</span>`:(conceptOnly?`<span class="chip" style="background:var(--warn-light,#fef3cd);margin-left:auto">Concept bewaard op ${fmt(v.conceptOp.slice(0,10))}</span>`:'');
-  const filled=Object.values(ant).filter(a=>a&&a.trim()).length;
+  const filled=beantwoordbaar.filter(q=>antVal(q)).length;
   box.innerHTML=kop+`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${statusTxt}</div>
     ${conceptOnly?'<p class="hint" style="margin-top:8px">De klant is bezig met invullen — deze antwoorden zijn nog niet definitief.</p>':''}
-    <p class="hint" style="margin-top:8px">${filled} van ${vragen.filter(q=>!q.startsWith('§')).length} vragen beantwoord.</p>
-    <dl style="display:grid;gap:14px;margin:16px 0 0">${vragen.map(q=>q.startsWith('§')?`<div style="grid-column:1/-1;margin-top:8px"><strong style="color:var(--green)">${esc(q.slice(1))}</strong></div>`:`<div><dt class="label" style="margin-bottom:3px">${esc(q)}</dt><dd style="margin:0;white-space:pre-wrap">${ant[q]&&ant[q].trim()?esc(ant[q]):'<span class="hint">—</span>'}</dd></div>`).join('')}</dl></section>`;
+    <p class="hint" style="margin-top:8px">${filled} van ${beantwoordbaar.length} vragen beantwoord.</p>
+    <dl style="display:grid;gap:14px;margin:16px 0 0">${vragen.map(q=>{
+      if(q.type==='kop')return `<div style="grid-column:1/-1;margin-top:8px"><strong style="color:var(--accent)">${esc(q.label)}</strong></div>`;
+      const val=antVal(q);
+      return `<div><dt class="label" style="margin-bottom:3px">${esc(q.label)}</dt><dd style="margin:0;white-space:pre-wrap">${val?esc(val):'<span class="hint">—</span>'}</dd></div>`;
+    }).join('')}</dl></section>`;
 }
 async function klantPost(pad,body){const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+pad,{method:body===null?'DELETE':'POST',headers:{'Content-Type':'application/json'},body:body===null?undefined:JSON.stringify(body||{}),credentials:'same-origin'});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw new Error(j.error||'Mislukt');return j}
 document.addEventListener('click',async e=>{
@@ -1376,8 +1410,41 @@ function beheerFiche(){
    <section><h2>Planning</h2><p>De planning op de klantpagina vertrekt van de datum van het kennismakingsgesprek. Ze telt de termijnen hierboven op met deze doorlooptijden. Fases die al voorbij zijn, krijgen hun echte datum.</p>
     <div class="terms">${Object.keys(PLAN_LABELS).map(k=>`<label><b>${esc(PLAN_LABELS[k][0])}</b><input type="number" min="0" max="365" id="plan-${k}" data-plan="${k}" value="${cfg.planning[k]}"><span>${esc(PLAN_LABELS[k][1])}</span></label>`).join('')}
     <label><b>Standaard btw op offertes</b><input type="number" min="0" max="100" id="cfg-btw" data-btw="1" value="${cfg.btw}"><span>procent</span></label></div></section>
-   <section><h2>Vragenlijsten</h2><p>Na goedkeuring van de offerte vult de klant deze vragenlijst in via zijn dossier. Per type klant een eigen lijst, één vraag per regel. De antwoorden verschijnen in de fiche onder het tabblad Vragenlijst.</p>
-    <div class="mailgrid">${cfg.lijsten.type.map(t=>`<div class="sec"><h3 style="font-size:13px;font-weight:600">${esc(t)}</h3><textarea data-vl="${esc(t)}" aria-label="Vragenlijst ${esc(t)}" style="min-height:220px">${esc((cfg.vragenlijsten[t]||[]).join('\n'))}</textarea></div>`).join('')}</div></section>`;
+   <section><h2>Vragenlijsten</h2><p>Na goedkeuring van de offerte vult de klant deze vragenlijst in via zijn dossier. Per type klant stel je een formulier samen met verschillende soorten velden. De antwoorden verschijnen in de fiche onder het tabblad Vragenlijst.</p>
+    <div class="vl-tabs">${cfg.lijsten.type.map((t,i)=>`<button class="btn small${i===0?' active':''}" data-vltab="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+    <div id="vlBuilder">${renderVlBuilder(cfg.lijsten.type[0])}</div></section>`;
+}
+function renderVlBuilder(type){
+  const vragen=(cfg.vragenlijsten[type]||[]).map(migreerVraag);
+  cfg.vragenlijsten[type]=vragen; // normalise in place
+  return `<div class="vl-builder" data-vltype="${esc(type)}">
+    <div class="vl-fields">${vragen.map((q,i)=>renderVlField(q,i,vragen.length)).join('')}</div>
+    <div class="vl-add"><button class="btn small" data-vladd="${esc(type)}">+ Veld toevoegen</button></div>
+  </div>`;
+}
+function renderVlField(q,i,total){
+  const typeLabel=VL_TYPES[q.type]||q.type;
+  const isKop=q.type==='kop';
+  const hasOpties=q.type==='keuze'||q.type==='meerkeuze';
+  return `<div class="vl-field${isKop?' vl-field-kop':''}" data-vlid="${esc(q.id)}" draggable="true">
+    <div class="vl-field-head">
+      <span class="vl-drag" title="Versleep">⠿</span>
+      <select class="vl-type-sel" data-vltype-sel="${esc(q.id)}" aria-label="Type veld">
+        ${Object.entries(VL_TYPES).map(([k,v])=>`<option value="${k}"${k===q.type?' selected':''}>${esc(v)}</option>`).join('')}
+      </select>
+      <div class="vl-field-actions">
+        <button class="iconbtn" data-vlup="${esc(q.id)}" ${i===0?'disabled':''} aria-label="Omhoog" title="Omhoog">↑</button>
+        <button class="iconbtn" data-vldown="${esc(q.id)}" ${i>=total-1?'disabled':''} aria-label="Omlaag" title="Omlaag">↓</button>
+        <button class="iconbtn" data-vldel="${esc(q.id)}" aria-label="Verwijderen" title="Verwijderen">×</button>
+      </div>
+    </div>
+    <input class="vl-label-inp" data-vllabel="${esc(q.id)}" value="${esc(q.label)}" placeholder="${isKop?'Titel van de sectie':'Vraag of label'}" aria-label="Label">
+    ${!isKop?`<input class="vl-desc-inp" data-vldesc="${esc(q.id)}" value="${esc(q.beschrijving||'')}" placeholder="Toelichting (optioneel)" aria-label="Beschrijving">`:''}
+    ${hasOpties?`<div class="vl-opties"><label class="hint">Keuzes (één per regel)</label><textarea data-vlopties="${esc(q.id)}" rows="3" placeholder="Optie 1\nOptie 2\nOptie 3">${esc((q.opties||[]).join('\n'))}</textarea></div>`:''}
+  </div>`;
+}
+function _vlBuilderDummy(){ // placeholder so the old closing brace matches
+  return '';
 }
 function mailVak(k){
   const knoppen=Object.keys(KNOP_UITLEG).filter(b=>(MAIL_PLACEHOLDERS[k]||'').includes('{'+b+'}'));
@@ -1500,6 +1567,18 @@ function saveCfg(now){clearTimeout(cfgTimer);const st=$('#cfgstate');if(st)st.te
     cfgChain=cfgChain.then(()=>db.doc('instellingen/algemeen').set(data)).then(()=>{const s2=$('#cfgstate');if(s2&&!cfgTimer)s2.textContent='Alles opgeslagen'},e=>{const s2=$('#cfgstate');if(s2)s2.textContent='Niet opgeslagen ('+(e&&e.code||'fout')+')'})};
   if(now)run();else cfgTimer=setTimeout(run,700)}
 document.addEventListener('click',e=>{
+  const vlt=e.target.closest('[data-vltab],[data-vladd],[data-vldel],[data-vlup],[data-vldown]');
+  if(vlt){
+    if(vlt.dataset.vltab){document.querySelectorAll('.vl-tabs button').forEach(b=>b.classList.toggle('active',b.dataset.vltab===vlt.dataset.vltab));const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(vlt.dataset.vltab);return}
+    const b=document.querySelector('.vl-builder');if(!b)return;const tp=b.dataset.vltype;const arr=cfg.vragenlijsten[tp]||[];
+    if(vlt.dataset.vladd){arr.push(vlV('tekst',''));cfg.vragenlijsten[tp]=arr;const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(tp);saveCfg(true);const last=document.querySelector('.vl-field:last-of-type .vl-label-inp');if(last)last.focus();return}
+    const idx=arr.findIndex(q=>q.id===(vlt.dataset.vldel||vlt.dataset.vlup||vlt.dataset.vldown));
+    if(idx<0)return;
+    if(vlt.dataset.vldel){arr.splice(idx,1);cfg.vragenlijsten[tp]=arr;const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(tp);saveCfg(true);toast('Veld verwijderd');return}
+    if(vlt.dataset.vlup&&idx>0){[arr[idx-1],arr[idx]]=[arr[idx],arr[idx-1]];const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(tp);saveCfg(true);return}
+    if(vlt.dataset.vldown&&idx<arr.length-1){[arr[idx],arr[idx+1]]=[arr[idx+1],arr[idx]];const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(tp);saveCfg(true);return}
+    return;
+  }
   const t=e.target.closest('#bk-addblok,[data-bkdelblok],[data-up],[data-del],[data-reset],[data-resetyes],[data-resetno]');if(!t)return;
   if(t.id==='bk-addblok'){cfg.boeking.blokken.push({van:'13:00',tot:'17:00'});rerenderBeheer();saveCfg(true);return}
   if(t.dataset.bkdelblok){cfg.boeking.blokken.splice(+t.dataset.bkdelblok,1);rerenderBeheer();saveCfg(true);return}
@@ -1523,7 +1602,12 @@ document.addEventListener('input',e=>{const el=e.target;
   else if(el.dataset.bklist){cfg.boeking[el.dataset.bklist]=el.value.split('\n').map(x=>x.trim()).filter(Boolean);saveCfg()}
   else if(el.dataset.mail){cfg.mails[el.dataset.mail]=el.value;saveCfg()}
   else if(el.dataset.afzender){cfg.afzender=el.value;saveCfg()}
-  else if(el.dataset.vl){cfg.vragenlijsten[el.dataset.vl]=el.value.split('\n').map(x=>x.trim()).filter(Boolean);saveCfg()}
+  else if(el.dataset.vllabel){const b=document.querySelector('.vl-builder');if(!b)return;const t=b.dataset.vltype;const arr=cfg.vragenlijsten[t]||[];const q=arr.find(x=>x.id===el.dataset.vllabel);if(q){q.label=el.value;saveCfg()}}
+  else if(el.dataset.vldesc){const b=document.querySelector('.vl-builder');if(!b)return;const t=b.dataset.vltype;const arr=cfg.vragenlijsten[t]||[];const q=arr.find(x=>x.id===el.dataset.vldesc);if(q){q.beschrijving=el.value;saveCfg()}}
+  else if(el.dataset.vlopties){const b=document.querySelector('.vl-builder');if(!b)return;const t=b.dataset.vltype;const arr=cfg.vragenlijsten[t]||[];const q=arr.find(x=>x.id===el.dataset.vlopties);if(q){q.opties=el.value.split('\n').map(x=>x.trim()).filter(Boolean);saveCfg()}}
+});
+document.addEventListener('change',e=>{const el=e.target;
+  if(el.dataset.vltypeSel){const b=document.querySelector('.vl-builder');if(!b)return;const tp=b.dataset.vltype;const arr=cfg.vragenlijsten[tp]||[];const q=arr.find(x=>x.id===el.dataset.vltypeSel);if(q){q.type=el.value;if(el.value==='kop'){delete q.beschrijving;delete q.opties;delete q.verplicht}if(el.value!=='keuze'&&el.value!=='meerkeuze')delete q.opties;const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(tp);saveCfg(true)}}
 });
 
 /* ---------- verbinding met de server ---------- */

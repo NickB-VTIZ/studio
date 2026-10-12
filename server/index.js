@@ -180,47 +180,97 @@ function bestandOpSchijf(id) { // {pad, naam, type} van een geüpload bestand
   return { pad: path.join(UPLOAD_DIR, f), naam: meta.naam || f, type: meta.type || 'application/octet-stream' };
 }
 const bijlageVan = id => { const b = bestandOpSchijf(id); return b ? { filename: b.naam, content: fs.readFileSync(b.pad), contentType: b.type } : null; };
-// Vragenlijsten per type klant (bewerkbaar in Beheer → instellingen/algemeen.vragenlijsten). Eén vraag per regel.
+// Vragenlijsten per type klant — typed fields (bewerkbaar in Beheer → Fiche & planning).
+// Types: kop, tekst, lang, keuze, meerkeuze, bestand, datum
+let _vlIdCounter = 0;
+function vlId() { return 'q' + Date.now().toString(36) + (++_vlIdCounter).toString(36); }
+function vlVraag(type, label, extra) { return Object.assign({ id: vlId(), type, label }, extra || {}); }
 const STANDAARD_VRAGENLIJSTEN = {
   Huwelijk: [
-    '§Gegevens drukwerk',
-    'Naam bruid (zoals je deze op de uitnodiging wilt hebben vermeld)',
-    'Naam bruidegom (zoals je deze op de uitnodiging wilt hebben vermeld)',
-    'Huwelijksdatum',
-    'Trouwlocatie — Naam',
-    'Trouwlocatie — Adres',
-    'Ceremonie — Tijdstip (indien van toepassing)',
-    'Ceremonie — Locatie (indien van toepassing)',
-    'Receptie — Tijdstip (indien van toepassing)',
-    'Receptie — Locatie (indien van toepassing)',
-    'RSVP — Datum waarvoor men aan- of afwezigheid dient te bevestigen',
-    'RSVP — Manier + gegevens waarop zij dit dienen te bevestigen (vb website, mail, telefoon, …)',
-    'Dresscode (indien van toepassing)',
-    'Cadeautips (vb cadeaulijst, envelop, …)',
-    'Zijn er nog andere gegevens die jullie graag op de uitnodiging hadden?',
-    'Datum wanneer jullie graag de uitnodigingen klaar willen hebben (de aangewezen verzenddatum is 6-8 weken voor het huwelijk)',
-    '§Ontwerp',
-    'Zijn er elementen dat jij mooi vindt dat je zeker terug wilt zien komen in je uitnodiging? (Lettertype, kleuren, symbolen, tekeningen, …)',
-    'Heb jij enkele voorbeelden of stijlen van uitnodigingen die je mooi vindt? (Pinterest is hier de place to be voor)',
+    vlVraag('kop', 'Gegevens drukwerk'),
+    vlVraag('tekst', 'Naam bruid (zoals je deze op de uitnodiging wilt hebben vermeld)'),
+    vlVraag('tekst', 'Naam bruidegom (zoals je deze op de uitnodiging wilt hebben vermeld)'),
+    vlVraag('datum', 'Huwelijksdatum'),
+    vlVraag('tekst', 'Trouwlocatie — Naam'),
+    vlVraag('tekst', 'Trouwlocatie — Adres'),
+    vlVraag('tekst', 'Ceremonie — Tijdstip (indien van toepassing)'),
+    vlVraag('tekst', 'Ceremonie — Locatie (indien van toepassing)'),
+    vlVraag('tekst', 'Receptie — Tijdstip (indien van toepassing)'),
+    vlVraag('tekst', 'Receptie — Locatie (indien van toepassing)'),
+    vlVraag('datum', 'RSVP — Datum waarvoor men aan- of afwezigheid dient te bevestigen'),
+    vlVraag('lang', 'RSVP — Manier + gegevens waarop zij dit dienen te bevestigen (vb website, mail, telefoon, …)'),
+    vlVraag('tekst', 'Dresscode (indien van toepassing)'),
+    vlVraag('tekst', 'Cadeautips (vb cadeaulijst, envelop, …)'),
+    vlVraag('lang', 'Zijn er nog andere gegevens die jullie graag op de uitnodiging hadden?'),
+    vlVraag('datum', 'Datum wanneer jullie graag de uitnodigingen klaar willen hebben', { beschrijving: 'De aangewezen verzenddatum is 6-8 weken voor het huwelijk.' }),
+    vlVraag('kop', 'Ontwerp'),
+    vlVraag('lang', 'Zijn er elementen dat jij mooi vindt dat je zeker terug wilt zien komen in je uitnodiging?', { beschrijving: 'Denk aan: lettertype, kleuren, symbolen, tekeningen, …' }),
+    vlVraag('lang', 'Heb jij enkele voorbeelden of stijlen van uitnodigingen die je mooi vindt?', { beschrijving: 'Pinterest is hier de place to be voor.' }),
+    vlVraag('bestand', 'Upload eventuele inspiratiebeelden of bestanden'),
   ],
   Geboorte: [
-    '§Geboortekaartje',
-    'Naam van de baby (en eventueel tweede naam)', 'Geboortedatum en -uur, gewicht en lengte', 'Namen van de ouders', 'Namen van broers/zussen, meter en peter', 'Hoeveel kaartjes hebben jullie nodig?', 'Welke stijl spreekt jullie aan? (kleuren, illustraties, voorbeelden)', 'Komt er een foto op het kaartje?', 'Welke tekst of quote willen jullie erbij?', 'Gegevens voor kraambezoek of een geboortelijst?', 'Nog iets dat ik zeker moet weten?',
-    '§Babyborrel',
-    'Datum babyborrel', 'Tijdstip', 'Locatie + adres', 'Hoeveel kaartjes hebben jullie nodig?', 'Welke tekst of boodschap komt erop?', 'Nog iets dat ik zeker moet weten voor het babyborrelkaartje?',
+    vlVraag('kop', 'Geboortekaartje'),
+    vlVraag('tekst', 'Naam van de baby (en eventueel tweede naam)'),
+    vlVraag('tekst', 'Geboortedatum en -uur, gewicht en lengte'),
+    vlVraag('tekst', 'Namen van de ouders'),
+    vlVraag('tekst', 'Namen van broers/zussen, meter en peter'),
+    vlVraag('tekst', 'Hoeveel kaartjes hebben jullie nodig?'),
+    vlVraag('lang', 'Welke stijl spreekt jullie aan?', { beschrijving: 'Kleuren, illustraties, voorbeelden…' }),
+    vlVraag('keuze', 'Komt er een foto op het kaartje?', { opties: ['Ja', 'Nee', 'Weet ik nog niet'] }),
+    vlVraag('lang', 'Welke tekst of quote willen jullie erbij?'),
+    vlVraag('lang', 'Gegevens voor kraambezoek of een geboortelijst?'),
+    vlVraag('lang', 'Nog iets dat ik zeker moet weten?'),
+    vlVraag('bestand', 'Upload eventuele foto of inspiratie'),
+    vlVraag('kop', 'Babyborrel'),
+    vlVraag('datum', 'Datum babyborrel'),
+    vlVraag('tekst', 'Tijdstip'),
+    vlVraag('tekst', 'Locatie + adres'),
+    vlVraag('tekst', 'Hoeveel kaartjes hebben jullie nodig?'),
+    vlVraag('lang', 'Welke tekst of boodschap komt erop?'),
+    vlVraag('lang', 'Nog iets dat ik zeker moet weten voor het babyborrelkaartje?'),
   ],
-  Ander: ['Wat wil je laten ontwerpen?', 'Voor wanneer heb je het nodig?', 'Hoeveel exemplaren?', 'Welke stijl of sfeer spreekt je aan?', 'Nog iets dat ik zeker moet weten?'],
+  Ander: [
+    vlVraag('lang', 'Wat wil je laten ontwerpen?'),
+    vlVraag('datum', 'Voor wanneer heb je het nodig?'),
+    vlVraag('tekst', 'Hoeveel exemplaren?'),
+    vlVraag('lang', 'Welke stijl of sfeer spreekt je aan?'),
+    vlVraag('bestand', 'Upload eventuele bestanden of voorbeelden'),
+    vlVraag('lang', 'Nog iets dat ik zeker moet weten?'),
+  ],
 };
+// Migreer oude string-vragen naar typed objects
+function migreerVraag(q) {
+  if (typeof q === 'object' && q.id && q.type) return q;
+  const s = String(q);
+  if (s.startsWith('§')) return { id: vlId(), type: 'kop', label: s.slice(1) };
+  return { id: vlId(), type: 'lang', label: s };
+}
+function normaliseVragen(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(migreerVraag).filter(q => q && q.label);
+}
 function vragenlijstVoor(k) {
   const alg = instellingen(); const lijsten = Object.assign({}, STANDAARD_VRAGENLIJSTEN, alg.vragenlijsten || {});
   const t = k.type && lijsten[k.type] ? k.type : (lijsten.Ander ? 'Ander' : Object.keys(lijsten)[0]);
-  let vragen = (lijsten[t] || []).map(String).filter(Boolean);
+  let vragen = normaliseVragen(lijsten[t] || []);
   // Babyborrel section: only include when babyborrelkaartje is checked in fiche
   if (t === 'Geboorte' && !(k.fiche && k.fiche.producten && k.fiche.producten.babyborrelkaartje)) {
     let skip = false;
-    vragen = vragen.filter(q => { if (q === '§Babyborrel') { skip = true; return false; } if (skip && q.startsWith('§')) { skip = false; } return !skip; });
+    vragen = vragen.filter(q => { if (q.type === 'kop' && q.label === 'Babyborrel') { skip = true; return false; } if (skip && q.type === 'kop') { skip = false; } return !skip; });
   }
   return vragen;
+}
+// Migreer antwoorden: oude label-keyed → id-keyed
+function migreerAntwoorden(ant, vragen) {
+  if (!ant || typeof ant !== 'object') return {};
+  const uit = {};
+  for (const q of vragen) {
+    if (q.type === 'kop') continue;
+    if (ant[q.id] !== undefined) { uit[q.id] = ant[q.id]; continue; }
+    // Oude format: antwoord per label-tekst
+    if (ant[q.label] !== undefined) uit[q.id] = ant[q.label];
+  }
+  return uit;
 }
 function contractInfo(k) { const c = k.contract || {}; const b = c.bestandId ? bestandOpSchijf(c.bestandId) : null; return { bestandId: c.bestandId || '', naam: b ? b.naam : '', verstuurdOp: c.verstuurdOp || '', getekend: c.getekend ? { naam: c.getekend.naam, op: c.getekend.op } : null }; }
 // Schrijfactie vanuit de app samenvoegen met wat er intussen server-side veranderde (klant via dossier/portaal):
@@ -649,11 +699,12 @@ async function api(req, res, url) {
     const bijlagesVan = () => { const uit = []; for (const o of zichtbaar) for (const f of (o.bestanden || [])) uit.push({ id: f.id, naam: f.naam || 'bestand', type: f.type || '', soort: 'offerte', bron: o.titel || 'Offerte', d: f.d || '' }); for (const f of (k.bijlages || [])) uit.push({ id: f.id, naam: f.naam || 'bestand', type: f.type || '', soort: f.soort || 'ander', bron: '', d: f.d || '' }); return uit; };
     if (!sub && m === 'GET') {
       const vl = vragenlijstVoor(k);
+      const vlAnt = migreerAntwoorden((k.vragenlijst && k.vragenlijst.antwoorden) || {}, vl);
       return json(res, 200, { naam: k.naam, voornaam: (String(k.naam || '').replace(/^Voorbeeld\s*·\s*/, '').split(/\s|&/)[0] || '').trim(), type: k.type || '', email: k.email || '', telefoon: k.telefoon || '',
         kennismaking: k.kennismaking || '', geannuleerdeAfspraak: k.geannuleerdeAfspraak || '', duur: cfg.duur, titel: cfg.titel, locatie: k.videoprovider || cfg.locatie || '', videolink: k.videolink || '', videoprovider: k.videoprovider || '',
         fase: k.fase, fasen: fasenVoor(k), gestopt: GESTOPT.has(k.fase), verplaatsbaar: !GESTOPT.has(k.fase) && !!k.kennismaking && k.kennismaking >= nuBrussel(), nu: nuBrussel(), actief: !!cfg.actief,
         offertes: zichtbaar.map(o => ({ id: o.id, titel: o.titel || 'Offerte', status: o.status, datum: o.datum || '', geldigTot: o.geldigTot || '', notitie: o.notitie || '', totaal: offerteTotalen(o).tot, bestanden: (o.bestanden || []).map(f => ({ id: f.id, naam: f.naam || 'bestand', type: f.type || '' })), reactie: o.klantReactie || '', goedgekeurdOp: o.goedgekeurdOp || '', afgewezenOp: o.afgewezenOp || '' })),
-        vragenlijst: { vragen: vl, antwoorden: (k.vragenlijst && k.vragenlijst.antwoorden) || {}, ingevuldOp: (k.vragenlijst && k.vragenlijst.ingevuldOp) || '', conceptOp: (k.vragenlijst && k.vragenlijst.conceptOp) || '', nodig: FI_SERVER[k.fase] >= FI_SERVER.goedgekeurd && !GESTOPT.has(k.fase) },
+        vragenlijst: { vragen: vl, antwoorden: vlAnt, ingevuldOp: (k.vragenlijst && k.vragenlijst.ingevuldOp) || '', conceptOp: (k.vragenlijst && k.vragenlijst.conceptOp) || '', nodig: FI_SERVER[k.fase] >= FI_SERVER.goedgekeurd && !GESTOPT.has(k.fase) },
         contract: contractInfo(k), voorschot: k.voorschot || { betaald: false }, bijlages: bijlagesVan(), naGoedkeuringVerstuurdOp: k.naGoedkeuringVerstuurdOp || '' });
     }
     if (sub === 'slots' && m === 'GET') return json(res, 200, { actief: !!cfg.actief, duur: cfg.duur, dagen: cfg.actief ? slotsVoorPeriode(cfg, bezetteSlots(kid)) : [] });
@@ -684,23 +735,41 @@ async function api(req, res, url) {
     if (sub === 'vragenlijst' && m === 'POST') {
       const b = await readJson(req, 50e3).catch(() => ({}));
       const vragen = vragenlijstVoor(k); const ant = {};
-      for (const v of vragen) { const a = b.antwoorden && b.antwoorden[v]; if (a !== undefined) ant[v] = String(a).trim().slice(0, 2000); }
-      const concept = !!b.concept; // true = draft save, false = definitief
+      for (const v of vragen) {
+        if (v.type === 'kop') continue;
+        const a = b.antwoorden && b.antwoorden[v.id];
+        if (a === undefined) continue;
+        if (v.type === 'meerkeuze' && Array.isArray(a)) { ant[v.id] = a.map(x => String(x).trim().slice(0, 500)).filter(Boolean); }
+        else if (v.type === 'bestand') { /* bestanden apart, via upload endpoint — hier alleen metadata */ if (Array.isArray(a)) ant[v.id] = a.filter(f => f && f.id).map(f => ({ id: String(f.id).slice(0, 64), naam: String(f.naam || '').slice(0, 200) })); }
+        else { ant[v.id] = String(a).trim().slice(0, 2000); }
+      }
+      const concept = !!b.concept;
       const prev = k.vragenlijst || {};
       const alDefinitief = !!prev.ingevuldOp;
       if (concept) {
-        // Draft save: bewaar antwoorden zonder ingevuldOp te zetten (tenzij al definitief)
         k.vragenlijst = { type: k.type || '', antwoorden: ant, conceptOp: new Date().toISOString(), ingevuldOp: prev.ingevuldOp || '', ts: new Date().toISOString() };
         if (!prev.conceptOp && !alDefinitief) logboek(k, 'Klant begon de vragenlijst in te vullen (concept bewaard)', 'vragenlijst');
         store.set('klanten', kid, k);
         return json(res, 200, { ok: true, concept: true });
       }
-      // Definitief insturen
       k.vragenlijst = { type: k.type || '', antwoorden: ant, ingevuldOp: vandaagBE(), conceptOp: prev.conceptOp || '', ts: new Date().toISOString() };
       logboek(k, alDefinitief ? 'Klant werkte de vragenlijst bij via het dossier' : 'Vragenlijst definitief ingevuld door de klant via het dossier', 'vragenlijst');
       store.set('klanten', kid, k);
       if (!alDefinitief) meldAdmin(req, `Vragenlijst ontvangen: ${k.naam}`, mailBasis(k, req, { bericht: `De klant vulde de vragenlijst (${k.type || 'algemeen'}) definitief in. Bekijk ze in de fiche onder Vragenlijst.` }), 'vragenlijst ontvangen');
       return json(res, 200, { ok: true, concept: false });
+    }
+    // Vragenlijst file upload endpoint
+    if (sub === 'vragenlijst/upload' && m === 'POST') {
+      const type = (req.headers['content-type'] || '').split(';')[0].trim();
+      const allowed = { 'application/pdf': '.pdf', 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' };
+      if (!allowed[type]) return json(res, 415, { error: 'Enkel PDF, PNG, JPG of WebP' });
+      let buf; try { buf = await readBody(req, 10 * 1024 * 1024); } catch (e) { return json(res, 413, { error: 'Bestand te groot (max 10 MB)' }); }
+      if (!buf.length) return json(res, 400, { error: 'Leeg bestand' });
+      const fid = crypto.randomBytes(16).toString('hex');
+      fs.writeFileSync(path.join(UPLOAD_DIR, fid + allowed[type]), buf);
+      const naam = decodeURIComponent(req.headers['x-filename'] || '').slice(0, 200);
+      fs.writeFileSync(path.join(UPLOAD_DIR, fid + '.json'), JSON.stringify({ naam, type, size: buf.length, d: new Date().toISOString() }));
+      return json(res, 200, { id: fid, naam, type, url: `/api/dossier/${wzMatch[1]}/bestand/${fid}` });
     }
     if (sub === 'contract/teken' && m === 'POST') {
       const b = await readJson(req, 400e3).catch(() => ({}));
