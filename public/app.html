@@ -358,7 +358,6 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
     <button data-v="klanten">Klanten</button>
     <button data-v="gebruikers">Gebruikers</button>
     <button data-v="beheer">Beheer</button>
-    <button data-v="koppelingen">Koppelingen</button>
   </nav>
   <div class="spacer"></div>
   <a class="btn ghost" href="/afspraak" target="_blank" rel="noopener" title="Publieke boekingspagina">Afsprakenpagina ↗</a>
@@ -574,9 +573,9 @@ function render(){
   else if(view.v==='pipeline')app.innerHTML=vPipeline();
   else if(view.v==='klanten')app.innerHTML=vKlanten();
   else if(view.v==='nieuw'){if(!document.getElementById('newform'))app.innerHTML=vNieuw()}
-  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel();laadAgenda();laadMailtest()}}
+  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel();laadAgenda();laadMailtest();if(beheerTab==='koppelingen')laadKoppelingen()}}
   else if(view.v==='gebruikers'){app.innerHTML=vGebruikers();laadGebruikers()}
-  else if(view.v==='koppelingen'){if(!koppelOpen){app.innerHTML=vKoppelingen();koppelOpen=true;laadKoppelingen()}}
+  else if(view.v==='koppelingen'){beheerTab='koppelingen';go('beheer')}
   else if(view.v==='klant'){
     const k=klanten.find(x=>x.id===view.id);
     if(!k){app.innerHTML='<p class="empty">Deze klant bestaat niet meer.</p>';return}
@@ -1281,13 +1280,13 @@ document.addEventListener('click',e=>{
 
 /* ---------- beheer ---------- */
 let beheerOpen=false, cfgTimer=null, cfgChain=Promise.resolve(), resetMail=null;
-const BEHEER_TABS=[['afspraken','Afspraken & portaal'],['mails','E-mails'],['fiche','Fiche & planning'],['stijl','Stijl'],['systeem','Systeem']];
+const BEHEER_TABS=[['afspraken','Afspraken'],['mails','E-mails'],['fiche','Keuzes & termijnen'],['vragenlijsten','Vragenlijsten'],['stijl','Stijl'],['koppelingen','Koppelingen'],['systeem','Systeem']];
 let beheerTab='afspraken';try{const b=localStorage.getItem('jp-beheer');if(BEHEER_TABS.some(t=>t[0]===b))beheerTab=b}catch(e){}
 function vBeheer(){
-  const intro={afspraken:'Wanneer klanten een gesprek kunnen boeken, welke videocall je aanbiedt en hun persoonlijke pagina.',mails:'Welke mails automatisch vertrekken en wat erin staat. Test je e-mail en bekijk wat er verstuurd werd.',fiche:'De keuzes in de kennismakingsfiche, en de termijnen waarmee Vandaag en de planning rekenen.',stijl:'De kleuren, het lettertype en het logo op je publieke pagina\'s (afspraken, login, portaal, dossier).',systeem:'Versie en updates van de app.'}[beheerTab];
+  const intro={afspraken:'Wanneer klanten een gesprek kunnen boeken en welke videocall je aanbiedt.',mails:'Welke mails automatisch vertrekken en wat erin staat. Test je e-mail en bekijk wat er verstuurd werd.',fiche:'De keuzes in de kennismakingsfiche, en de termijnen waarmee Vandaag en de planning rekenen.',vragenlijsten:'Na goedkeuring van de offerte vult de klant deze vragenlijst in via zijn dossier. Per type klant stel je een formulier samen.',stijl:'De kleuren, het lettertype en het logo op je publieke pagina\'s (afspraken, login, portaal, dossier).',koppelingen:'E-mail (Resend), WhatsApp, Office 365, Zoom en facturatie.',systeem:'Je account, versie en updates.'}[beheerTab];
   return `<div class="vhead"><div><h1>Beheer</h1><p>${esc(intro)} Wijzigingen worden meteen bewaard.</p></div><div class="spacer"></div><span class="savestate" id="cfgstate">Alles opgeslagen</span></div>
   <div class="tabs" role="tablist" style="margin-bottom:22px">${BEHEER_TABS.map(([id,l])=>`<button role="tab" aria-selected="${beheerTab===id}" data-btab="${id}">${esc(l)}</button>`).join('')}</div>
-  <div class="beheer">${({afspraken:beheerAfspraken,mails:beheerMails,fiche:beheerFiche,stijl:beheerStijl,systeem:beheerSysteem})[beheerTab]()}</div>`;
+  <div class="beheer">${({afspraken:beheerAfspraken,mails:beheerMails,fiche:beheerFiche,vragenlijsten:beheerVragenlijsten,stijl:beheerStijl,koppelingen:beheerKoppelingenTab,systeem:beheerSysteem})[beheerTab]()}</div>`;
 }
 function beheerSysteem(){
   return `<section><h2>Mijn account</h2><p>Je inlogadres en wachtwoord voor dit beheer. Hiermee meld je je aan op de startpagina.</p>
@@ -1298,7 +1297,7 @@ function beheerSysteem(){
      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn primary" id="accSave">Account bewaren</button><span class="hint" id="accMsg"></span></div>
     </div></section>
    <section><h2>Versie &amp; updates</h2><div class="sec" id="versiePaneel" style="display:grid;gap:12px"><p class="hint" style="margin:0">Versie laden…</p></div></section>
-   <section><h2>Koppelingen</h2><p>E-mail (Resend), WhatsApp, Office 365, Zoom en facturatie stel je in op de aparte pagina.</p><button class="btn" data-v="koppelingen" data-gonav="1">Naar Koppelingen →</button></section>`;
+   <section><h2>Koppelingen</h2><p>E-mail (Resend), WhatsApp, Office 365, Zoom en facturatie stel je in op het tabblad Koppelingen hierboven.</p><button class="btn" data-btab="koppelingen">Naar Koppelingen →</button></section>`;
 }
 /* ---------- Gebruikersbeheer (apart tabblad) ---------- */
 let gebrData={gebruikers:[],rollen:{}}, gebrEdit=null, rolEdit=null, gebrNieuw=false, rolNieuw=false;
@@ -1409,8 +1408,10 @@ function beheerFiche(){
    <section><h2>Opvolgtermijnen</h2><p>Hiermee berekent het systeem wanneer een actie op "Vandaag" verschijnt.</p><div class="terms">${terms}</div></section>
    <section><h2>Planning</h2><p>De planning op de klantpagina vertrekt van de datum van het kennismakingsgesprek. Ze telt de termijnen hierboven op met deze doorlooptijden. Fases die al voorbij zijn, krijgen hun echte datum.</p>
     <div class="terms">${Object.keys(PLAN_LABELS).map(k=>`<label><b>${esc(PLAN_LABELS[k][0])}</b><input type="number" min="0" max="365" id="plan-${k}" data-plan="${k}" value="${cfg.planning[k]}"><span>${esc(PLAN_LABELS[k][1])}</span></label>`).join('')}
-    <label><b>Standaard btw op offertes</b><input type="number" min="0" max="100" id="cfg-btw" data-btw="1" value="${cfg.btw}"><span>procent</span></label></div></section>
-   <section><h2>Vragenlijsten</h2><p>Na goedkeuring van de offerte vult de klant deze vragenlijst in via zijn dossier. Per type klant stel je een formulier samen met verschillende soorten velden. De antwoorden verschijnen in de fiche onder het tabblad Vragenlijst.</p>
+    <label><b>Standaard btw op offertes</b><input type="number" min="0" max="100" id="cfg-btw" data-btw="1" value="${cfg.btw}"><span>procent</span></label></div></section>`;
+}
+function beheerVragenlijsten(){
+  return `<section><h2>Vragenlijsten per type</h2><p>Per type klant stel je een formulier samen met verschillende soorten velden. De antwoorden verschijnen in de klantfiche onder het tabblad Vragenlijst.</p>
     <div class="vl-tabs">${cfg.lijsten.type.map((t,i)=>`<button class="btn small${i===0?' active':''}" data-vltab="${esc(t)}">${esc(t)}</button>`).join('')}</div>
     <div id="vlBuilder">${renderVlBuilder(cfg.lijsten.type[0])}</div></section>`;
 }
@@ -1514,9 +1515,9 @@ function beheerAfspraken(){
    <section><h2>Agenda (Office 365 / Outlook)</h2><p>Zet je kennismakingsgesprekken automatisch in je Outlook-agenda. Voeg de onderstaande link toe in Outlook via <b>Agenda toevoegen → Abonneren vanaf internet</b>. Outlook ververst die daarna zelf (meestal elke paar uur). Heb je Office 365 gekoppeld (zie Koppelingen), dan komen afspraken ook rechtstreeks in je agenda.</p>
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
 }
-function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();window.scrollTo(0,y)}
+function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();if(beheerTab==='koppelingen')laadKoppelingen();window.scrollTo(0,y)}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-btab],[data-gonav],#copyPortaalLink');if(!t)return;
-  if(t.dataset.btab){beheerTab=t.dataset.btab;try{localStorage.setItem('jp-beheer',beheerTab)}catch(err){}$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();window.scrollTo(0,0);return}
+  if(t.dataset.btab){beheerTab=t.dataset.btab;try{localStorage.setItem('jp-beheer',beheerTab)}catch(err){}$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();if(beheerTab==='koppelingen')laadKoppelingen();window.scrollTo(0,0);return}
   if(t.dataset.gonav){go(t.dataset.v);return}
   if(t.id==='copyPortaalLink')copy(serverInfo.base+'/mijn');
 });
@@ -1718,6 +1719,9 @@ const KOPPEL_UI=[
     {f:'twilioSid',l:'Account SID',ph:'AC…'},{f:'twilioToken',l:'Auth token',ph:''},{f:'twilioFrom',l:'WhatsApp-afzender',ph:'+32470000000'},
   ]},
 ];
+function beheerKoppelingenTab(){
+  return `<div id="koppelBox"><p class="hint">Laden…</p></div>`;
+}
 function vKoppelingen(){
   return `<div class="vhead"><div><h1>Externe koppelingen</h1><p>Vul hier je sleutels in en zie de status. Ze worden veilig op je server bewaard en nooit volledig getoond.</p></div></div>
    <div class="beheer" id="koppelBox"><p class="hint">Laden…</p></div>`;
