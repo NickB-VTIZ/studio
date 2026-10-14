@@ -819,6 +819,7 @@ function updateConditionalSections(){
   const type=get(work,'type')||'Huwelijk';
   const su=document.getElementById('sec-uitnodiging');if(su)su.style.display=(type==='Huwelijk'&&get(work,'fiche.producten.drukwerk'))?'':'none';
   const sb=document.getElementById('sec-bedankjes');if(sb)sb.style.display=(type==='Huwelijk'&&get(work,'fiche.producten.bedankjes'))?'':'none';
+  const sd=document.getElementById('sec-doopsuiker');if(sd)sd.style.display=(type==='Geboorte'&&get(work,'fiche.producten.doopsuiker'))?'':'none';
   const sbb=document.getElementById('sec-babyborrel');if(sbb)sbb.style.display=(type==='Geboorte'&&get(work,'fiche.producten.babyborrelkaartje'))?'':'none';
 }
 function vKlant(){
@@ -865,21 +866,8 @@ function vKlant(){
       ${txt('fiche.uitnodiging.papier','Papier')}${txt('fiche.uitnodiging.lettertype','Lettertype')}
       ${area('fiche.uitnodiging.extra','Extra wensen',{rows:2})}
     </div></section>
-    <section class="sec" id="sec-bedankjes" style="display:${get(work,'fiche.producten.bedankjes')?'':'none'}"><h2>Bedankjes</h2>
-      <div id="bedankjes-body">
-      ${(()=>{const opties=get(work,'fiche.bedankjes.opties')||[{notities:'',aantal:'',verpakking:'',afwerking:''}];return opties.map((opt,i)=>`<div class="bedankje-optie" data-bi="${i}" style="border:1px solid var(--bdr);border-radius:8px;padding:.75rem;margin-bottom:.75rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem"><strong>Optie ${i+1}</strong>${opties.length>1?`<button type="button" class="btn ghost sm" data-del-bedankje="${i}" title="Verwijder optie" style="color:var(--danger)">✕</button>`:''}</div>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:12px 18px;margin-bottom:12px">
-          <label class="fld"><span>Notities</span><textarea data-f="fiche.bedankjes.opties.${i}.notities" rows="2">${esc(opt.notities||'')}</textarea></label>
-          <label class="fld"><span>Aantal</span><input data-f="fiche.bedankjes.opties.${i}.aantal" value="${esc(opt.aantal||'')}" style="width:5rem"></label>
-        </div>
-        <div class="grid2">
-          <label class="fld"><span>Verpakking</span><input data-f="fiche.bedankjes.opties.${i}.verpakking" value="${esc(opt.verpakking||'')}"></label>
-          <label class="fld"><span>Afwerking</span><input data-f="fiche.bedankjes.opties.${i}.afwerking" value="${esc(opt.afwerking||'')}"></label>
-        </div></div>`).join('')})()}
-      <button type="button" class="btn ghost" id="addBedankje" style="margin-top:.25rem">+ Optie toevoegen</button>
-      </div>
-    </section>
+    ${optiesSectie('bedankjes')}
+    ${optiesSectie('doopsuiker')}
     <section class="sec" id="sec-babyborrel" style="display:${(get(work,'type')==='Geboorte'&&get(work,'fiche.producten.babyborrelkaartje'))?'':'none'}"><h2>Babyborrel</h2><div class="grid2">
       ${txt('fiche.babyborrel.datum','Datum babyborrel',{type:'date'})}
       ${txt('fiche.babyborrel.tijdstip','Tijdstip')}
@@ -1228,24 +1216,40 @@ async function createKlant(ev){
   try{await db.doc('klanten/'+id).set(doc);toast('Klant aangemaakt');go('klant',id)}catch(e){toast(e&&e.code==='quota_exceeded'?'Opslag vol':'Aanmaken lukte niet')}
 }
 
-function renderBedankjes(){
-  const body=document.getElementById('bedankjes-body');if(!body||!work)return;
-  const opties=get(work,'fiche.bedankjes.opties')||[{notities:'',aantal:'',verpakking:'',afwerking:''}];
-  body.innerHTML=opties.map((opt,i)=>`<div class="bedankje-optie" data-bi="${i}" style="border:1px solid var(--bdr);border-radius:8px;padding:.75rem;margin-bottom:.75rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem"><strong>Optie ${i+1}</strong>${opties.length>1?`<button type="button" class="btn ghost sm" data-del-bedankje="${i}" title="Verwijder optie" style="color:var(--danger)">✕</button>`:''}</div>
+// Optie-secties met meerdere opties (Bedankjes bij Huwelijk, Doopsuiker bij Geboorte).
+const OPT_SECTIES={
+  bedankjes:{titel:'Bedankjes',type:'Huwelijk',afwerking:null},
+  doopsuiker:{titel:'Doopsuiker',type:'Geboorte',afwerking:['Sticker','Kaartje','Touw']}
+};
+function optieVeld(groep,opt,i,n){
+  const cfg=OPT_SECTIES[groep],base='fiche.'+groep+'.opties.'+i;
+  const afw=cfg.afwerking
+    ? `<div class="radiorow full"><span>Afwerking</span><div class="opts" role="radiogroup" aria-label="Afwerking">${cfg.afwerking.map((o,j)=>`<label><input type="radio" id="${fid(base+'.afwerking')}-${j}" name="${base}.afwerking" data-f="${base}.afwerking" value="${esc(o)}" ${opt.afwerking===o?'checked':''}>${esc(o)}</label>`).join('')}</div></div>`
+    : `<label class="fld"><span>Afwerking</span><input data-f="${base}.afwerking" value="${esc(opt.afwerking||'')}"></label>`;
+  return `<div class="bedankje-optie" data-bi="${i}" style="border:1px solid var(--line);border-radius:8px;padding:.75rem;margin-bottom:.75rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem"><strong>Optie ${i+1}</strong>${n>1?`<button type="button" class="btn ghost sm" data-opt-del="${groep}:${i}" title="Verwijder optie" style="color:var(--danger)">✕</button>`:''}</div>
     <div style="display:grid;grid-template-columns:1fr auto;gap:12px 18px;margin-bottom:12px">
-      <label class="fld"><span>Notities</span><textarea data-f="fiche.bedankjes.opties.${i}.notities" rows="2">${esc(opt.notities||'')}</textarea></label>
-      <label class="fld"><span>Aantal</span><input data-f="fiche.bedankjes.opties.${i}.aantal" value="${esc(opt.aantal||'')}" style="width:5rem"></label>
+      <label class="fld"><span>Notities</span><textarea data-f="${base}.notities" rows="2">${esc(opt.notities||'')}</textarea></label>
+      <label class="fld"><span>Aantal</span><input data-f="${base}.aantal" value="${esc(opt.aantal||'')}" style="width:5rem"></label>
     </div>
     <div class="grid2">
-      <label class="fld"><span>Verpakking</span><input data-f="fiche.bedankjes.opties.${i}.verpakking" value="${esc(opt.verpakking||'')}"></label>
-      <label class="fld"><span>Afwerking</span><input data-f="fiche.bedankjes.opties.${i}.afwerking" value="${esc(opt.afwerking||'')}"></label>
-    </div></div>`).join('')+`<button type="button" class="btn ghost" id="addBedankje" style="margin-top:.25rem">+ Optie toevoegen</button>`;
+      <label class="fld"><span>Verpakking</span><input data-f="${base}.verpakking" value="${esc(opt.verpakking||'')}"></label>
+      ${afw}
+    </div></div>`;
 }
+function optiesBody(groep){
+  const opties=get(work,'fiche.'+groep+'.opties')||[{notities:'',aantal:'',verpakking:'',afwerking:''}];
+  return opties.map((opt,i)=>optieVeld(groep,opt,i,opties.length)).join('')+`<button type="button" class="btn ghost" data-opt-add="${groep}" style="margin-top:.25rem">+ Optie toevoegen</button>`;
+}
+function optiesSectie(groep){
+  const cfg=OPT_SECTIES[groep],show=(get(work,'type')||'Huwelijk')===cfg.type&&get(work,'fiche.producten.'+groep);
+  return `<section class="sec" id="sec-${groep}" style="display:${show?'':'none'}"><h2>${esc(cfg.titel)}</h2><div id="${groep}-body">${optiesBody(groep)}</div></section>`;
+}
+function renderOptiesSectie(groep){const b=document.getElementById(groep+'-body');if(b&&work)b.innerHTML=optiesBody(groep);}
 
 /* ---------- events ---------- */
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-v],[data-open],[data-nav],[data-fase],[data-copy],[data-del-bedankje],#newBtn,#brand,#toggleEnded,#delAsk,#delNo,#delYes,#delVb,#addBedankje');
+  const t=e.target.closest('[data-v],[data-open],[data-nav],[data-fase],[data-copy],[data-opt-add],[data-opt-del],#newBtn,#brand,#toggleEnded,#delAsk,#delNo,#delYes,#delVb');
   if(!t)return;
   if(t.dataset.v)return go(t.dataset.v);
   if(t.dataset.open)return go('klant',t.dataset.open);
@@ -1259,8 +1263,8 @@ document.addEventListener('click',e=>{
   if(t.id==='delNo'){confirmDel=false;return renderSide()}
   if(t.id==='delYes'){const id=work.id;pendingTop={};clearTimeout(saveTimer);saveTimer=null;db.doc('klanten/'+id).delete().then(()=>{toast('Klant verwijderd');go('vandaag')});return}
   if(t.id==='delVb'){klanten.filter(k=>k.voorbeeld).forEach(k=>db.doc('klanten/'+k.id).delete());toast('Voorbeelden verwijderd');return}
-  if(t.id==='addBedankje'&&work){if(!work.fiche)work.fiche={};if(!work.fiche.bedankjes)work.fiche.bedankjes={actief:true,opties:[]};if(!work.fiche.bedankjes.opties)work.fiche.bedankjes.opties=[];work.fiche.bedankjes.opties.push({notities:'',aantal:'',verpakking:'',afwerking:''});queue('fiche');renderBedankjes();return}
-  if(t.dataset.delBedankje!=null&&work){const idx=parseInt(t.dataset.delBedankje);work.fiche.bedankjes.opties.splice(idx,1);queue('fiche');renderBedankjes();return}
+  if(t.dataset.optAdd&&work){const g=t.dataset.optAdd;if(!work.fiche)work.fiche={};if(!work.fiche[g])work.fiche[g]={opties:[]};if(!Array.isArray(work.fiche[g].opties))work.fiche[g].opties=[];work.fiche[g].opties.push({notities:'',aantal:'',verpakking:'',afwerking:''});queue('fiche');renderOptiesSectie(g);return}
+  if(t.dataset.optDel&&work){const [g,ix]=t.dataset.optDel.split(':');if(work.fiche&&work.fiche[g]&&work.fiche[g].opties){work.fiche[g].opties.splice(parseInt(ix),1);queue('fiche');renderOptiesSectie(g)}return}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('.card[data-open]'))go('klant',e.target.dataset.open)});
 document.addEventListener('input',e=>{
@@ -1269,11 +1273,12 @@ document.addEventListener('input',e=>{
   if(!el.dataset.f||!work)return;
   const p=el.dataset.f; const val=el.type==='checkbox'?el.checked:el.value;
   /* handle array-index paths like fiche.bedankjes.opties.0.notities */
-  const m=p.match(/^fiche\.bedankjes\.opties\.(\d+)\.(\w+)$/);
-  if(m){const idx=parseInt(m[1]),field=m[2];if(!work.fiche)work.fiche={};if(!work.fiche.bedankjes)work.fiche.bedankjes={};if(!work.fiche.bedankjes.opties)work.fiche.bedankjes.opties=[];while(work.fiche.bedankjes.opties.length<=idx)work.fiche.bedankjes.opties.push({notities:'',aantal:'',verpakking:'',afwerking:''});work.fiche.bedankjes.opties[idx][field]=val;queue('fiche');}
+  const m=p.match(/^fiche\.(bedankjes|doopsuiker)\.opties\.(\d+)\.(\w+)$/);
+  if(m){const g=m[1],idx=parseInt(m[2]),field=m[3];if(!work.fiche)work.fiche={};if(!work.fiche[g])work.fiche[g]={};if(!Array.isArray(work.fiche[g].opties))work.fiche[g].opties=[];while(work.fiche[g].opties.length<=idx)work.fiche[g].opties.push({notities:'',aantal:'',verpakking:'',afwerking:''});work.fiche[g].opties[idx][field]=val;queue('fiche');}
   else{setp(work,p,val); queue(p.split('.')[0]);}
   if(p==='fiche.producten.drukwerk'){const s=document.getElementById('sec-uitnodiging');if(s)s.style.display=val?'':'none'}
   if(p==='fiche.producten.bedankjes'){const s=document.getElementById('sec-bedankjes');if(s)s.style.display=val?'':'none'}
+  if(p==='fiche.producten.doopsuiker'){const s=document.getElementById('sec-doopsuiker');if(s)s.style.display=val?'':'none'}
   if(p==='fiche.producten.babyborrelkaartje'){const s=document.getElementById('sec-babyborrel');if(s)s.style.display=val?'':'none'}
   if(p==='type'){renderProductenTree();updateConditionalSections()}
   if(p==='bron'){const w=document.getElementById('brondetail-wrap');if(w){w.style.display=(val==='Huwelijksbeurs'||val==='Andere')?'':'none';const s=w.querySelector('span');if(s)s.textContent=val==='Huwelijksbeurs'?'Welke beurs?':'Hoe?'}}
