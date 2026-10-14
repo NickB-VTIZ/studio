@@ -1218,24 +1218,25 @@ async function createKlant(ev){
 
 // Optie-secties met meerdere opties (Bedankjes bij Huwelijk, Doopsuiker bij Geboorte).
 const OPT_SECTIES={
-  bedankjes:{titel:'Bedankjes',type:'Huwelijk',afwerking:null},
-  doopsuiker:{titel:'Doopsuiker',type:'Geboorte',afwerking:['Sticker','Kaartje','Touw']}
+  bedankjes:{titel:'Bedankjes',type:'Huwelijk',afwerking:null,kleur:false},
+  doopsuiker:{titel:'Doopsuiker',type:'Geboorte',afwerking:['Sticker','Kaartje','Touw'],kleur:true}
 };
 function optieVeld(groep,opt,i,n){
   const cfg=OPT_SECTIES[groep],base='fiche.'+groep+'.opties.'+i;
-  const afw=cfg.afwerking
-    ? `<div class="radiorow full"><span>Afwerking</span><div class="opts" role="radiogroup" aria-label="Afwerking">${cfg.afwerking.map((o,j)=>`<label><input type="radio" id="${fid(base+'.afwerking')}-${j}" name="${base}.afwerking" data-f="${base}.afwerking" value="${esc(o)}" ${opt.afwerking===o?'checked':''}>${esc(o)}</label>`).join('')}</div></div>`
-    : `<label class="fld"><span>Afwerking</span><input data-f="${base}.afwerking" value="${esc(opt.afwerking||'')}"></label>`;
+  const verpakking=`<label class="fld"><span>Verpakking</span><input data-f="${base}.verpakking" value="${esc(opt.verpakking||'')}"></label>`;
+  const kleur=cfg.kleur?`<label class="fld"><span>Kleur</span><input data-f="${base}.kleur" value="${esc(opt.kleur||'')}" placeholder="bv. ivoor, goud, eucalyptus"></label>`:'';
+  const afwChoice=`<div class="radiorow full"><span>Afwerking</span><div class="opts" role="radiogroup" aria-label="Afwerking">${(cfg.afwerking||[]).map((o,j)=>`<label><input type="radio" id="${fid(base+'.afwerking')}-${j}" name="${base}.afwerking" data-f="${base}.afwerking" value="${esc(o)}" ${opt.afwerking===o?'checked':''}>${esc(o)}</label>`).join('')}</div></div>`;
+  const afwText=`<label class="fld"><span>Afwerking</span><input data-f="${base}.afwerking" value="${esc(opt.afwerking||'')}"></label>`;
+  const bottom=cfg.afwerking
+    ? `<div class="grid2">${verpakking}${kleur}</div>${afwChoice}`
+    : `<div class="grid2">${verpakking}${afwText}</div>`;
   return `<div class="bedankje-optie" data-bi="${i}" style="border:1px solid var(--line);border-radius:8px;padding:.75rem;margin-bottom:.75rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem"><strong>Optie ${i+1}</strong>${n>1?`<button type="button" class="btn ghost sm" data-opt-del="${groep}:${i}" title="Verwijder optie" style="color:var(--danger)">✕</button>`:''}</div>
     <div style="display:grid;grid-template-columns:1fr auto;gap:12px 18px;margin-bottom:12px">
       <label class="fld"><span>Notities</span><textarea data-f="${base}.notities" rows="2">${esc(opt.notities||'')}</textarea></label>
       <label class="fld"><span>Aantal</span><input data-f="${base}.aantal" value="${esc(opt.aantal||'')}" style="width:5rem"></label>
     </div>
-    <div class="grid2">
-      <label class="fld"><span>Verpakking</span><input data-f="${base}.verpakking" value="${esc(opt.verpakking||'')}"></label>
-      ${afw}
-    </div></div>`;
+    ${bottom}</div>`;
 }
 function optiesBody(groep){
   const opties=get(work,'fiche.'+groep+'.opties')||[{notities:'',aantal:'',verpakking:'',afwerking:''}];
