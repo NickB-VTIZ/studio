@@ -1228,7 +1228,7 @@ function optieVeld(groep,opt,i,n){
   const afwChoice=`<div class="radiorow full"><span>Afwerking</span><div class="opts" role="radiogroup" aria-label="Afwerking">${(cfg.afwerking||[]).map((o,j)=>`<label><input type="radio" id="${fid(base+'.afwerking')}-${j}" name="${base}.afwerking" data-f="${base}.afwerking" value="${esc(o)}" ${opt.afwerking===o?'checked':''}>${esc(o)}</label>`).join('')}</div></div>`;
   const afwText=`<label class="fld"><span>Afwerking</span><input data-f="${base}.afwerking" value="${esc(opt.afwerking||'')}"></label>`;
   const bottom=cfg.afwerking
-    ? `<div class="grid2">${verpakking}${kleur}</div>${afwChoice}`
+    ? `<div style="display:grid;gap:12px"><div class="grid2">${verpakking}${kleur}</div>${afwChoice}</div>`
     : `<div class="grid2">${verpakking}${afwText}</div>`;
   return `<div class="bedankje-optie" data-bi="${i}" style="border:1px solid var(--line);border-radius:8px;padding:.75rem;margin-bottom:.75rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem"><strong>Optie ${i+1}</strong>${n>1?`<button type="button" class="btn ghost sm" data-opt-del="${groep}:${i}" title="Verwijder optie" style="color:var(--danger)">✕</button>`:''}</div>
