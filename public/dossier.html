@@ -39,6 +39,17 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 .fac-cli-sum b{font-family:var(--f-display);font-weight:600;font-size:22px;font-variant-numeric:tabular-nums}
 .fac-cli-sum b.pos{color:var(--ok-ink)}.fac-cli-sum b.neg{color:var(--warn-ink)}
 .fac-cli-h{font-family:var(--f-display);font-weight:600;font-size:16px;margin:18px 0 12px}
+.paycard{margin-bottom:18px}
+.payhead{font-size:17px;margin:0}.payhead b{font-weight:600}
+.paybar{display:flex;height:14px;border-radius:999px;overflow:hidden;background:var(--sage);margin:14px 0 12px}
+.paybar .seg{height:100%}
+.seg.betaald{background:var(--green)}.seg.open{background:#C58A3D}
+.seg.verwacht{background:repeating-linear-gradient(45deg,var(--sage-deep),var(--sage-deep) 6px,var(--sage) 6px,var(--sage) 12px)}
+.paylegend{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;color:var(--ink-soft)}
+.paylegend span{display:inline-flex;align-items:center;gap:7px}
+.paylegend .dot{width:11px;height:11px;border-radius:3px;flex:none}
+.dot.betaald{background:var(--green)}.dot.open{background:#C58A3D}.dot.verwacht{background:var(--sage-deep)}
+.verwacht-card{border-style:dashed}
 .steps{list-style:none;margin:0;padding:0;display:grid}.steps li{position:relative;padding:0 0 18px 30px}.steps li::before{content:"";position:absolute;left:8px;top:22px;bottom:-2px;width:2px;background:var(--line)}.steps li:last-child::before{display:none}
 .steps .mk{position:absolute;left:0;top:4px;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);background:var(--card)}.steps li.done .mk{background:var(--green);border-color:var(--green)}
 .steps li.done .mk::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid var(--green-ink);border-width:0 2px 2px 0;transform:rotate(45deg)}.steps li.done::before{background:var(--green)}
@@ -148,9 +159,20 @@ function render(){
 }
 function renderFacturatie(){
   const facs=me.facturen||[];
-  if(!facs.length)return `<section class="blok"><div class="bhead"><h2>Facturatie</h2></div><div class="card"><p class="note" style="margin:0">Er staan nog geen facturen klaar. Zodra er een factuur is, verschijnt ze hier met de betaalstatus en kan je ze downloaden.</p></div></section>`;
+  const projectTotaal=Number(me.projectTotaal)||0;
+  const gefactureerd=facs.reduce((a,f)=>a+numEur(f.bedrag),0);
+  const betaald=facs.filter(f=>f.betaald).reduce((a,f)=>a+numEur(f.bedrag),0);
+  const openstaand=Math.max(0,gefactureerd-betaald);
+  const nogTeVerwachten=Math.max(0,projectTotaal-gefactureerd);
+  if(!facs.length&&!projectTotaal)return `<section class="blok"><div class="bhead"><h2>Facturatie</h2></div><div class="card"><p class="note" style="margin:0">Er staan nog geen facturen klaar. Zodra er een factuur is, verschijnt ze hier met de betaalstatus en kan je ze downloaden.</p></div></section>`;
   const today=isoDay(new Date());
-  const tot=facs.reduce((a,f)=>a+numEur(f.bedrag),0),betaald=facs.filter(f=>f.betaald).reduce((a,f)=>a+numEur(f.bedrag),0),open=Math.max(0,tot-betaald);
+  const basis=Math.max(projectTotaal,gefactureerd,betaald)||1;
+  const pct=n=>Math.max(0,Math.min(100,n/basis*100));
+  const volledigBetaald=betaald>0&&openstaand===0&&nogTeVerwachten===0;
+  const head=projectTotaal>0?`Je betaalde <b>${euro(betaald)}</b> van <b>${euro(projectTotaal)}</b>`:`Betaald: <b>${euro(betaald)}</b> van ${euro(gefactureerd)}`;
+  const bar=`<div class="paybar">${betaald>0?`<i class="seg betaald" style="width:${pct(betaald)}%"></i>`:''}${openstaand>0?`<i class="seg open" style="width:${pct(openstaand)}%"></i>`:''}${nogTeVerwachten>0?`<i class="seg verwacht" style="width:${pct(nogTeVerwachten)}%"></i>`:''}</div>`;
+  const legend=`<div class="paylegend"><span><i class="dot betaald"></i>Betaald ${euro(betaald)}</span>${openstaand>0?`<span><i class="dot open"></i>Nog te betalen ${euro(openstaand)}</span>`:''}${nogTeVerwachten>0?`<span><i class="dot verwacht"></i>Nog te verwachten ± ${euro(nogTeVerwachten)}</span>`:''}</div>`;
+  const progress=`<div class="card paycard"><p class="payhead">${volledigBetaald?'Alles is betaald — bedankt!':head}</p>${bar}${legend}</div>`;
   const kaart=f=>{
     const bedrag=numEur(f.bedrag);
     const vervallen=!f.betaald&&f.vervaldatum&&f.vervaldatum<today;
@@ -160,10 +182,14 @@ function renderFacturatie(){
       <div class="recap" style="margin-top:10px">${bedrag?`<div class="row"><span class="k">Bedrag</span><span class="v big">${euro(bedrag)}</span></div>`:''}${!f.betaald&&f.vervaldatum?`<div class="row"><span class="k">Te betalen tegen</span><span class="v">${esc(fmtShort(f.vervaldatum))}</span></div>`:''}</div>${pdf}</div>`;
   };
   const openFacs=facs.filter(f=>!f.betaald),betaaldFacs=facs.filter(f=>f.betaald);
+  const verwachtCard=nogTeVerwachten>0?`<div class="card verwacht-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 style="font-family:var(--f-display);font-weight:600;font-size:18px">Resterend bedrag</h3><span class="pill">Indicatie</span></div>
+     <div class="recap" style="margin-top:10px"><div class="row"><span class="k">Bedrag</span><span class="v big">± ${euro(nogTeVerwachten)}</span></div></div>
+     <p class="note" style="margin-top:10px">Hiervoor krijg je later nog een factuur — meestal rond de levering. Dit is het resterende bedrag op basis van jullie offerte${projectTotaal?' van '+euro(projectTotaal):''}, dus een richtbedrag.</p></div>`:'';
   return `<section class="blok"><div class="bhead"><h2>Facturatie</h2></div>
-    <div class="card fac-cli-sum"><div><span>Totaal</span><b>${euro(tot)}</b></div><div><span>Betaald</span><b class="pos">${euro(betaald)}</b></div><div><span>Nog te betalen</span><b class="${open>0?'neg':''}">${euro(open)}</b></div></div>
-    ${openFacs.length?`<h3 class="fac-cli-h">Nog te betalen</h3><div style="display:grid;gap:14px">${openFacs.map(kaart).join('')}</div>`:'<div class="card" style="margin-top:16px"><p class="note" style="margin:0">Alles is betaald — bedankt!</p></div>'}
-    ${betaaldFacs.length?`<h3 class="fac-cli-h" style="margin-top:26px">Betaald</h3><div style="display:grid;gap:14px">${betaaldFacs.map(kaart).join('')}</div>`:''}
+    ${progress}
+    ${openFacs.length?`<h3 class="fac-cli-h">Nog te betalen</h3><div style="display:grid;gap:14px">${openFacs.map(kaart).join('')}</div>`:''}
+    ${verwachtCard?`<h3 class="fac-cli-h" style="margin-top:22px">Komt er nog aan</h3>${verwachtCard}`:''}
+    ${betaaldFacs.length?`<h3 class="fac-cli-h" style="margin-top:22px">Betaald</h3><div style="display:grid;gap:14px">${betaaldFacs.map(kaart).join('')}</div>`:''}
   </section>`;
 }
 document.addEventListener('click',e=>{const t=e.target.closest('[data-dtab]');if(!t)return;tab=t.dataset.dtab;render();window.scrollTo({top:0,behavior:'smooth'})});

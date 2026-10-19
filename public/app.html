@@ -331,6 +331,11 @@ aside{display:grid;gap:18px;position:sticky;top:calc(env(safe-area-inset-top,0px
 .fac-tile b{font-family:var(--f-display);font-size:21px;font-weight:400;font-variant-numeric:tabular-nums}
 .fac-tile.ok b{color:var(--ok)}
 .fac-tile.open b{color:var(--warn)}
+.fac-tile.verwacht{background:var(--accent-soft)}
+.fac-proj{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin:14px 0 6px}
+.fac-proj .hint{flex:1;min-width:180px;padding-bottom:9px}
+.fac-sum{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:700px){.fac-sum{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .fac-list{display:grid;gap:12px;margin-top:14px}
 .fac-row{border:1px solid var(--line);border-radius:10px;padding:13px 15px;display:grid;gap:12px}
 .fac-grid{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
@@ -1105,27 +1110,49 @@ function renderFacturenTab(){
   const box=$('#tab-facturen');if(!box||!work)return;const k=work;
   if(!Array.isArray(work.facturen))work.facturen=[];
   const facs=work.facturen;
-  const tot=facs.reduce((a,f)=>a+num(f.bedrag),0);
+  const gefactureerd=facs.reduce((a,f)=>a+num(f.bedrag),0);
   const betaald=facs.filter(f=>f.betaald).reduce((a,f)=>a+num(f.bedrag),0);
-  const open=Math.max(0,tot-betaald);
+  const open=Math.max(0,gefactureerd-betaald);
+  const offerteTot=(work.offertes||[]).filter(o=>o.status==='Goedgekeurd').reduce((a,o)=>a+ofTotals(o).tot,0);
+  const verwachtTotaal=num(work.factuurTotaal)>0?num(work.factuurTotaal):offerteTot;
+  const nogTeFactureren=Math.max(0,verwachtTotaal-gefactureerd);
   const factuurBijlages=(k.bijlages||[]).filter(f=>f.soort==='factuur');
   const rows=facs.map((f,i)=>facRow(f,i,factuurBijlages)).join('');
   box.innerHTML=`<section class="sec"><h2>Facturatie</h2>
-    <p class="hint">Houd hier de facturen en betalingen bij. De klant volgt dit mee in zijn dossier onder "Facturatie": wat al betaald is en wat er nog moet komen. Koppel een PDF uit Bijlages om de klant de factuur te laten downloaden.</p>
-    <div class="fac-sum">
-      <div class="fac-tile"><span>Totaal gefactureerd</span><b>${euro(tot)}</b></div>
-      <div class="fac-tile ok"><span>Betaald</span><b>${euro(betaald)}</b></div>
-      <div class="fac-tile ${open>0?'open':''}"><span>Nog openstaand</span><b>${euro(open)}</b></div>
+    <p class="hint">Houd hier de facturen en betalingen bij. De klant volgt dit mee in zijn dossier: wat al betaald is, wat openstaat én wat er nog moet komen (het resterende bedrag o.b.v. de offerte). Koppel een PDF uit Bijlages om de klant de factuur te laten downloaden.</p>
+    <div class="fac-proj">
+      <label class="fld" style="max-width:13rem"><span>Verwacht projecttotaal (€)</span><input class="num" data-factot value="${esc(work.factuurTotaal||'')}" inputmode="decimal" placeholder="${offerteTot?offerteTot.toFixed(2).replace('.',','):'0,00'}"></label>
+      <span class="hint">${offerteTot?'Standaard het goedgekeurde offertebedrag ('+euro(offerteTot)+'). Vul enkel in om te overschrijven.':'Geen goedgekeurde offerte — vul hier het verwachte totaal in zodat de klant ziet wat er nog aankomt.'}</span>
     </div>
-    <div class="fac-list">${rows||'<p class="hint" style="margin:14px 0 0">Nog geen facturen. Voeg er een toe met de knoppen hieronder.</p>'}</div>
+    <div class="fac-sum">
+      <div class="fac-tile"><span>Verwacht totaal</span><b>${euro(verwachtTotaal)}</b></div>
+      <div class="fac-tile"><span>Gefactureerd</span><b>${euro(gefactureerd)}</b></div>
+      <div class="fac-tile ok"><span>Betaald</span><b>${euro(betaald)}</b></div>
+      <div class="fac-tile ${nogTeFactureren>0?'verwacht':''}"><span>Nog te factureren</span><b>${euro(nogTeFactureren)}</b></div>
+    </div>
+    ${open>0?`<p class="hint" style="margin:10px 0 0">Openstaand bij de klant (gefactureerd, nog niet betaald): <b>${euro(open)}</b></p>`:''}
+    <div class="fac-list">${rows||'<p class="hint" style="margin:14px 0 0">Nog geen facturen. De voorschotfactuur komt meestal als eerste; voeg ze toe met de knoppen hieronder.</p>'}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
       <button class="btn small primary" data-facadd="Voorschot">+ Voorschot</button>
       <button class="btn small" data-facadd="Saldo">+ Saldo</button>
       <button class="btn small ghost" data-facadd="">+ Andere factuur</button>
     </div></section>`;
 }
-document.addEventListener('input',e=>{const el=e.target;if(!el.dataset||!el.dataset.fac||!work||el.type==='checkbox')return;const [i,field]=el.dataset.fac.split(':');const idx=+i;if(!Array.isArray(work.facturen)||!work.facturen[idx])return;work.facturen[idx][field]=el.value;queue('facturen')});
-document.addEventListener('change',e=>{const el=e.target;if(!el.dataset||!el.dataset.fac||!work)return;const [i,field]=el.dataset.fac.split(':');const idx=+i;if(!Array.isArray(work.facturen)||!work.facturen[idx])return;
+function updateFacSum(){
+  const box=$('#tab-facturen');if(!box||!work)return;const sum=box.querySelector('.fac-sum');if(!sum)return;
+  const facs=Array.isArray(work.facturen)?work.facturen:[];
+  const gefactureerd=facs.reduce((a,f)=>a+num(f.bedrag),0),betaald=facs.filter(f=>f.betaald).reduce((a,f)=>a+num(f.bedrag),0);
+  const offerteTot=(work.offertes||[]).filter(o=>o.status==='Goedgekeurd').reduce((a,o)=>a+ofTotals(o).tot,0);
+  const verwachtTotaal=num(work.factuurTotaal)>0?num(work.factuurTotaal):offerteTot;
+  const nogTeFactureren=Math.max(0,verwachtTotaal-gefactureerd);
+  sum.innerHTML=`<div class="fac-tile"><span>Verwacht totaal</span><b>${euro(verwachtTotaal)}</b></div><div class="fac-tile"><span>Gefactureerd</span><b>${euro(gefactureerd)}</b></div><div class="fac-tile ok"><span>Betaald</span><b>${euro(betaald)}</b></div><div class="fac-tile ${nogTeFactureren>0?'verwacht':''}"><span>Nog te factureren</span><b>${euro(nogTeFactureren)}</b></div>`;
+}
+document.addEventListener('input',e=>{const el=e.target;if(!work)return;
+  if(el.hasAttribute&&el.hasAttribute('data-factot')){work.factuurTotaal=el.value;queue('factuurTotaal');updateFacSum();return}
+  if(!el.dataset||!el.dataset.fac||el.type==='checkbox')return;const [i,field]=el.dataset.fac.split(':');const idx=+i;if(!Array.isArray(work.facturen)||!work.facturen[idx])return;work.facturen[idx][field]=el.value;queue('facturen');if(field==='bedrag')updateFacSum()});
+document.addEventListener('change',e=>{const el=e.target;if(!work)return;
+  if(el.hasAttribute&&el.hasAttribute('data-factot')){work.factuurTotaal=el.value;queue('factuurTotaal');renderFacturenTab();return}
+  if(!el.dataset||!el.dataset.fac)return;const [i,field]=el.dataset.fac.split(':');const idx=+i;if(!Array.isArray(work.facturen)||!work.facturen[idx])return;
   if(el.type==='checkbox'){work.facturen[idx].betaald=el.checked;if(el.checked&&!work.facturen[idx].betaaldOp)work.facturen[idx].betaaldOp=today();queue('facturen');renderFacturenTab();return}
   work.facturen[idx][field]=el.value;queue('facturen')});
 document.addEventListener('click',e=>{const a=e.target.closest('[data-facadd],[data-facdel]');if(!a||!work)return;
