@@ -149,7 +149,7 @@ function render(){
   const openOf=(me.offertes||[]).some(o=>o.status==='Verstuurd');
   const toonVragen=me.vragenlijst&&me.vragenlijst.nodig&&me.vragenlijst.vragen.length;
   const toonContract=me.contract&&me.contract.bestandId;
-  const overzicht=`${openOf?renderOffertes():''}${toonVragen?renderVragenlijst():''}${toonContract?renderContract():''}${!openOf&&(me.offertes||[]).length?renderOffertes():''}${(me.bijlages||[]).length?renderBijlages():''}`;
+  const overzicht=`${openOf?renderOffertes():''}${toonVragen?renderVragenlijst():''}${toonContract?renderContract():''}${!openOf&&(me.offertes||[]).length?renderOffertes():''}${renderBijlages()}`;
   const sub=me.gestopt?(me.fase==='geannuleerd'?'Dit traject werd geannuleerd. Jullie zijn altijd welkom voor een nieuw project.':'Dit traject werd afgesloten. Jullie zijn altijd welkom voor een nieuw project.'):(tab==='facturen'?'Hier volg je de betalingen op: wat al betaald is en wat er nog moet aankomen.':'Ik begin binnenkort aan jullie ontwerpje! Maar hiervoor heb ik nog enkele gegevens nodig.<br>Kunnen jullie voor mij de onderstaande lijst invullen?');
   const tabsBar=`<div class="dtabs" role="tablist"><button role="tab" class="${tab==='overzicht'?'on':''}" data-dtab="overzicht">Overzicht</button><button role="tab" class="${tab==='facturen'?'on':''}" data-dtab="facturen">Facturatie</button></div>`;
   $('#main').innerHTML=`<div class="hero"><h1>Hoi ${esc(me.voornaam||'daar')}</h1><p>${sub}</p></div><hr class="rule">
@@ -164,7 +164,9 @@ function renderFacturatie(){
   const betaald=facs.filter(f=>f.betaald).reduce((a,f)=>a+numEur(f.bedrag),0);
   const openstaand=Math.max(0,gefactureerd-betaald);
   const nogTeVerwachten=Math.max(0,projectTotaal-gefactureerd);
-  if(!facs.length&&!projectTotaal)return `<section class="blok"><div class="bhead"><h2>Facturatie</h2></div><div class="card"><p class="note" style="margin:0">Er staan nog geen facturen klaar. Zodra er een factuur is, verschijnt ze hier met de betaalstatus en kan je ze downloaden.</p></div></section>`;
+  const gelinktIds=new Set(facs.map(f=>f.bestandId).filter(Boolean));
+  const losseFacturen=(me.bijlages||[]).filter(b=>b.soort==='factuur'&&!gelinktIds.has(b.id));
+  if(!facs.length&&!projectTotaal&&!losseFacturen.length)return `<section class="blok"><div class="bhead"><h2>Facturatie</h2></div><div class="card"><p class="note" style="margin:0">Er staan nog geen facturen klaar. Zodra er een factuur is, verschijnt ze hier met de betaalstatus en kan je ze downloaden.</p></div></section>`;
   const today=isoDay(new Date());
   const basis=Math.max(projectTotaal,gefactureerd,betaald)||1;
   const pct=n=>Math.max(0,Math.min(100,n/basis*100));
@@ -185,11 +187,13 @@ function renderFacturatie(){
   const verwachtCard=nogTeVerwachten>0?`<div class="card verwacht-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h3 style="font-family:var(--f-display);font-weight:600;font-size:18px">Resterend bedrag</h3><span class="pill">Indicatie</span></div>
      <div class="recap" style="margin-top:10px"><div class="row"><span class="k">Bedrag</span><span class="v big">± ${euro(nogTeVerwachten)}</span></div></div>
      <p class="note" style="margin-top:10px">Hiervoor krijg je later nog een factuur — meestal rond de levering. Dit is het resterende bedrag op basis van jullie offerte${projectTotaal?' van '+euro(projectTotaal):''}, dus een richtbedrag.</p></div>`:'';
+  const pdfLijst=losseFacturen.length?`<h3 class="fac-cli-h" style="margin-top:22px">Facturen (PDF)</h3><div class="card"><div class="files" style="margin-top:0">${losseFacturen.map(f=>`<a class="btn small" href="/api/dossier/${encodeURIComponent(code)}/bestand/${esc(f.id)}" target="_blank" rel="noopener">Download · ${esc(f.naam)}</a>`).join('')}</div></div>`:'';
   return `<section class="blok"><div class="bhead"><h2>Facturatie</h2></div>
     ${progress}
     ${openFacs.length?`<h3 class="fac-cli-h">Nog te betalen</h3><div style="display:grid;gap:14px">${openFacs.map(kaart).join('')}</div>`:''}
     ${verwachtCard?`<h3 class="fac-cli-h" style="margin-top:22px">Komt er nog aan</h3>${verwachtCard}`:''}
     ${betaaldFacs.length?`<h3 class="fac-cli-h" style="margin-top:22px">Betaald</h3><div style="display:grid;gap:14px">${betaaldFacs.map(kaart).join('')}</div>`:''}
+    ${pdfLijst}
   </section>`;
 }
 document.addEventListener('click',e=>{const t=e.target.closest('[data-dtab]');if(!t)return;tab=t.dataset.dtab;render();window.scrollTo({top:0,behavior:'smooth'})});
@@ -332,7 +336,7 @@ function renderVragenlijst(){
 /* ---- contract ---- */
 function renderContract(){
   const c=me.contract;const m=msg.contract;const url=`/api/dossier/${encodeURIComponent(code)}/bestand/${esc(c.bestandId)}`;
-  if(c.getekend)return `<section class="blok" id="contract"><div class="bhead"><h2>Contract</h2><span class="pill ok">Getekend door ${esc(c.getekend.naam)} op ${esc(fmtShort(c.getekend.op.slice(0,10)))}</span></div><div class="card"><p class="note">Bedankt! Een kopie van het contract en jullie handtekening staan bij de bijlages.</p><div class="files"><a class="btn small" href="${url}" target="_blank" rel="noopener">PDF · ${esc(c.naam||'Contract')}</a></div></div></section>`;
+  if(c.getekend){const getekendBest=(me.bijlages||[]).find(b=>b.soort==='contract_getekend');return `<section class="blok" id="contract"><div class="bhead"><h2>Contract</h2><span class="pill ok">Getekend door ${esc(c.getekend.naam)} op ${esc(fmtShort(c.getekend.op.slice(0,10)))}</span></div><div class="card"><p class="note">Bedankt! Hieronder vind je het contract${getekendBest?' en jullie ondertekende versie':''} terug.</p><div class="files"><a class="btn small" href="${url}" target="_blank" rel="noopener">Contract (PDF)</a>${getekendBest?`<a class="btn small" href="/api/dossier/${encodeURIComponent(code)}/bestand/${esc(getekendBest.id)}" target="_blank" rel="noopener">Ondertekend (PDF)</a>`:''}</div></div></section>`;}
   return `<section class="blok" id="contract"><div class="bhead"><h2>Contract tekenen</h2><span class="pill warn">Nog te tekenen</span></div>
    <form id="cform" class="card" style="display:grid;gap:14px">
     <p class="note">Lees het contract rustig na. Teken daarna hieronder met je vinger of muis, vul je naam in en bevestig.</p>
@@ -356,8 +360,11 @@ function initSig(){
 }
 /* ---- bijlages & traject ---- */
 function renderBijlages(){
-  const lab={offerte:'Offerte',factuur:'Factuur',contract:'Contract',contract_getekend:'Handtekening',ander:'Bijlage'};
-  return `<section class="blok"><div class="bhead"><h2>Bijlages</h2></div><div class="card"><div class="files" style="margin-top:0">${me.bijlages.map(f=>`<a class="btn small" href="/api/dossier/${encodeURIComponent(code)}/bestand/${esc(f.id)}" target="_blank" rel="noopener">${esc(lab[f.soort]||'Bijlage')} · ${esc(f.naam)}</a>`).join('')}</div></div></section>`;
+  // Offerte staat bij de offerte, factuur onder Facturatie, contract bij het contract.
+  // Hier enkel echte extra documenten (soort 'ander').
+  const extra=(me.bijlages||[]).filter(f=>f.soort==='ander');
+  if(!extra.length)return '';
+  return `<section class="blok"><div class="bhead"><h2>Documenten</h2></div><div class="card"><div class="files" style="margin-top:0">${extra.map(f=>`<a class="btn small" href="/api/dossier/${encodeURIComponent(code)}/bestand/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.naam)}</a>`).join('')}</div></div></section>`;
 }
 function renderTraject(){
   if(me.gestopt)return `<div class="card"><p style="margin:0">${esc((me.fasen.find(f=>f.k===me.fase)||{}).uitleg||'')}</p></div>`;
