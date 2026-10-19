@@ -323,6 +323,24 @@ aside{display:grid;gap:18px;position:sticky;top:calc(env(safe-area-inset-top,0px
 .ckrow .ck-txt{flex:1;min-width:0;display:grid}
 .ckrow .ck-txt b{font-weight:600;font-size:13px}
 .ckrow .ck-txt span{font-size:12px;color:var(--muted)}
+/* facturatie (admin) */
+.fac-sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 4px}
+@media(max-width:560px){.fac-sum{grid-template-columns:1fr}}
+.fac-tile{background:var(--sunk);border-radius:10px;padding:12px 15px;display:grid;gap:2px}
+.fac-tile span{font-size:12px;color:var(--muted)}
+.fac-tile b{font-family:var(--f-display);font-size:21px;font-weight:400;font-variant-numeric:tabular-nums}
+.fac-tile.ok b{color:var(--ok)}
+.fac-tile.open b{color:var(--warn)}
+.fac-list{display:grid;gap:12px;margin-top:14px}
+.fac-row{border:1px solid var(--line);border-radius:10px;padding:13px 15px;display:grid;gap:12px}
+.fac-grid{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.fac-grid .fld{flex:1;min-width:140px}
+.fac-grid2{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.fac-grid2 .fld{min-width:160px}
+.fac-paid{display:flex;align-items:center;gap:8px;font-size:14px;white-space:nowrap;padding-bottom:9px}
+.fac-paid input{width:17px;height:17px;accent-color:var(--accent)}
+.fac-grid2 .danger{margin-left:auto;align-self:center}
+.fac-row select{border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:9px 10px;color:var(--ink);width:100%}
 .notitie-add{display:flex;gap:10px;align-items:flex-start;margin-bottom:14px}
 .notitie-add textarea{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 11px;font:inherit;resize:vertical}
 .notitie-add button{flex:none;margin-top:1px}
@@ -886,6 +904,7 @@ function vKlant(){
     </div>
     <div class="sheet" id="tab-planning" role="tabpanel" ${klantTab!=='planning'?'hidden':''}></div>
     <div class="sheet" id="tab-offerte" role="tabpanel" ${klantTab!=='offerte'?'hidden':''}></div>
+    <div class="sheet" id="tab-facturen" role="tabpanel" ${klantTab!=='facturen'?'hidden':''}></div>
     <div class="sheet" id="tab-vragenlijst" role="tabpanel" ${klantTab!=='vragenlijst'?'hidden':''}></div>
     <div class="sheet" id="tab-bijlages" role="tabpanel" ${klantTab!=='bijlages'?'hidden':''}></div>
     <div class="sheet" id="tab-logboek" role="tabpanel" ${klantTab!=='logboek'?'hidden':''}></div>
@@ -906,13 +925,14 @@ function renderSide(){
     <div class="kmeta-grid">${metaItems.join('')}</div>
   </div>`;
   const nOf=(k.offertes||[]).length;
-  const TABS=[['overzicht','Overzicht'],['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['vragenlijst','Vragenlijst'],['bijlages','Bijlages'],['logboek','Logboek']];
+  const TABS=[['overzicht','Overzicht'],['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['facturen','Facturatie'],['vragenlijst','Vragenlijst'],['bijlages','Bijlages'],['logboek','Logboek']];
   $('#tabs').innerHTML=TABS.map(([id,l])=>`<button role="tab" id="tabbtn-${id}" aria-selected="${klantTab===id}" data-tab="${id}">${l}${hasNew(k,id)?'<span class="newdot" title="Nieuw sinds je laatst keek"></span><span class="sr">(nieuw)</span>':''}</button>`).join('');
   const overz=klantTab==='overzicht';
   const det=$('#detail');if(det)det.classList.toggle('solo',overz);
   if(overz){$('#side').innerHTML='';}
   else{$('#side').innerHTML=`${stopPanels(k)}${afspraakPanel(k)}${dossierPanel(k)}${naGoedkeuringPanel(k)}${trajectWidget(k)}${whatsappPanel(k)}${logboekPanel(k)}`;}
   if(klantTab==='overzicht')renderOverzichtTab();
+  if(klantTab==='facturen')renderFacturenTab();
   if(klantTab==='offerte'&&!ofMounted)renderOffertes();
   if(klantTab==='planning')renderPlanningTab();
   if(klantTab==='vragenlijst')renderVragenlijstTab();
@@ -1065,6 +1085,53 @@ function renderBijlagesTab(){
    <div class="files" style="margin-top:12px">${list.length?list.map(f=>`<div class="file"><span class="ic">${esc(BIJLAGE_SOORT[f.soort]||'Bijlage')}</span><a href="/_blob/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.naam||'bestand')}</a>${f.bron?`<span class="hint">· ${esc(f.bron)}</span>`:''}<span style="font-size:12px;color:var(--muted);white-space:nowrap">${fmt(f.d)}</span>${f.soort==='contract'&&c.getekend?`<span class="chip">getekend door ${esc(c.getekend.naam)}</span>`:''}${f.vast||f.soort==='contract_getekend'?'':`<button class="iconbtn" data-bjdel="${esc(f.id)}" data-naam="${esc(f.naam||'')}" aria-label="Bijlage verwijderen">×</button>`}</div>`).join(''):'<p class="hint">Nog geen bijlages.</p>'}</div>
    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px"><select id="bjSoort" style="border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:7px 10px"><option value="factuur">Voorschotfactuur</option><option value="contract">Contract</option><option value="ander">Andere bijlage</option></select><label class="btn small" style="cursor:pointer">+ Bestand toevoegen (PDF/afbeelding)<input type="file" id="bjFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden></label><span class="hint" id="bjMsg"></span></div></section>`;
 }
+/* ---------- facturatie tab (admin) ---------- */
+function facRow(f,i,bijlages){
+  return `<div class="fac-row" data-faci="${i}">
+    <div class="fac-grid">
+      <label class="fld"><span>Omschrijving</span><input data-fac="${i}:omschrijving" value="${esc(f.omschrijving||'')}" placeholder="bv. Voorschot, Saldo"></label>
+      <label class="fld" style="max-width:9rem"><span>Bedrag (€)</span><input class="num" data-fac="${i}:bedrag" value="${esc(f.bedrag||'')}" inputmode="decimal" placeholder="0,00"></label>
+      <label class="fld" style="max-width:11rem"><span>Vervaldatum</span><input type="date" data-fac="${i}:vervaldatum" value="${esc(f.vervaldatum||'')}"></label>
+    </div>
+    <div class="fac-grid2">
+      <label class="fac-paid"><input type="checkbox" data-fac="${i}:betaald" ${f.betaald?'checked':''}> Betaald</label>
+      ${f.betaald?`<label class="fld" style="max-width:11rem"><span>Betaald op</span><input type="date" data-fac="${i}:betaaldOp" value="${esc(f.betaaldOp||'')}"></label>`:''}
+      <label class="fld"><span>Gekoppelde PDF (optioneel)</span><select data-fac="${i}:bestandId"><option value="">— geen —</option>${bijlages.map(x=>`<option value="${esc(x.id)}" ${f.bestandId===x.id?'selected':''}>${esc(x.naam||'factuur')}</option>`).join('')}</select></label>
+      <button class="btn small ghost danger" data-facdel="${i}" title="Verwijder deze factuur">Verwijder</button>
+    </div>
+  </div>`;
+}
+function renderFacturenTab(){
+  const box=$('#tab-facturen');if(!box||!work)return;const k=work;
+  if(!Array.isArray(work.facturen))work.facturen=[];
+  const facs=work.facturen;
+  const tot=facs.reduce((a,f)=>a+num(f.bedrag),0);
+  const betaald=facs.filter(f=>f.betaald).reduce((a,f)=>a+num(f.bedrag),0);
+  const open=Math.max(0,tot-betaald);
+  const factuurBijlages=(k.bijlages||[]).filter(f=>f.soort==='factuur');
+  const rows=facs.map((f,i)=>facRow(f,i,factuurBijlages)).join('');
+  box.innerHTML=`<section class="sec"><h2>Facturatie</h2>
+    <p class="hint">Houd hier de facturen en betalingen bij. De klant volgt dit mee in zijn dossier onder "Facturatie": wat al betaald is en wat er nog moet komen. Koppel een PDF uit Bijlages om de klant de factuur te laten downloaden.</p>
+    <div class="fac-sum">
+      <div class="fac-tile"><span>Totaal gefactureerd</span><b>${euro(tot)}</b></div>
+      <div class="fac-tile ok"><span>Betaald</span><b>${euro(betaald)}</b></div>
+      <div class="fac-tile ${open>0?'open':''}"><span>Nog openstaand</span><b>${euro(open)}</b></div>
+    </div>
+    <div class="fac-list">${rows||'<p class="hint" style="margin:14px 0 0">Nog geen facturen. Voeg er een toe met de knoppen hieronder.</p>'}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+      <button class="btn small primary" data-facadd="Voorschot">+ Voorschot</button>
+      <button class="btn small" data-facadd="Saldo">+ Saldo</button>
+      <button class="btn small ghost" data-facadd="">+ Andere factuur</button>
+    </div></section>`;
+}
+document.addEventListener('input',e=>{const el=e.target;if(!el.dataset||!el.dataset.fac||!work||el.type==='checkbox')return;const [i,field]=el.dataset.fac.split(':');const idx=+i;if(!Array.isArray(work.facturen)||!work.facturen[idx])return;work.facturen[idx][field]=el.value;queue('facturen')});
+document.addEventListener('change',e=>{const el=e.target;if(!el.dataset||!el.dataset.fac||!work)return;const [i,field]=el.dataset.fac.split(':');const idx=+i;if(!Array.isArray(work.facturen)||!work.facturen[idx])return;
+  if(el.type==='checkbox'){work.facturen[idx].betaald=el.checked;if(el.checked&&!work.facturen[idx].betaaldOp)work.facturen[idx].betaaldOp=today();queue('facturen');renderFacturenTab();return}
+  work.facturen[idx][field]=el.value;queue('facturen')});
+document.addEventListener('click',e=>{const a=e.target.closest('[data-facadd],[data-facdel]');if(!a||!work)return;
+  if(a.hasAttribute('data-facadd')){if(!Array.isArray(work.facturen))work.facturen=[];work.facturen.push({id:'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),omschrijving:a.dataset.facadd||'',bedrag:'',vervaldatum:'',betaald:false,betaaldOp:'',bestandId:''});queue('facturen');renderFacturenTab();return}
+  if(a.hasAttribute('data-facdel')){const idx=+a.dataset.facdel;if(Array.isArray(work.facturen)){work.facturen.splice(idx,1);queue('facturen');renderFacturenTab()}return}
+});
 function renderVragenlijstTab(){
   const box=$('#tab-vragenlijst');if(!box||!work)return;const k=work;const v=k.vragenlijst;
   let vragen=(cfg.vragenlijsten[k.type]||cfg.vragenlijsten.Ander||[]).map(migreerVraag);
@@ -1562,7 +1629,7 @@ document.addEventListener('drop',e=>{const d=e.target.closest&&e.target.closest(
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-tab],[data-factuur],[data-ofstop],[data-ofnew],[data-ofaddrow],[data-ofdelrow],[data-ofdel],[data-ofdelyes],[data-ofcancel],[data-ofdup],[data-ofcopy],[data-ofphase],[data-ofdelfile],[data-ofdelfileyes]');
   if(!t||!work)return;const D=t.dataset;
-  if(D.tab){klantTab=D.tab;markSeen(klantTab);['overzicht','fiche','planning','logboek','offerte','vragenlijst','bijlages'].forEach(x=>{$('#tab-'+x).hidden=klantTab!==x});if(klantTab==='overzicht')renderOverzichtTab();if(klantTab==='offerte')renderOffertes();if(klantTab==='logboek')renderLogTab();if(klantTab==='vragenlijst')renderVragenlijstTab();if(klantTab==='bijlages')renderBijlagesTab();renderSide();const tb=$('#tabs');if(tb&&tb.getBoundingClientRect().top<0)tb.scrollIntoView({block:'start'});return}
+  if(D.tab){klantTab=D.tab;markSeen(klantTab);['overzicht','fiche','planning','logboek','offerte','facturen','vragenlijst','bijlages'].forEach(x=>{$('#tab-'+x).hidden=klantTab!==x});if(klantTab==='overzicht')renderOverzichtTab();if(klantTab==='offerte')renderOffertes();if(klantTab==='facturen')renderFacturenTab();if(klantTab==='logboek')renderLogTab();if(klantTab==='vragenlijst')renderVragenlijstTab();if(klantTab==='bijlages')renderBijlagesTab();renderSide();const tb=$('#tabs');if(tb&&tb.getBoundingClientRect().top<0)tb.scrollIntoView({block:'start'});return}
   if(D.ofstop){if(!work.stopReden)work.stopReden='Te duur';stopForm=true;renderSide();const sp=$('#stopform');if(sp)sp.scrollIntoView({block:'center',behavior:'smooth'});return}
   if(D.ofnew){work.offertes=(work.offertes||[]).concat([newOfferte()]);ofChanged(true);return}
   if(D.ofaddrow){findOf(D.ofaddrow).regels.push({oms:'',aantal:'',prijs:''});ofChanged(true);const i=findOf(D.ofaddrow).regels.length-1;const n=$(`#of-${D.ofaddrow}-r${i}-oms`);if(n)n.focus();return}
