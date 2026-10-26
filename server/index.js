@@ -108,6 +108,8 @@ function offerteTotalen(o) { const sub = (o.regels || []).reduce((a, r) => a + n
 const euro = n => (Number(n) || 0).toLocaleString('nl-BE', { style: 'currency', currency: 'EUR' });
 // Bestanden van een ontwerp-versie; migreert oude enkel-bestand-versies (bestandId) naar een lijst.
 function owBestanden(o) { if (Array.isArray(o.bestanden) && o.bestanden.length) return o.bestanden; if (o.bestandId) return [{ id: o.bestandId, naam: o.naam || 'Ontwerp', type: o.type || '' }]; return []; }
+// Een ontwerp-versie is zichtbaar in het klantdossier zodra ze zichtbaar gezet is, gemaild is, of er al op gereageerd is.
+function owZichtbaar(o) { return !!(o.zichtbaar || o.verwittigdOp || o.ingediendOp); }
 
 // Agenda (Outlook/Teams) en Zoom laten volgen na een gewijzigd tijdstip. Gooit niet; geeft een lijst problemen terug.
 async function syncAgenda(id) {
@@ -724,7 +726,7 @@ async function api(req, res, url) {
         contract: contractInfo(k), voorschot: k.voorschot || { betaald: false }, bijlages: bijlagesVan(), naGoedkeuringVerstuurdOp: k.naGoedkeuringVerstuurdOp || '',
         facturen: (k.facturen || []).map(f => ({ id: f.id, omschrijving: f.omschrijving || '', bedrag: f.bedrag || '', vervaldatum: f.vervaldatum || '', betaald: !!f.betaald, betaaldOp: f.betaaldOp || '', bestandId: f.bestandId || '', verstuurdOp: f.verstuurdOp || '' })),
         projectTotaal: (num(k.factuurTotaal) > 0 ? num(k.factuurTotaal) : zichtbaar.filter(o => o.status === 'Goedgekeurd').reduce((a, o) => a + offerteTotalen(o).tot, 0)),
-        ontwerpen: (k.ontwerpen || []).filter(o => o.verwittigdOp || o.ingediendOp).map((o, i) => ({ id: o.id, naam: o.naam || ('Versie ' + (o.versie || (i + 1))), versie: o.versie || (i + 1), bestanden: owBestanden(o).map(f => ({ id: f.id, naam: f.naam || 'Ontwerp', type: f.type || '' })), toegevoegd: o.toegevoegd || '', ingediendOp: o.ingediendOp || '', goedgekeurd: o.goedgekeurd ? { op: o.goedgekeurd.op || '', naam: o.goedgekeurd.naam || '' } : null, comments: (o.comments || []).map(c => ({ id: c.id, bestandId: c.bestandId || '', x: c.x, y: c.y, tekst: c.tekst || '' })) })) });
+        ontwerpen: (k.ontwerpen || []).filter(o => owZichtbaar(o)).map((o, i) => ({ id: o.id, naam: o.naam || ('Versie ' + (o.versie || (i + 1))), versie: o.versie || (i + 1), bestanden: owBestanden(o).map(f => ({ id: f.id, naam: f.naam || 'Ontwerp', type: f.type || '' })), toegevoegd: o.toegevoegd || '', ingediendOp: o.ingediendOp || '', goedgekeurd: o.goedgekeurd ? { op: o.goedgekeurd.op || '', naam: o.goedgekeurd.naam || '' } : null, comments: (o.comments || []).map(c => ({ id: c.id, bestandId: c.bestandId || '', x: c.x, y: c.y, tekst: c.tekst || '' })) })) });
     }
     if (sub === 'slots' && m === 'GET') return json(res, 200, { actief: !!cfg.actief, duur: cfg.duur, dagen: cfg.actief ? slotsVoorPeriode(cfg, bezetteSlots(kid)) : [] });
     if (sub === 'verplaats' && m === 'POST') {
@@ -741,7 +743,7 @@ async function api(req, res, url) {
     const bm = sub.match(/^bestand\/([a-f0-9]{32})$/);
     if (bm && m === 'GET') {
       const factuurIds = (k.facturen || []).map(f => f.bestandId).filter(Boolean);
-      const ontwerpIds = (k.ontwerpen || []).filter(o => o.verwittigdOp || o.ingediendOp).flatMap(o => owBestanden(o).map(f => f.id)).filter(Boolean);
+      const ontwerpIds = (k.ontwerpen || []).filter(o => owZichtbaar(o)).flatMap(o => owBestanden(o).map(f => f.id)).filter(Boolean);
       if (!bijlagesVan().some(f => f.id === bm[1]) && !factuurIds.includes(bm[1]) && !ontwerpIds.includes(bm[1])) return text(res, 404, 'Niet gevonden');
       const b = bestandOpSchijf(bm[1]); if (!b) return text(res, 404, 'Niet gevonden');
       return serveFile(res, b.pad, { 'Cache-Control': 'private, max-age=3600', 'Content-Disposition': 'inline' });
@@ -811,7 +813,7 @@ async function api(req, res, url) {
     }
     const ogMatch = sub.match(/^ontwerp\/([A-Za-z0-9_-]{1,40})\/goedkeuren$/);
     if (ogMatch && m === 'POST') {
-      const ontwerp = (k.ontwerpen || []).find(o => o.id === ogMatch[1] && (o.verwittigdOp || o.ingediendOp));
+      const ontwerp = (k.ontwerpen || []).find(o => o.id === ogMatch[1] && owZichtbaar(o));
       if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
       if (ontwerp.goedgekeurd) return json(res, 200, { ok: true, al: true });
       const b = await readJson(req, 10e3).catch(() => ({}));
@@ -826,7 +828,7 @@ async function api(req, res, url) {
     }
     const ocMatch = sub.match(/^ontwerp\/([A-Za-z0-9_-]{1,40})\/comments$/);
     if (ocMatch && m === 'POST') {
-      const ontwerp = (k.ontwerpen || []).find(o => o.id === ocMatch[1] && (o.verwittigdOp || o.ingediendOp));
+      const ontwerp = (k.ontwerpen || []).find(o => o.id === ocMatch[1] && owZichtbaar(o));
       if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
       if (ontwerp.goedgekeurd) return json(res, 400, { error: 'Dit ontwerp is al definitief goedgekeurd; er kunnen geen opmerkingen meer bijkomen.' });
       const b = await readJson(req, 200e3).catch(() => ({}));
@@ -1170,10 +1172,19 @@ async function api(req, res, url) {
     return json(res, 404, { error: 'Onbekende route' });
   }
   // Ontwerp verwijderen of de klant verwittigen dat het ontwerp klaarstaat.
-  const ontwerpIdMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/ontwerp\/([A-Za-z0-9_-]{1,40})(?:\/(verwittig))?$/);
+  const ontwerpIdMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/ontwerp\/([A-Za-z0-9_-]{1,40})(?:\/(verwittig|zichtbaar))?$/);
   if (ontwerpIdMatch && (m === 'POST' || m === 'DELETE')) {
     const k = store.get('klanten', ontwerpIdMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
     const ontwerp = (k.ontwerpen || []).find(o => o.id === ontwerpIdMatch[2]); if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
+    // zichtbaar maken/verbergen voor de klant, zonder mail
+    if (m === 'POST' && ontwerpIdMatch[3] === 'zichtbaar') {
+      const b = await readJson(req, 10e3).catch(() => ({}));
+      if (b.zichtbaar && !owBestanden(ontwerp).length) return json(res, 400, { error: 'Voeg eerst minstens één bestand toe aan deze versie.' });
+      ontwerp.zichtbaar = !!b.zichtbaar;
+      logboek(k, ontwerp.zichtbaar ? `Ontwerp-versie ${ontwerp.versie || '?'} zichtbaar gemaakt voor de klant (nog geen mail)` : `Ontwerp-versie ${ontwerp.versie || '?'} verborgen voor de klant`, 'ontwerp');
+      store.set('klanten', ontwerpIdMatch[1], k);
+      return json(res, 200, { ok: true, zichtbaar: ontwerp.zichtbaar });
+    }
     if (m === 'DELETE') {
       k.ontwerpen = (k.ontwerpen || []).filter(o => o.id !== ontwerp.id);
       for (const f of owBestanden(ontwerp)) for (const x of fs.readdirSync(UPLOAD_DIR)) if (x.startsWith(f.id)) try { fs.unlinkSync(path.join(UPLOAD_DIR, x)); } catch (e) {}
@@ -1190,7 +1201,7 @@ async function api(req, res, url) {
       const mm = bouwMail(sjablonen().ontwerpKlaar, basis, { dossierlink: dossierKnop(req, k, 'Bekijk je ontwerp') });
       const r = await verstuurMail({ to: k.email, subject: 'Jullie ontwerp staat klaar – justPIXIT', text: mm.text, html: mm.html }, { soort: 'ontwerp klaar' });
       if (!r.ok) return json(res, 502, { error: 'Mail versturen mislukt: ' + r.error });
-      ontwerp.verwittigdOp = vandaagBE();
+      ontwerp.verwittigdOp = vandaagBE(); ontwerp.zichtbaar = true;
       logboek(k, `Klant verwittigd dat ontwerp "${ontwerp.naam || 'Ontwerp'}" klaarstaat (${k.email})`, 'ontwerp');
       store.set('klanten', ontwerpIdMatch[1], k);
       return json(res, 200, { ok: true, verwittigdOp: ontwerp.verwittigdOp });
