@@ -321,10 +321,24 @@ function renderOntwerp(){
      <div class="actions" style="margin-top:10px"><button class="btn primary small" id="owSave">${owDraft.editId?'Opslaan':'Plaats opmerking'}</button>${owDraft.editId?'<button class="btn ghost small danger" id="owDel">Verwijder</button>':''}<button class="btn ghost small" id="owCancel">Annuleer</button></div></div>`:'';
   const lijst=owPins.length?`<div class="ow-list">${owPins.map((p,i)=>`<div class="ow-item"><span class="num">${i+1}</span><span class="txt">${esc(p.tekst)}</span>${editable?`<button class="btn ghost small" data-owpin="${esc(p.id)}">Aanpassen</button>`:''}</div>`).join('')}</div>`:(editable?'<p class="note" style="margin-top:14px">Klik ergens op het ontwerp om er je eerste opmerking bij te plaatsen.</p>':'<p class="note" style="margin-top:14px">Geen opmerkingen bij deze versie.</p>');
   const intro=editable?'<p class="note" style="margin:-4px 0 14px"><b>Klik op de afbeelding</b> op de plek waar je iets over wil zeggen — net als een speldje. Als al je opmerkingen erop staan, klik je op "Reacties indienen".</p>':(anyApproved?'':'<p class="note" style="margin:-4px 0 14px">Je bekijkt een <b>oudere versie</b>. Opmerkingen plaatsen kan enkel op de nieuwste versie.</p>');
+  const guide=editable?`<details class="vl-intro ow-guide"${owPins.length?'':' open'}>
+     <summary>Hoe laat ik opmerkingen achter?</summary>
+     <div class="body">
+       <ul>
+         <li><b>Klik</b> op de plek in het ontwerp waar je iets over wil zeggen — er verschijnt een speldje met een nummer.</li>
+         <li><b>Typ</b> je opmerking in het vakje dat verschijnt en klik op <b>"Plaats opmerking"</b>.</li>
+         <li>Herhaal dit voor elk punt. Een opmerking <b>aanpassen of verwijderen</b>? Klik op het speldje, of op "Aanpassen" in de lijst eronder.</li>
+         <li>Klaar met kijken? Klik op <b>"Reacties indienen"</b> — ik krijg dan automatisch een seintje en ga ermee aan de slag.</li>
+         <li>Helemaal tevreden? Dan kan je het ontwerp onderaan <b>definitief goedkeuren</b>. Let op: daarna gebeuren er geen aanpassingen meer.</li>
+       </ul>
+       <p>Geen zorgen — zolang je nog niet definitief goedkeurt, kan je je opmerkingen altijd nog aanpassen of opnieuw indienen.</p>
+     </div>
+   </details>`:'';
   const submitBtn=editable?`<div class="actions"><button class="btn primary" id="owSubmit" ${busy||!owPins.length?'disabled':''}>${ow.ingediendOp?'Reacties opnieuw indienen':'Reacties indienen'}</button>${ow.ingediendOp?'<span class="note">Je kan opmerkingen aanpassen en opnieuw indienen.</span>':''}</div>`:'';
   return `<section class="blok"><div class="bhead"><h2>Ontwerp${list.length>1?' · versie '+vnum(ow):''}</h2>${statusPill}</div>
     ${switcher}
     ${intro}
+    ${guide}
     <div class="ow-canvas${editable?'':' ro'}" id="ow-canvas"><img id="ow-img" src="${url}" alt="Jullie ontwerp" draggable="false">${pins}${draftPin}</div>
     ${composer}
     ${lijst}
