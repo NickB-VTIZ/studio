@@ -77,6 +77,17 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 .ow-fileblokken{display:grid;gap:26px}
 .ow-fileblok{display:grid;gap:0}
 .ow-fname{font-family:var(--f-display);font-weight:600;font-size:15px;margin:0 0 8px;color:var(--ink)}
+.ow-gallery{display:grid;grid-template-columns:100px minmax(0,1fr);gap:18px;align-items:start}
+.ow-thumbs{display:flex;flex-direction:column;gap:10px;position:sticky;top:12px;max-height:82vh;overflow:auto;padding:2px}
+.ow-thumb{position:relative;border:2px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:var(--card);padding:0;aspect-ratio:1;display:block;width:100%}
+.ow-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ow-thumb:hover{border-color:var(--sage-deep)}
+.ow-thumb.on{border-color:var(--green);box-shadow:0 0 0 2px var(--sage)}
+.ow-thumb-pdf{display:grid;place-items:center;width:100%;height:100%;font-size:12px;font-weight:700;color:var(--ink-soft);background:var(--sage)}
+.ow-thumb-badge{position:absolute;top:4px;right:4px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:var(--green);color:var(--green-ink);font-size:11px;font-weight:700;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.ow-stage{min-width:0}
+.ow-stage .ow-fname{margin-top:0}
+@media(max-width:620px){.ow-gallery{grid-template-columns:1fr}.ow-thumbs{flex-direction:row;position:static;max-height:none;overflow-x:auto;padding-bottom:6px}.ow-thumb{flex:0 0 68px;width:68px}}
 .ow-canvas.ro{cursor:default}
 .ow-pin.ro{cursor:default}
 .ow-vers{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
@@ -172,7 +183,7 @@ const eindUur=(slot,duur)=>{const [h,m]=slot.slice(11,16).split(':').map(Number)
 const euro=n=>(Number(n)||0).toLocaleString('nl-BE',{style:'currency',currency:'EUR'});
 const code=new URLSearchParams(location.search).get('c')||'';
 let me=null,kiezen=false,annuleren=false,byDay={},month=null,selDay=null,selSlot=null,busy=false,msg={},ofOpen={},tab='overzicht';
-let owPins=[],owDraft=null,owForId=null,owSel=null,owView=null,owApprove=false;
+let owPins=[],owDraft=null,owForId=null,owSel=null,owView=null,owApprove=false,owActiveFile=null;
 const numEur=v=>{const n=parseFloat(String(v??'').replace(/\s|€/g,'').replace(',','.'));return Number.isFinite(n)?n:0};
 
 async function api(path,body){const r=await fetch('/api/dossier/'+encodeURIComponent(code)+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw Object.assign(new Error(j.error||'Er liep iets mis'),{status:r.status});return j}
@@ -324,7 +335,21 @@ function renderOntwerp(){
     const lijst=fp.length?`<div class="ow-list">${fp.map((p,i)=>`<div class="ow-item"><span class="num">${i+1}</span><span class="txt">${esc(p.tekst)}</span>${editable?`<button class="btn ghost small" data-owpin="${esc(p.id)}">Aanpassen</button>`:''}</div>`).join('')}</div>`:(editable?'<p class="note" style="margin-top:10px">Klik op deze afbeelding om er een opmerking bij te plaatsen.</p>':'');
     return `<div class="ow-fileblok">${label}<div class="ow-canvas${editable?'':' ro'}" data-owcanvas="${esc(f.id)}"><img src="${url}" alt="${naam}" draggable="false">${pins}${draftPin}</div>${composer}${lijst}</div>`;
   };
-  const bestandenHtml=files.length?`<div class="ow-fileblokken">${files.map(canvasFor).join('')}</div>`:'<div class="card"><p class="note" style="margin:0">Er staan nog geen bestanden klaar in deze versie.</p></div>';
+  // Galerij: links thumbnails, rechts de vergroting met opmerkingen. Bij één bestand gewoon dat bestand.
+  if(!owActiveFile||!files.some(f=>f.id===owActiveFile)){const img=files.find(f=>(f.type||'').startsWith('image/'));owActiveFile=((img||files[0]||{}).id)||'';}
+  const active=files.find(f=>f.id===owActiveFile);
+  let bestandenHtml;
+  if(!files.length){bestandenHtml='<div class="card"><p class="note" style="margin:0">Er staan nog geen bestanden klaar in deze versie.</p></div>';}
+  else if(files.length===1){bestandenHtml=`<div class="ow-fileblokken">${canvasFor(files[0])}</div>`;}
+  else{
+    const thumbs=files.map(f=>{
+      const isImg=(f.type||'').startsWith('image/');
+      const url=`/api/dossier/${encodeURIComponent(code)}/bestand/${esc(f.id)}`;
+      const n=owPins.filter(p=>p.bestandId===f.id).length;
+      return `<button class="ow-thumb${f.id===owActiveFile?' on':''}" data-owthumb="${esc(f.id)}" title="${esc(f.naam||'')}">${isImg?`<img src="${url}" alt="" loading="lazy">`:'<span class="ow-thumb-pdf">PDF</span>'}${n?`<span class="ow-thumb-badge">${n}</span>`:''}</button>`;
+    }).join('');
+    bestandenHtml=`<div class="ow-gallery"><div class="ow-thumbs">${thumbs}</div><div class="ow-stage">${active?canvasFor(active):''}</div></div>`;
+  }
   const intro=editable?'<p class="note" style="margin:-4px 0 14px"><b>Klik op een afbeelding</b> op de plek waar je iets over wil zeggen — net als een speldje. Staan al je opmerkingen erop, klik dan op "Reacties indienen".</p>':(anyApproved?'':'<p class="note" style="margin:-4px 0 14px">Je bekijkt een <b>oudere versie</b>. Opmerkingen plaatsen kan enkel op de nieuwste versie.</p>');
   const heeftImg=files.some(f=>(f.type||'').startsWith('image/'));
   const guide=editable&&heeftImg?`<details class="vl-intro ow-guide"${owPins.length?'':' open'}>
@@ -355,7 +380,9 @@ function owFocusCmp(){setTimeout(()=>{const t=$('#owText');if(t){t.focus();const
 document.addEventListener('click',e=>{
   if(tab!=='ontwerp')return;
   const vch=e.target.closest('[data-owview]');
-  if(vch){owView=vch.dataset.owview;owApprove=false;owDraft=null;owSel=null;msg.ontwerp=null;render();window.scrollTo({top:0,behavior:'smooth'});return}
+  if(vch){owView=vch.dataset.owview;owApprove=false;owDraft=null;owSel=null;owActiveFile=null;msg.ontwerp=null;render();window.scrollTo({top:0,behavior:'smooth'});return}
+  const th=e.target.closest('[data-owthumb]');
+  if(th){owActiveFile=th.dataset.owthumb;owDraft=null;owSel=null;render();if(window.innerWidth<=620){const st=document.querySelector('.ow-stage');if(st)st.scrollIntoView({behavior:'smooth',block:'start'})}return}
   if(e.target.id==='owApproveOpen'){owApprove=true;msg.ontwerp=null;render();setTimeout(()=>{const n=$('#owNaam');if(n)n.focus()},0);return}
   if(e.target.id==='owApproveCancel'){owApprove=false;msg.ontwerp=null;render();return}
   const pinEl=e.target.closest('[data-owpin]');
