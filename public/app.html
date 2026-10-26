@@ -484,6 +484,8 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
 .chip.g-ok{color:#2C6A4C;background:#e7f0ea}
 .ow-admin{display:grid;gap:22px;margin-top:18px}
 .ow-card{border:1px solid var(--line);border-radius:10px;padding:16px;background:var(--bg)}
+.ow-card-ok{border-color:#2C6A4C;box-shadow:0 0 0 1px #2C6A4C inset}
+.ow-canvas.ow-ok{outline:2px solid #2C6A4C;outline-offset:-1px}
 .ow-card-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .ow-canvas{position:relative;display:inline-block;max-width:100%;border:1px solid var(--line);border-radius:8px;overflow:hidden;line-height:0}
 .ow-canvas img{display:block;max-width:100%;height:auto}
@@ -1105,19 +1107,23 @@ function renderBijlagesTab(){
 /* ---------- ontwerp tab (admin) ---------- */
 function renderOntwerpTab(){
   const box=$('#tab-ontwerp');if(!box||!work)return;const k=work;const list=k.ontwerpen||[];
+  const anyApproved=list.some(o=>o.goedgekeurd);
   const kaart=o=>{
+    const vnr=o.versie||(list.indexOf(o)+1);
     const isImg=(o.type||'').startsWith('image/');const url='/_blob/'+esc(o.bestandId);
     const cs=o.comments||[];
     const pins=cs.map((c,i)=>`<span class="ow-pin" style="left:${c.x}%;top:${c.y}%" title="${esc(c.tekst)}">${i+1}</span>`).join('');
-    const canvas=isImg?`<div class="ow-canvas"><img src="${url}" alt="Ontwerp ${esc(o.naam||'')}">${pins}</div>`:`<div class="files" style="margin-top:10px"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open ontwerp · ${esc(o.naam||'bestand')}</a></div>`;
+    const canvas=isImg?`<div class="ow-canvas${o.goedgekeurd?' ow-ok':''}"><img src="${url}" alt="Ontwerp ${esc(o.naam||'')}">${pins}</div>`:`<div class="files" style="margin-top:10px"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open ontwerp · ${esc(o.naam||'bestand')}</a></div>`;
     const lijst=cs.length?`<ol class="ow-clist">${cs.map((c,i)=>`<li><span class="num">${i+1}</span><span>${esc(c.tekst)}</span></li>`).join('')}</ol>`:(o.verwittigdOp?'<p class="hint" style="margin-top:10px">De klant heeft nog geen opmerkingen ingediend.</p>':'');
-    const status=o.ingediendOp?`<span class="chip g-ok">${cs.length} reactie${cs.length===1?'':'s'} · ${fmt(o.ingediendOp.slice(0,10))}</span>`:(o.verwittigdOp?`<span class="chip">verwittigd ${fmt(o.verwittigdOp)}</span>`:'<span class="chip">nog niet verstuurd</span>');
-    const verwBtn=`<button class="btn small" data-owverwittig="${esc(o.id)}" ${k.email?'':'disabled'} title="${k.email?'Mailt de klant dat dit ontwerp klaarstaat':'Vul eerst een e-mailadres in op de fiche'}">${o.verwittigdOp?'Opnieuw verwittigen':'Verwittig klant'}</button>`;
-    return `<div class="ow-card"><div class="ow-card-head"><div><b>${esc(o.naam||'Ontwerp')}</b> <span class="hint">· toegevoegd ${fmt((o.toegevoegd||'').slice(0,10))}</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${status}${verwBtn}<button class="btn small ghost danger" data-owdel="${esc(o.id)}" data-naam="${esc(o.naam||'')}">Verwijder</button></div></div>${canvas}${lijst}</div>`;
+    const status=o.goedgekeurd?`<span class="chip g-ok">✓ Goedgekeurd · ${esc(o.goedgekeurd.naam)} · ${fmt(o.goedgekeurd.op.slice(0,10))}</span>`:(o.ingediendOp?`<span class="chip g-ok">${cs.length} reactie${cs.length===1?'':'s'} · ${fmt(o.ingediendOp.slice(0,10))}</span>`:(o.verwittigdOp?`<span class="chip">verwittigd ${fmt(o.verwittigdOp)}</span>`:'<span class="chip">nog niet verstuurd</span>'));
+    const verwBtn=`<button class="btn small" data-owverwittig="${esc(o.id)}" ${k.email?'':'disabled'} title="${k.email?'Mailt de klant dat deze versie klaarstaat':'Vul eerst een e-mailadres in op de fiche'}">${o.verwittigdOp?'Opnieuw verwittigen':'Verwittig klant'}</button>`;
+    const akkoord=o.goedgekeurd?`<p class="hint" style="margin-top:10px">🔒 Definitief goedgekeurd door <b>${esc(o.goedgekeurd.naam)}</b> op ${fmt(o.goedgekeurd.op.slice(0,10))} — geldt als akkoord, geen aanpassingen meer.</p>`:'';
+    return `<div class="ow-card${o.goedgekeurd?' ow-card-ok':''}"><div class="ow-card-head"><div><b>Versie ${vnr}</b> <span class="hint">· ${esc(o.naam||'Ontwerp')} · toegevoegd ${fmt((o.toegevoegd||'').slice(0,10))}</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${status}${verwBtn}<button class="btn small ghost danger" data-owdel="${esc(o.id)}" data-naam="${esc(o.naam||'')}">Verwijder</button></div></div>${canvas}${akkoord}${lijst}</div>`;
   };
-  box.innerHTML=`<section class="sec"><h2>Ontwerp</h2><p class="hint">Voeg hier het ontwerp toe (afbeelding of PDF) en verwittig de klant. De klant bekijkt het in zijn dossier en plaatst opmerkingen rechtstreeks op de afbeelding — net als in Figma. Zodra de klant indient, krijg je een mail en zie je de opmerkingen hier met speldjes op de afbeelding.</p>
-   <div style="margin-top:14px"><label class="btn small" style="cursor:pointer">+ Ontwerp toevoegen (afbeelding of PDF)<input type="file" id="owFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden></label> <span class="hint" id="owMsg"></span></div>
-   ${list.length?`<div class="ow-admin">${list.map(kaart).join('')}</div>`:'<p class="hint" style="margin-top:16px">Nog geen ontwerp toegevoegd. Tip: upload een afbeelding (PNG/JPG) zodat de klant er opmerkingen op kan plaatsen.</p>'}</section>`;
+  box.innerHTML=`<section class="sec"><h2>Ontwerp</h2><p class="hint">Voeg hier het ontwerp toe (afbeelding of PDF) en verwittig de klant. Je kan meerdere versies toevoegen — elke upload is een nieuwe versie. De klant bekijkt ze in zijn dossier en plaatst opmerkingen rechtstreeks op de afbeelding, net als in Figma. Zodra de klant indient of een versie definitief goedkeurt, krijg je een mail en zie je het hier.</p>
+   ${anyApproved?'<p class="hint" style="margin-top:8px;color:var(--g-klaar)">✓ De klant heeft een versie definitief goedgekeurd — dit geldt als akkoord.</p>':''}
+   <div style="margin-top:14px"><label class="btn small" style="cursor:pointer">${list.length?'+ Nieuwe versie toevoegen':'+ Ontwerp toevoegen'} (afbeelding of PDF)<input type="file" id="owFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden></label> <span class="hint" id="owMsg"></span></div>
+   ${list.length?`<div class="ow-admin">${list.slice().reverse().map(kaart).join('')}</div>`:'<p class="hint" style="margin-top:16px">Nog geen ontwerp toegevoegd. Tip: upload een afbeelding (PNG/JPG) zodat de klant er opmerkingen op kan plaatsen.</p>'}</section>`;
 }
 /* ---------- facturatie tab (admin) ---------- */
 function facRow(f,i,bijlages){

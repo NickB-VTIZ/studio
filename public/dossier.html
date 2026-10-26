@@ -74,6 +74,15 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 .ow-item{display:flex;gap:10px;align-items:flex-start;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:10px 12px}
 .ow-item .num{flex:none;width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--green-ink);font-size:12px;font-weight:700;display:grid;place-items:center}
 .ow-item .txt{flex:1;font-size:14.5px;white-space:pre-wrap;word-break:break-word}
+.ow-canvas.ro{cursor:default}
+.ow-pin.ro{cursor:default}
+.ow-vers{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.ow-vchip{border:1px solid var(--line);background:var(--card);color:var(--ink-soft);padding:7px 14px;border-radius:999px;cursor:pointer;font:inherit;font-size:14px}
+.ow-vchip:hover{border-color:var(--green);color:var(--ink)}
+.ow-vchip.on{background:var(--green);color:var(--green-ink);border-color:var(--green)}
+.ow-approved{display:flex;gap:14px;align-items:flex-start;margin-top:18px;background:var(--ok-bg);border:1px solid var(--green);border-radius:6px;padding:16px 18px}
+.ow-approved .ow-check{flex:none;width:30px;height:30px;border-radius:50%;background:var(--green);color:var(--green-ink);display:grid;place-items:center;font-weight:700;font-size:16px}
+.ow-approved b{font-family:var(--f-display);font-size:17px}
 .steps{list-style:none;margin:0;padding:0;display:grid}.steps li{position:relative;padding:0 0 18px 30px}.steps li::before{content:"";position:absolute;left:8px;top:22px;bottom:-2px;width:2px;background:var(--line)}.steps li:last-child::before{display:none}
 .steps .mk{position:absolute;left:0;top:4px;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);background:var(--card)}.steps li.done .mk{background:var(--green);border-color:var(--green)}
 .steps li.done .mk::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid var(--green-ink);border-width:0 2px 2px 0;transform:rotate(45deg)}.steps li.done::before{background:var(--green)}
@@ -160,7 +169,7 @@ const eindUur=(slot,duur)=>{const [h,m]=slot.slice(11,16).split(':').map(Number)
 const euro=n=>(Number(n)||0).toLocaleString('nl-BE',{style:'currency',currency:'EUR'});
 const code=new URLSearchParams(location.search).get('c')||'';
 let me=null,kiezen=false,annuleren=false,byDay={},month=null,selDay=null,selSlot=null,busy=false,msg={},ofOpen={},tab='overzicht';
-let owPins=[],owDraft=null,owForId=null,owSel=null;
+let owPins=[],owDraft=null,owForId=null,owSel=null,owView=null,owApprove=false;
 const numEur=v=>{const n=parseFloat(String(v??'').replace(/\s|€/g,'').replace(',','.'));return Number.isFinite(n)?n:0};
 
 async function api(path,body){const r=await fetch('/api/dossier/'+encodeURIComponent(code)+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw Object.assign(new Error(j.error||'Er liep iets mis'),{status:r.status});return j}
@@ -207,9 +216,10 @@ function renderOverzichtDash(){
     if(me.contract.getekend)taken.push({done:true,t:'Contract getekend',sub:'Getekend op '+fmtShort(me.contract.getekend.op.slice(0,10))});
     else taken.push({done:false,t:'Contract tekenen',sub:'Lees het contract na en onderteken online.',tab:'contract',cta:'Teken contract'});
   }
-  const ows=me.ontwerpen||[];const laatsteOw=ows[ows.length-1];
-  if(laatsteOw){
-    if(laatsteOw.ingediendOp)taken.push({done:true,t:'Reactie op ontwerp verstuurd',sub:'Doorgestuurd op '+fmtShort(laatsteOw.ingediendOp.slice(0,10))});
+  const ows=me.ontwerpen||[];const laatsteOw=ows[ows.length-1];const owGoedgekeurd=ows.find(o=>o.goedgekeurd);
+  if(owGoedgekeurd)taken.push({done:true,t:'Ontwerp goedgekeurd',sub:'Definitief goedgekeurd op '+fmtShort(owGoedgekeurd.goedgekeurd.op.slice(0,10))});
+  else if(laatsteOw){
+    if(laatsteOw.ingediendOp)taken.push({done:false,t:'Ontwerp nakijken of goedkeuren',sub:'Je reactie is doorgestuurd. Bekijk nieuwe versies of keur het ontwerp definitief goed.',tab:'ontwerp',cta:'Naar het ontwerp'});
     else taken.push({done:false,t:'Ontwerp bekijken & reageren',sub:'Je ontwerp staat klaar — bekijk het en plaats gerust je opmerkingen.',tab:'ontwerp',cta:'Bekijk ontwerp'});
   }
   const facs=me.facturen||[];const openFac=facs.filter(f=>!f.betaald&&numEur(f.bedrag)>0);
@@ -262,40 +272,73 @@ function renderFacturatie(){
   </section>`;
 }
 document.addEventListener('click',e=>{const t=e.target.closest('[data-dtab]');if(!t)return;tab=t.dataset.dtab;render();window.scrollTo({top:0,behavior:'smooth'})});
-/* ---- ontwerp (Figma-stijl opmerkingen op de afbeelding) ---- */
+/* ---- ontwerp (Figma-stijl opmerkingen op de afbeelding, met versies + goedkeuring) ---- */
 function renderOntwerp(){
   const list=me.ontwerpen||[];
   if(!list.length)return `<section class="blok"><div class="bhead"><h2>Ontwerp</h2></div><div class="card"><p class="note" style="margin:0">Er staat nog geen ontwerp klaar. Zodra ik een ontwerp voor jullie klaarzet, verschijnt het hier en krijg je een seintje per mail.</p></div></section>`;
-  const ow=list[list.length-1];
+  const latest=list[list.length-1];
+  if(!owView||!list.some(o=>o.id===owView))owView=latest.id;
+  const ow=list.find(o=>o.id===owView);
+  const vnum=o=>o.versie||(list.indexOf(o)+1);
+  const approvedOw=list.find(o=>o.goedgekeurd);const anyApproved=!!approvedOw;
+  const isLatest=ow.id===latest.id;
+  const editable=isLatest&&!anyApproved;
   if(owForId!==ow.id){owForId=ow.id;owPins=(ow.comments||[]).map(c=>({id:c.id,x:c.x,y:c.y,tekst:c.tekst}));owDraft=null;owSel=null;}
   const url=`/api/dossier/${encodeURIComponent(code)}/bestand/${esc(ow.bestandId)}`;
   const isImg=(ow.type||'').startsWith('image/');
   const m=msg.ontwerp;
-  const statusPill=ow.ingediendOp?`<span class="pill ok">Reactie verstuurd op ${esc(fmtShort(ow.ingediendOp.slice(0,10)))}</span>`:'<span class="pill">Klaar om te bekijken</span>';
-  const vorige=list.length>1?`<p class="note" style="margin-top:14px">Vorige versies: ${list.slice(0,-1).map((o,i)=>`<a href="/api/dossier/${encodeURIComponent(code)}/bestand/${esc(o.bestandId)}" target="_blank" rel="noopener">versie ${i+1}</a>`).join(' · ')}</p>`:'';
-  if(!isImg){
-    return `<section class="blok"><div class="bhead"><h2>Ontwerp</h2>${statusPill}</div>
-      <div class="card"><p class="note">Je ontwerp staat klaar als bestand. Opmerkingen rechtstreeks op de afbeelding plaatsen kan enkel bij een afbeelding; laat je reactie gerust per mail of telefoon weten.</p>
-      <div class="files"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open ontwerp · ${esc(ow.naam||'ontwerp')}</a></div></div>${vorige}</section>`;
+  const statusPill=ow.goedgekeurd?`<span class="pill ok">Goedgekeurd op ${esc(fmtShort(ow.goedgekeurd.op.slice(0,10)))}</span>`:(ow.ingediendOp?`<span class="pill">Reactie verstuurd op ${esc(fmtShort(ow.ingediendOp.slice(0,10)))}</span>`:'<span class="pill">Klaar om te bekijken</span>');
+  const switcher=list.length>1?`<div class="ow-vers">${list.map(o=>`<button class="ow-vchip${o.id===owView?' on':''}" data-owview="${esc(o.id)}">Versie ${vnum(o)}${o.id===latest.id?' · nieuwste':''}${o.goedgekeurd?' ✓':''}</button>`).join('')}</div>`:'';
+  // Goedkeuringsblok (banner als er al goedgekeurd is, anders knop/bevestiging op de nieuwste versie)
+  let akkoordBlok='';
+  if(anyApproved){
+    const g=approvedOw.goedgekeurd;
+    akkoordBlok=`<div class="ow-approved"><div class="ow-check">✓</div><div><b>Definitief goedgekeurd</b><div class="note" style="margin-top:3px">Versie ${vnum(approvedOw)} werd op ${esc(fmtShort(g.op.slice(0,10)))} goedgekeurd door ${esc(g.naam)}. Hierna gebeuren er geen aanpassingen meer aan dit ontwerp — deze goedkeuring geldt als jullie akkoord.</div></div></div>`;
+  }else if(editable){
+    if(owApprove){
+      akkoordBlok=`<div class="ow-cmp" style="border-color:var(--green)"><p style="margin:0 0 4px;font-weight:600;font-family:var(--f-display)">Ontwerp definitief goedkeuren</p>
+        <p class="note" style="margin:0 0 10px">Let op: na je goedkeuring kan dit ontwerp <b>niet meer aangepast worden</b> en gaat het zo in productie. Je goedkeuring geldt als jullie definitief akkoord.</p>
+        <label class="fld"><span>Je volledige naam</span><input id="owNaam" maxlength="120" placeholder="bv. Lotte Peeters"></label>
+        <label class="chk" style="margin-top:10px"><input type="checkbox" id="owAkkoord"><span>Ik keur dit ontwerp definitief goed en begrijp dat er daarna geen aanpassingen meer gebeuren. Dit geldt als mijn akkoord.</span></label>
+        ${m&&!m.ok?`<p class="err">${esc(m.t)}</p>`:''}
+        <div class="actions" style="margin-top:12px"><button class="btn primary" id="owApproveGo" ${busy?'disabled':''}>${busy?'Even geduld…':'Definitief goedkeuren'}</button><button class="btn ghost" id="owApproveCancel">Annuleer</button></div></div>`;
+    }else{
+      akkoordBlok=`<div class="card" style="margin-top:18px;border-color:var(--green)"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between"><div><b>Helemaal tevreden?</b><div class="note" style="margin-top:3px">Keur het ontwerp definitief goed. Daarna gebeuren er geen aanpassingen meer en geldt dit als jullie akkoord.</div></div><button class="btn primary" id="owApproveOpen">Ontwerp definitief goedkeuren</button></div></div>`;
+    }
   }
-  const pins=owPins.map((p,i)=>`<button class="ow-pin${owSel===p.id?' sel':''}" data-owpin="${esc(p.id)}" style="left:${p.x}%;top:${p.y}%">${i+1}</button>`).join('');
-  const draftPin=owDraft&&!owDraft.editId?`<span class="ow-pin draft" style="left:${owDraft.x}%;top:${owDraft.y}%">+</span>`:'';
-  const composer=owDraft?`<div class="ow-cmp"><div class="note" style="margin-bottom:8px">${owDraft.editId?'Opmerking aanpassen':'Nieuwe opmerking op het aangeduide punt'}</div>
+  if(!isImg){
+    return `<section class="blok"><div class="bhead"><h2>Ontwerp${list.length>1?' · versie '+vnum(ow):''}</h2>${statusPill}</div>
+      ${switcher}
+      <div class="card"><p class="note">Dit ontwerp staat klaar als bestand. Opmerkingen rechtstreeks op de afbeelding plaatsen kan enkel bij een afbeelding (PNG/JPG); laat je reactie gerust per mail of telefoon weten.</p>
+      <div class="files"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open ontwerp · ${esc(ow.naam||'ontwerp')}</a></div></div>
+      ${m&&m.ok?`<p class="ok">${esc(m.t)}</p>`:''}
+      ${akkoordBlok}</section>`;
+  }
+  const pins=owPins.map((p,i)=>editable?`<button class="ow-pin${owSel===p.id?' sel':''}" data-owpin="${esc(p.id)}" style="left:${p.x}%;top:${p.y}%">${i+1}</button>`:`<span class="ow-pin ro" style="left:${p.x}%;top:${p.y}%" title="${esc(p.tekst)}">${i+1}</span>`).join('');
+  const draftPin=editable&&owDraft&&!owDraft.editId?`<span class="ow-pin draft" style="left:${owDraft.x}%;top:${owDraft.y}%">+</span>`:'';
+  const composer=editable&&owDraft?`<div class="ow-cmp"><div class="note" style="margin-bottom:8px">${owDraft.editId?'Opmerking aanpassen':'Nieuwe opmerking op het aangeduide punt'}</div>
      <textarea id="owText" rows="2" maxlength="1000" placeholder="Wat wil je hierover zeggen? bv. mogen de namen iets groter?">${esc(owDraft.tekst||'')}</textarea>
      <div class="actions" style="margin-top:10px"><button class="btn primary small" id="owSave">${owDraft.editId?'Opslaan':'Plaats opmerking'}</button>${owDraft.editId?'<button class="btn ghost small danger" id="owDel">Verwijder</button>':''}<button class="btn ghost small" id="owCancel">Annuleer</button></div></div>`:'';
-  const lijst=owPins.length?`<div class="ow-list">${owPins.map((p,i)=>`<div class="ow-item"><span class="num">${i+1}</span><span class="txt">${esc(p.tekst)}</span><button class="btn ghost small" data-owpin="${esc(p.id)}">Aanpassen</button></div>`).join('')}</div>`:'<p class="note" style="margin-top:14px">Klik ergens op het ontwerp om er je eerste opmerking bij te plaatsen.</p>';
-  return `<section class="blok"><div class="bhead"><h2>Ontwerp</h2>${statusPill}</div>
-    <p class="note" style="margin:-4px 0 14px"><b>Klik op de afbeelding</b> op de plek waar je iets over wil zeggen — net als een speldje. Als al je opmerkingen erop staan, klik je op "Reacties indienen".</p>
-    <div class="ow-canvas" id="ow-canvas"><img id="ow-img" src="${url}" alt="Jullie ontwerp" draggable="false">${pins}${draftPin}</div>
+  const lijst=owPins.length?`<div class="ow-list">${owPins.map((p,i)=>`<div class="ow-item"><span class="num">${i+1}</span><span class="txt">${esc(p.tekst)}</span>${editable?`<button class="btn ghost small" data-owpin="${esc(p.id)}">Aanpassen</button>`:''}</div>`).join('')}</div>`:(editable?'<p class="note" style="margin-top:14px">Klik ergens op het ontwerp om er je eerste opmerking bij te plaatsen.</p>':'<p class="note" style="margin-top:14px">Geen opmerkingen bij deze versie.</p>');
+  const intro=editable?'<p class="note" style="margin:-4px 0 14px"><b>Klik op de afbeelding</b> op de plek waar je iets over wil zeggen — net als een speldje. Als al je opmerkingen erop staan, klik je op "Reacties indienen".</p>':(anyApproved?'':'<p class="note" style="margin:-4px 0 14px">Je bekijkt een <b>oudere versie</b>. Opmerkingen plaatsen kan enkel op de nieuwste versie.</p>');
+  const submitBtn=editable?`<div class="actions"><button class="btn primary" id="owSubmit" ${busy||!owPins.length?'disabled':''}>${ow.ingediendOp?'Reacties opnieuw indienen':'Reacties indienen'}</button>${ow.ingediendOp?'<span class="note">Je kan opmerkingen aanpassen en opnieuw indienen.</span>':''}</div>`:'';
+  return `<section class="blok"><div class="bhead"><h2>Ontwerp${list.length>1?' · versie '+vnum(ow):''}</h2>${statusPill}</div>
+    ${switcher}
+    ${intro}
+    <div class="ow-canvas${editable?'':' ro'}" id="ow-canvas"><img id="ow-img" src="${url}" alt="Jullie ontwerp" draggable="false">${pins}${draftPin}</div>
     ${composer}
     ${lijst}
-    ${m?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}
-    <div class="actions"><button class="btn primary" id="owSubmit" ${busy||!owPins.length?'disabled':''}>${ow.ingediendOp?'Reacties opnieuw indienen':'Reacties indienen'}</button>${ow.ingediendOp?'<span class="note">Je kan opmerkingen aanpassen en opnieuw indienen.</span>':''}</div>
-    ${vorige}</section>`;
+    ${m&&!(owApprove&&!m.ok)?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}
+    ${submitBtn}
+    ${akkoordBlok}</section>`;
 }
 function owFocusCmp(){setTimeout(()=>{const t=$('#owText');if(t){t.focus();const v=t.value;t.value='';t.value=v}},0)}
 document.addEventListener('click',e=>{
   if(tab!=='ontwerp')return;
+  const vch=e.target.closest('[data-owview]');
+  if(vch){owView=vch.dataset.owview;owApprove=false;owDraft=null;owSel=null;msg.ontwerp=null;render();window.scrollTo({top:0,behavior:'smooth'});return}
+  if(e.target.id==='owApproveOpen'){owApprove=true;msg.ontwerp=null;render();setTimeout(()=>{const n=$('#owNaam');if(n)n.focus()},0);return}
+  if(e.target.id==='owApproveCancel'){owApprove=false;msg.ontwerp=null;render();return}
   const pinEl=e.target.closest('[data-owpin]');
   if(pinEl){const id=pinEl.dataset.owpin;const p=owPins.find(x=>x.id===id);if(p){owDraft={x:p.x,y:p.y,tekst:p.tekst,editId:id};owSel=id;render();owFocusCmp();const c=$('#ow-canvas');if(c&&pinEl.closest('.ow-item'))c.scrollIntoView({behavior:'smooth',block:'center'})}return}
   if(e.target.id==='owSave'){const ta=$('#owText');const v=ta?ta.value.trim():'';if(!v){if(ta)ta.focus();return}
@@ -305,16 +348,24 @@ document.addEventListener('click',e=>{
   if(e.target.id==='owDel'){if(owDraft&&owDraft.editId)owPins=owPins.filter(x=>x.id!==owDraft.editId);owDraft=null;owSel=null;render();return}
   if(e.target.id==='owCancel'){owDraft=null;owSel=null;render();return}
   const cv=e.target.closest('#ow-canvas');
-  if(cv){const img=cv.querySelector('img');if(!img)return;const r=img.getBoundingClientRect();if(!r.width||!r.height)return;
+  if(cv){if(cv.classList.contains('ro'))return;const img=cv.querySelector('img');if(!img)return;const r=img.getBoundingClientRect();if(!r.width||!r.height)return;
     const x=Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100)),y=Math.max(0,Math.min(100,(e.clientY-r.top)/r.height*100));
     owDraft={x:Math.round(x*10)/10,y:Math.round(y*10)/10,tekst:'',editId:null};owSel=null;render();owFocusCmp();return}
 });
 document.addEventListener('click',async e=>{
-  if(e.target.id!=='owSubmit'||busy)return;
-  const list=me.ontwerpen||[];const ow=list[list.length-1];if(!ow)return;
-  busy=true;render();
-  try{await api('/ontwerp/'+encodeURIComponent(ow.id)+'/comments',{comments:owPins.map(p=>({x:p.x,y:p.y,tekst:p.tekst}))});owForId=null;await herlaad();msg.ontwerp={ok:true,t:'Bedankt! Je reacties zijn doorgestuurd. Ik bekijk ze en kom erop terug.'}}
-  catch(err){msg.ontwerp={ok:false,t:err.message}}finally{busy=false}render();
+  if(e.target.id==='owSubmit'&&!busy){
+    const list=me.ontwerpen||[];const ow=list[list.length-1];if(!ow)return;
+    busy=true;render();
+    try{await api('/ontwerp/'+encodeURIComponent(ow.id)+'/comments',{comments:owPins.map(p=>({x:p.x,y:p.y,tekst:p.tekst}))});owForId=null;await herlaad();msg.ontwerp={ok:true,t:'Bedankt! Je reacties zijn doorgestuurd. Ik bekijk ze en kom erop terug.'}}
+    catch(err){msg.ontwerp={ok:false,t:err.message}}finally{busy=false}render();return}
+  if(e.target.id==='owApproveGo'&&!busy){
+    const list=me.ontwerpen||[];const ow=list[list.length-1];if(!ow)return;
+    const naam=($('#owNaam')||{}).value||'';const akkoord=!!($('#owAkkoord')&&$('#owAkkoord').checked);
+    if(naam.trim().length<3){msg.ontwerp={ok:false,t:'Vul je volledige naam in.'};render();setTimeout(()=>{const n=$('#owNaam');if(n)n.focus()},0);return}
+    if(!akkoord){msg.ontwerp={ok:false,t:'Vink aan dat je het ontwerp definitief goedkeurt.'};render();return}
+    busy=true;render();
+    try{await api('/ontwerp/'+encodeURIComponent(ow.id)+'/goedkeuren',{naam:naam.trim(),akkoord:true});owApprove=false;owForId=null;await herlaad();msg.ontwerp={ok:true,t:'Bedankt! Je goedkeuring is doorgegeven. Het ontwerp is nu definitief.'}}
+    catch(err){msg.ontwerp={ok:false,t:err.message}}finally{busy=false}render();window.scrollTo({top:0,behavior:'smooth'});return}
 });
 /* ---- afspraak ---- */
 function renderAfspraak(){

@@ -722,7 +722,7 @@ async function api(req, res, url) {
         contract: contractInfo(k), voorschot: k.voorschot || { betaald: false }, bijlages: bijlagesVan(), naGoedkeuringVerstuurdOp: k.naGoedkeuringVerstuurdOp || '',
         facturen: (k.facturen || []).map(f => ({ id: f.id, omschrijving: f.omschrijving || '', bedrag: f.bedrag || '', vervaldatum: f.vervaldatum || '', betaald: !!f.betaald, betaaldOp: f.betaaldOp || '', bestandId: f.bestandId || '', verstuurdOp: f.verstuurdOp || '' })),
         projectTotaal: (num(k.factuurTotaal) > 0 ? num(k.factuurTotaal) : zichtbaar.filter(o => o.status === 'Goedgekeurd').reduce((a, o) => a + offerteTotalen(o).tot, 0)),
-        ontwerpen: (k.ontwerpen || []).filter(o => o.verwittigdOp || o.ingediendOp).map(o => ({ id: o.id, naam: o.naam || 'Ontwerp', bestandId: o.bestandId || '', type: o.type || '', toegevoegd: o.toegevoegd || '', ingediendOp: o.ingediendOp || '', comments: (o.comments || []).map(c => ({ id: c.id, x: c.x, y: c.y, tekst: c.tekst || '' })) })) });
+        ontwerpen: (k.ontwerpen || []).filter(o => o.verwittigdOp || o.ingediendOp).map((o, i) => ({ id: o.id, naam: o.naam || 'Ontwerp', versie: o.versie || (i + 1), bestandId: o.bestandId || '', type: o.type || '', toegevoegd: o.toegevoegd || '', ingediendOp: o.ingediendOp || '', goedgekeurd: o.goedgekeurd ? { op: o.goedgekeurd.op || '', naam: o.goedgekeurd.naam || '' } : null, comments: (o.comments || []).map(c => ({ id: c.id, x: c.x, y: c.y, tekst: c.tekst || '' })) })) });
     }
     if (sub === 'slots' && m === 'GET') return json(res, 200, { actief: !!cfg.actief, duur: cfg.duur, dagen: cfg.actief ? slotsVoorPeriode(cfg, bezetteSlots(kid)) : [] });
     if (sub === 'verplaats' && m === 'POST') {
@@ -807,10 +807,26 @@ async function api(req, res, url) {
       meldAdmin(req, `Contract getekend: ${k.naam}`, mailBasis(k, req, { bericht: `${naam} tekende het contract op ${op.slice(0, 16).replace('T', ' ')} (IP ${clientIp(req)}). De handtekening staat bij de bijlages.` }), 'contract getekend');
       return json(res, 200, { ok: true });
     }
+    const ogMatch = sub.match(/^ontwerp\/([A-Za-z0-9_-]{1,40})\/goedkeuren$/);
+    if (ogMatch && m === 'POST') {
+      const ontwerp = (k.ontwerpen || []).find(o => o.id === ogMatch[1] && (o.verwittigdOp || o.ingediendOp));
+      if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
+      if (ontwerp.goedgekeurd) return json(res, 200, { ok: true, al: true });
+      const b = await readJson(req, 10e3).catch(() => ({}));
+      const naam = String(b.naam || '').trim().slice(0, 120);
+      if (naam.length < 3) return json(res, 400, { error: 'Vul je volledige naam in.' });
+      if (!b.akkoord) return json(res, 400, { error: 'Vink aan dat je het ontwerp definitief goedkeurt.' });
+      ontwerp.goedgekeurd = { op: new Date().toISOString(), naam, ip: clientIp(req) };
+      logboek(k, `Klant keurde het ontwerp "${ontwerp.naam || 'Ontwerp'}" (versie ${ontwerp.versie || '?'}) definitief goed — ${naam}`, 'ontwerp');
+      store.set('klanten', kid, k);
+      meldAdmin(req, `Ontwerp goedgekeurd: ${k.naam}`, mailBasis(k, req, { bericht: `${naam} keurde het ontwerp "${ontwerp.naam || 'Ontwerp'}" (versie ${ontwerp.versie || '?'}) definitief goed op ${new Date().toISOString().slice(0, 16).replace('T', ' ')}. Dit geldt als akkoord; er mogen geen aanpassingen meer gebeuren.` }), 'ontwerp goedgekeurd');
+      return json(res, 200, { ok: true });
+    }
     const ocMatch = sub.match(/^ontwerp\/([A-Za-z0-9_-]{1,40})\/comments$/);
     if (ocMatch && m === 'POST') {
       const ontwerp = (k.ontwerpen || []).find(o => o.id === ocMatch[1] && (o.verwittigdOp || o.ingediendOp));
       if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
+      if (ontwerp.goedgekeurd) return json(res, 400, { error: 'Dit ontwerp is al definitief goedgekeurd; er kunnen geen opmerkingen meer bijkomen.' });
       const b = await readJson(req, 100e3).catch(() => ({}));
       const lijst = Array.isArray(b.comments) ? b.comments : [];
       const comments = lijst.slice(0, 100).map(c => ({
@@ -1118,9 +1134,10 @@ async function api(req, res, url) {
     const k = store.get('klanten', ontwerpMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
     const b = await readJson(req, 10e3).catch(() => ({}));
     const best = bestandOpSchijf(String(b.id || '')); if (!best) return json(res, 400, { error: 'Bestand niet gevonden' });
-    const ontwerp = { id: 'ow' + crypto.randomBytes(6).toString('hex'), naam: String(b.naam || best.naam || 'Ontwerp').slice(0, 200), bestandId: b.id, type: best.type || '', toegevoegd: new Date().toISOString(), verwittigdOp: '', ingediendOp: '', comments: [] };
+    const versie = (k.ontwerpen || []).reduce((mx, o) => Math.max(mx, o.versie || 0), 0) + 1;
+    const ontwerp = { id: 'ow' + crypto.randomBytes(6).toString('hex'), naam: String(b.naam || best.naam || 'Ontwerp').slice(0, 200), versie, bestandId: b.id, type: best.type || '', toegevoegd: new Date().toISOString(), verwittigdOp: '', ingediendOp: '', goedgekeurd: null, comments: [] };
     k.ontwerpen = (k.ontwerpen || []).concat([ontwerp]);
-    logboek(k, `Ontwerp toegevoegd: ${ontwerp.naam}`, 'ontwerp'); store.set('klanten', ontwerpMatch[1], k);
+    logboek(k, `Ontwerp toegevoegd (versie ${versie}): ${ontwerp.naam}`, 'ontwerp'); store.set('klanten', ontwerpMatch[1], k);
     return json(res, 200, { ok: true, ontwerp });
   }
   // Ontwerp verwijderen of de klant verwittigen dat het ontwerp klaarstaat.
