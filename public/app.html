@@ -852,8 +852,8 @@ function renderProductenTree(){
 }
 function updateConditionalSections(){
   const type=get(work,'type')||'Huwelijk';
-  const su=document.getElementById('sec-uitnodiging');if(su)su.style.display=(type!=='Geboorte')?'':'none';
-  const sb=document.getElementById('sec-bedankjes');if(sb)sb.style.display=(type!=='Geboorte')?'':'none';
+  const su=document.getElementById('sec-uitnodiging');if(su)su.style.display=(type!=='Geboorte'&&get(work,'fiche.producten.drukwerk'))?'':'none';
+  const sb=document.getElementById('sec-bedankjes');if(sb)sb.style.display=(type!=='Geboorte'&&get(work,'fiche.producten.bedankjes'))?'':'none';
   const sd=document.getElementById('sec-doopsuiker');if(sd)sd.style.display=(type==='Geboorte'&&get(work,'fiche.producten.doopsuiker'))?'':'none';
   const sbb=document.getElementById('sec-babyborrel');if(sbb)sbb.style.display=(type==='Geboorte'&&get(work,'fiche.producten.babyborrelkaartje'))?'':'none';
 }
@@ -890,7 +890,7 @@ function vKlant(){
       ${txt('fiche.stijl.thema','Thema / concept')}${txt('fiche.stijl.kleuren','Kleuren')}
       ${txt('fiche.stijl.lettertype','Lettertype')}${txt('fiche.stijl.inspiratie','Inspiratie / voorbeelden')}
     </div></section>
-    <section class="sec" id="sec-uitnodiging" style="display:${get(work,'type')!=='Geboorte'?'':'none'}"><h2>Uitnodiging</h2><div class="grid2">
+    <section class="sec" id="sec-uitnodiging" style="display:${(get(work,'type')!=='Geboorte'&&get(work,'fiche.producten.drukwerk'))?'':'none'}"><h2>Uitnodiging</h2><div class="grid2">
       ${txt('fiche.uitnodiging.aantal','Aantal')}${txt('fiche.uitnodiging.refFormaat','Referentie formaat',{ph:'bv. formaat van Sofie & Leo'})}
       ${radio('fiche.uitnodiging.versies','Versies',cfg.lijsten.versies)}
       ${radio('fiche.uitnodiging.opOfferte','Op offerte',cfg.lijsten.opOfferte)}
@@ -1380,7 +1380,7 @@ function optiesBody(groep){
   return opties.map((opt,i)=>optieVeld(groep,opt,i,opties.length)).join('')+`<button type="button" class="btn ghost" data-opt-add="${groep}" style="margin-top:.25rem">+ Optie toevoegen</button>`;
 }
 function optiesSectie(groep){
-  const cfg=OPT_SECTIES[groep],isGeboorte=(get(work,'type')||'Huwelijk')==='Geboorte',show=(cfg.type==='Geboorte'?(isGeboorte&&get(work,'fiche.producten.'+groep)):!isGeboorte);
+  const cfg=OPT_SECTIES[groep],isGeboorte=(get(work,'type')||'Huwelijk')==='Geboorte',typeMatch=(cfg.type==='Geboorte'?isGeboorte:!isGeboorte),show=typeMatch&&get(work,'fiche.producten.'+groep);
   return `<section class="sec" id="sec-${groep}" style="display:${show?'':'none'}"><h2>${esc(cfg.titel)}</h2><div id="${groep}-body">${optiesBody(groep)}</div></section>`;
 }
 function renderOptiesSectie(groep){const b=document.getElementById(groep+'-body');if(b&&work)b.innerHTML=optiesBody(groep);}
@@ -1414,7 +1414,8 @@ document.addEventListener('input',e=>{
   const m=p.match(/^fiche\.(bedankjes|doopsuiker)\.opties\.(\d+)\.(\w+)$/);
   if(m){const g=m[1],idx=parseInt(m[2]),field=m[3];if(!work.fiche)work.fiche={};if(!work.fiche[g])work.fiche[g]={};if(!Array.isArray(work.fiche[g].opties))work.fiche[g].opties=[];while(work.fiche[g].opties.length<=idx)work.fiche[g].opties.push({notities:'',aantal:'',verpakking:'',afwerking:''});work.fiche[g].opties[idx][field]=val;queue('fiche');}
   else{setp(work,p,val); queue(p.split('.')[0]);}
-  /* Uitnodiging & Bedankjes staan bij een huwelijk altijd op de fiche (vaste layout), los van de vinkjes. */
+  if(p==='fiche.producten.drukwerk'){const s=document.getElementById('sec-uitnodiging');if(s)s.style.display=val?'':'none'}
+  if(p==='fiche.producten.bedankjes'){const s=document.getElementById('sec-bedankjes');if(s)s.style.display=val?'':'none'}
   if(p==='fiche.producten.doopsuiker'){const s=document.getElementById('sec-doopsuiker');if(s)s.style.display=val?'':'none'}
   if(p==='fiche.producten.babyborrelkaartje'){const s=document.getElementById('sec-babyborrel');if(s)s.style.display=val?'':'none'}
   if(p==='type'){renderProductenTree();updateConditionalSections()}
