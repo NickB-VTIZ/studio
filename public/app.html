@@ -493,6 +493,12 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
 .ow-clist{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
 .ow-clist li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px}
 .ow-clist .num{flex:none;width:22px;height:22px;border-radius:50%;background:#2C6A4C;color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center}
+.ow-files{display:grid;gap:16px;margin-top:12px}
+.ow-file{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--card)}
+.ow-file-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.ow-drop{margin-top:14px;border:2px dashed var(--line);border-radius:8px;padding:18px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;transition:border-color .15s,background .15s}
+.ow-drop:hover,.ow-drop.drag{border-color:#2C6A4C;background:var(--sunk)}
+.ow-drop u{color:#2C6A4C}
 </style>
 </head>
 <body>
@@ -1105,25 +1111,31 @@ function renderBijlagesTab(){
    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px"><select id="bjSoort" style="border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:7px 10px"><option value="factuur">Voorschotfactuur</option><option value="contract">Contract</option><option value="ander">Andere bijlage</option></select><label class="btn small" style="cursor:pointer">+ Bestand toevoegen (PDF/afbeelding)<input type="file" id="bjFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden></label><span class="hint" id="bjMsg"></span></div></section>`;
 }
 /* ---------- ontwerp tab (admin) ---------- */
+function owFiles(o){return Array.isArray(o.bestanden)&&o.bestanden.length?o.bestanden:(o.bestandId?[{id:o.bestandId,naam:o.naam,type:o.type}]:[])}
 function renderOntwerpTab(){
   const box=$('#tab-ontwerp');if(!box||!work)return;const k=work;const list=k.ontwerpen||[];
   const anyApproved=list.some(o=>o.goedgekeurd);
-  const kaart=o=>{
-    const vnr=o.versie||(list.indexOf(o)+1);
-    const isImg=(o.type||'').startsWith('image/');const url='/_blob/'+esc(o.bestandId);
-    const cs=o.comments||[];
+  const fileBlok=(o,f,first)=>{
+    const isImg=(f.type||'').startsWith('image/');const url='/_blob/'+esc(f.id);
+    const cs=(o.comments||[]).filter(c=>(c.bestandId||'')===f.id||(!c.bestandId&&first));
     const pins=cs.map((c,i)=>`<span class="ow-pin" style="left:${c.x}%;top:${c.y}%" title="${esc(c.tekst)}">${i+1}</span>`).join('');
-    const canvas=isImg?`<div class="ow-canvas${o.goedgekeurd?' ow-ok':''}"><img src="${url}" alt="Ontwerp ${esc(o.naam||'')}">${pins}</div>`:`<div class="files" style="margin-top:10px"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open ontwerp · ${esc(o.naam||'bestand')}</a></div>`;
-    const lijst=cs.length?`<ol class="ow-clist">${cs.map((c,i)=>`<li><span class="num">${i+1}</span><span>${esc(c.tekst)}</span></li>`).join('')}</ol>`:(o.verwittigdOp?'<p class="hint" style="margin-top:10px">De klant heeft nog geen opmerkingen ingediend.</p>':'');
-    const status=o.goedgekeurd?`<span class="chip g-ok">✓ Goedgekeurd · ${esc(o.goedgekeurd.naam)} · ${fmt(o.goedgekeurd.op.slice(0,10))}</span>`:(o.ingediendOp?`<span class="chip g-ok">${cs.length} reactie${cs.length===1?'':'s'} · ${fmt(o.ingediendOp.slice(0,10))}</span>`:(o.verwittigdOp?`<span class="chip">verwittigd ${fmt(o.verwittigdOp)}</span>`:'<span class="chip">nog niet verstuurd</span>'));
-    const verwBtn=`<button class="btn small" data-owverwittig="${esc(o.id)}" ${k.email?'':'disabled'} title="${k.email?'Mailt de klant dat deze versie klaarstaat':'Vul eerst een e-mailadres in op de fiche'}">${o.verwittigdOp?'Opnieuw verwittigen':'Verwittig klant'}</button>`;
-    const akkoord=o.goedgekeurd?`<p class="hint" style="margin-top:10px">🔒 Definitief goedgekeurd door <b>${esc(o.goedgekeurd.naam)}</b> op ${fmt(o.goedgekeurd.op.slice(0,10))} — geldt als akkoord, geen aanpassingen meer.</p>`:'';
-    return `<div class="ow-card${o.goedgekeurd?' ow-card-ok':''}"><div class="ow-card-head"><div><b>Versie ${vnr}</b> <span class="hint">· ${esc(o.naam||'Ontwerp')} · toegevoegd ${fmt((o.toegevoegd||'').slice(0,10))}</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${status}${verwBtn}<button class="btn small ghost danger" data-owdel="${esc(o.id)}" data-naam="${esc(o.naam||'')}">Verwijder</button></div></div>${canvas}${akkoord}${lijst}</div>`;
+    const body=isImg?`<div class="ow-canvas${o.goedgekeurd?' ow-ok':''}"><img src="${url}" alt="${esc(f.naam||'')}">${pins}</div>`:`<div class="files" style="margin-top:8px"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open · ${esc(f.naam||'bestand')}</a></div>`;
+    const lijst=cs.length?`<ol class="ow-clist">${cs.map((c,i)=>`<li><span class="num">${i+1}</span><span>${esc(c.tekst)}</span></li>`).join('')}</ol>`:'';
+    const del=o.goedgekeurd?'':`<button class="iconbtn" data-owfiledel="${esc(o.id)}:${esc(f.id)}" data-naam="${esc(f.naam||'')}" title="Bestand verwijderen" aria-label="Bestand verwijderen">×</button>`;
+    return `<div class="ow-file"><div class="ow-file-head"><span class="hint">${isImg?'🖼':'📄'} ${esc(f.naam||'bestand')}</span>${del}</div>${body}${lijst}</div>`;
   };
-  box.innerHTML=`<section class="sec"><h2>Ontwerp</h2><p class="hint">Voeg hier het ontwerp toe (afbeelding of PDF) en verwittig de klant. Je kan meerdere versies toevoegen — elke upload is een nieuwe versie. De klant bekijkt ze in zijn dossier en plaatst opmerkingen rechtstreeks op de afbeelding, net als in Figma. Zodra de klant indient of een versie definitief goedkeurt, krijg je een mail en zie je het hier.</p>
+  const kaart=o=>{
+    const vnr=o.versie||(list.indexOf(o)+1);const files=owFiles(o);
+    const status=o.goedgekeurd?`<span class="chip g-ok">✓ Goedgekeurd · ${esc(o.goedgekeurd.naam)} · ${fmt(o.goedgekeurd.op.slice(0,10))}</span>`:(o.ingediendOp?`<span class="chip g-ok">${(o.comments||[]).length} reactie${(o.comments||[]).length===1?'':'s'} · ${fmt(o.ingediendOp.slice(0,10))}</span>`:(o.verwittigdOp?`<span class="chip">verwittigd ${fmt(o.verwittigdOp)}</span>`:'<span class="chip">nog niet verstuurd</span>'));
+    const verwBtn=`<button class="btn small" data-owverwittig="${esc(o.id)}" ${(k.email&&files.length)?'':'disabled'} title="${!files.length?'Voeg eerst een bestand toe aan deze versie':k.email?'Mailt de klant dat deze versie klaarstaat':'Vul eerst een e-mailadres in op de fiche'}">${o.verwittigdOp?'Opnieuw verwittigen':'Verwittig klant'}</button>`;
+    const akkoord=o.goedgekeurd?`<p class="hint" style="margin:10px 0 0">🔒 Definitief goedgekeurd door <b>${esc(o.goedgekeurd.naam)}</b> op ${fmt(o.goedgekeurd.op.slice(0,10))} — geldt als akkoord, geen aanpassingen meer.</p>`:'';
+    const drop=o.goedgekeurd?'':`<div class="ow-drop" data-owdrop="${esc(o.id)}" tabindex="0"><span>Sleep bestanden hierheen of <u>klik om te uploaden</u></span><br><small>PNG, JPG, WebP of PDF · meerdere tegelijk kan</small><input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" multiple hidden></div>`;
+    return `<div class="ow-card${o.goedgekeurd?' ow-card-ok':''}"><div class="ow-card-head"><div><b>Versie ${vnr}</b> <span class="hint">· ${files.length} bestand${files.length===1?'':'en'} · ${fmt((o.toegevoegd||'').slice(0,10))}</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${status}${verwBtn}<button class="btn small ghost danger" data-owdel="${esc(o.id)}" data-naam="Versie ${vnr}">Versie verwijderen</button></div></div>${akkoord}${files.length?`<div class="ow-files">${files.map((f,i)=>fileBlok(o,f,i===0)).join('')}</div>`:'<p class="hint" style="margin:10px 0 6px">Nog geen bestanden in deze versie — sleep ze hieronder erin.</p>'}${drop}</div>`;
+  };
+  box.innerHTML=`<section class="sec"><h2>Ontwerp</h2><p class="hint">Maak een versie aan en upload er één of meerdere bestanden in (sleep ze erin of klik). De klant bekijkt elke versie in zijn dossier en plaatst opmerkingen rechtstreeks op de afbeeldingen, net als in Figma. Zodra de klant indient of een versie goedkeurt, krijg je een mail.</p>
    ${anyApproved?'<p class="hint" style="margin-top:8px;color:var(--g-klaar)">✓ De klant heeft een versie definitief goedgekeurd — dit geldt als akkoord.</p>':''}
-   <div style="margin-top:14px"><label class="btn small" style="cursor:pointer">${list.length?'+ Nieuwe versie toevoegen':'+ Ontwerp toevoegen'} (afbeelding of PDF)<input type="file" id="owFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden></label> <span class="hint" id="owMsg"></span></div>
-   ${list.length?`<div class="ow-admin">${list.slice().reverse().map(kaart).join('')}</div>`:'<p class="hint" style="margin-top:16px">Nog geen ontwerp toegevoegd. Tip: upload een afbeelding (PNG/JPG) zodat de klant er opmerkingen op kan plaatsen.</p>'}</section>`;
+   <div style="margin-top:14px"><button class="btn small" id="owNieuweVersie">+ Nieuwe versie aanmaken</button> <span class="hint" id="owMsg"></span></div>
+   ${list.length?`<div class="ow-admin">${list.slice().reverse().map(kaart).join('')}</div>`:'<p class="hint" style="margin-top:16px">Nog geen versie. Klik op "Nieuwe versie aanmaken" en sleep er je ontwerpbestanden in.</p>'}</section>`;
 }
 /* ---------- facturatie tab (admin) ---------- */
 function facRow(f,i,bijlages){
@@ -1264,15 +1276,18 @@ document.addEventListener('click',e=>{
   if(e.target.closest('#mailSend')){verstuurMailModal();return}
 });
 document.addEventListener('click',async e=>{
-  const t=e.target.closest('#vpAnnuleer,#vsToggle,#ngSend,[data-bjdel],[data-ofmail]');if(!t||!work)return;
+  const t=e.target.closest('#vpAnnuleer,#vsToggle,#ngSend,[data-bjdel],[data-ofmail],[data-owverwittig],[data-owdel],[data-owfiledel],#owNieuweVersie,[data-owdrop]');if(!t||!work)return;
   if(t.id==='vpAnnuleer'){const reden=prompt('Afspraak van '+fmtDT(work.kennismaking)+' annuleren? Het agenda-item wordt verwijderd en de fiche gaat naar "Gesprek geannuleerd".\n\nReden (optioneel, komt in de mail naar de klant):');if(reden===null)return;
     t.disabled=true;try{const r=await klantPost('/annuleer',{reden});toast('Afspraak geannuleerd'+(r.gemaild?' — klant verwittigd':''));await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
   if(t.id==='vsToggle'){const vs=work.voorschot||{};t.disabled=true;try{await klantPost('/voorschot',{betaald:!vs.betaald});toast(vs.betaald?'Voorschot op niet betaald':'Voorschot als betaald gemarkeerd');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
   if(t.id==='ngSend'){openMailModal('nagoedkeuring');return}
   if(t.dataset.bjdel){if(!confirm('Bijlage "'+t.dataset.naam+'" verwijderen?'))return;try{await klantPost('/bijlage/'+t.dataset.bjdel,null);toast('Bijlage verwijderd');await herlaadKlant()}catch(err){toast(err.message)}return}
   if(t.dataset.ofmail){const o=findOf(t.dataset.ofmail);if(!o)return;openMailModal('offerte',o.id);return}
+  if(t.id==='owNieuweVersie'){t.disabled=true;try{await klantPost('/ontwerp',{});toast('Nieuwe versie aangemaakt — sleep er bestanden in');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
+  if(t.dataset.owdrop){if(e.target.tagName!=='INPUT'){const inp=t.querySelector('input[type=file]');if(inp)inp.click()}return}
   if(t.dataset.owverwittig){t.disabled=true;const was=t.textContent;t.textContent='Versturen…';try{const r=await klantPost('/ontwerp/'+t.dataset.owverwittig+'/verwittig',{});toast('Klant verwittigd per mail');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false;t.textContent=was}return}
-  if(t.dataset.owdel){if(!confirm('Ontwerp "'+(t.dataset.naam||'')+'" verwijderen? Ook de opmerkingen van de klant gaan dan verloren.'))return;try{await klantPost('/ontwerp/'+t.dataset.owdel,null);toast('Ontwerp verwijderd');await herlaadKlant()}catch(err){toast(err.message)}return}
+  if(t.dataset.owfiledel){const [owid,fid]=t.dataset.owfiledel.split(':');if(!confirm('Bestand "'+(t.dataset.naam||'')+'" verwijderen uit deze versie?'))return;try{await klantPost('/ontwerp/'+owid+'/bestand/'+fid,null);toast('Bestand verwijderd');await herlaadKlant()}catch(err){toast(err.message)}return}
+  if(t.dataset.owdel){if(!confirm((t.dataset.naam||'Deze versie')+' verwijderen? Ook de bestanden en opmerkingen van de klant gaan dan verloren.'))return;try{await klantPost('/ontwerp/'+t.dataset.owdel,null);toast('Versie verwijderd');await herlaadKlant()}catch(err){toast(err.message)}return}
 });
 document.addEventListener('change',async e=>{
   const inp=e.target;if(inp.id!=='bjFile'||!work)return;const f=inp.files&&inp.files[0];if(!f)return;const soort=($('#bjSoort')||{}).value||'ander';const msg=$('#bjMsg');
@@ -1280,12 +1295,24 @@ document.addEventListener('change',async e=>{
   if(msg)msg.textContent='Opladen…';
   try{const r=await assets.upload(f,{type});await klantPost('/bijlage',{id:r.id,naam:f.name,soort});toast('Bijlage toegevoegd');await herlaadKlant()}catch(err){if(msg)msg.textContent=err.message||'Opladen mislukt'}
 });
+async function owUpload(fileList,owid){
+  const msg=$('#owMsg');const files=[...(fileList||[])];if(!files.length||!owid)return;
+  if(!assets){toast('Opladen kan hier niet');return}
+  let n=0;if(msg)msg.textContent='Opladen…';
+  for(const f of files){
+    const type=f.type||(f.name.toLowerCase().endsWith('.pdf')?'application/pdf':'');
+    if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(type)){if(msg)msg.textContent=f.name+': enkel PDF, PNG, JPG of WebP';continue}
+    try{const r=await assets.upload(f,{type});await klantPost('/ontwerp/'+owid+'/bestand',{id:r.id,naam:f.name});n++}catch(err){if(msg)msg.textContent=f.name+': '+(err.message||'opladen mislukt')}
+  }
+  if(n){if(msg)msg.textContent='';toast(n+' bestand'+(n===1?'':'en')+' toegevoegd')}await herlaadKlant();
+}
 document.addEventListener('change',async e=>{
-  const inp=e.target;if(inp.id!=='owFile'||!work)return;const f=inp.files&&inp.files[0];if(!f)return;const msg=$('#owMsg');
-  const type=f.type||(f.name.toLowerCase().endsWith('.pdf')?'application/pdf':'');if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(type)){if(msg)msg.textContent='Enkel PDF, PNG, JPG of WebP';return}
-  if(msg)msg.textContent='Opladen…';
-  try{const r=await assets.upload(f,{type});await klantPost('/ontwerp',{id:r.id,naam:f.name});toast('Ontwerp toegevoegd');await herlaadKlant()}catch(err){if(msg)msg.textContent=err.message||'Opladen mislukt'}
+  const inp=e.target.closest('.ow-drop input[type=file]');if(!inp||!work)return;const drop=inp.closest('.ow-drop');
+  await owUpload(inp.files,drop.dataset.owdrop);try{inp.value=''}catch(_){}
 });
+document.addEventListener('dragover',e=>{const d=e.target.closest('.ow-drop');if(d){e.preventDefault();d.classList.add('drag')}});
+document.addEventListener('dragleave',e=>{const d=e.target.closest('.ow-drop');if(d&&!d.contains(e.relatedTarget))d.classList.remove('drag')});
+document.addEventListener('drop',e=>{const d=e.target.closest('.ow-drop');if(!d||!work)return;e.preventDefault();d.classList.remove('drag');owUpload(e.dataTransfer.files,d.dataset.owdrop)});
 
 /* ---------- saving ---------- */
 function setSave(t){const el=$('#savestate');if(el)el.textContent=t}

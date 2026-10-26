@@ -106,6 +106,8 @@ function klantViaWijzigCode(code) { if (!code || code.length < 8) return null; r
 const num = v => { const n = parseFloat(String(v ?? '').replace(/\s|€/g, '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
 function offerteTotalen(o) { const sub = (o.regels || []).reduce((a, r) => a + num(r.aantal) * num(r.prijs), 0); const kort = num(o.korting); const basis = Math.max(0, sub - kort); const btw = basis * num(o.btw) / 100; return { sub, kort, basis, btw, tot: basis + btw }; }
 const euro = n => (Number(n) || 0).toLocaleString('nl-BE', { style: 'currency', currency: 'EUR' });
+// Bestanden van een ontwerp-versie; migreert oude enkel-bestand-versies (bestandId) naar een lijst.
+function owBestanden(o) { if (Array.isArray(o.bestanden) && o.bestanden.length) return o.bestanden; if (o.bestandId) return [{ id: o.bestandId, naam: o.naam || 'Ontwerp', type: o.type || '' }]; return []; }
 
 // Agenda (Outlook/Teams) en Zoom laten volgen na een gewijzigd tijdstip. Gooit niet; geeft een lijst problemen terug.
 async function syncAgenda(id) {
@@ -722,7 +724,7 @@ async function api(req, res, url) {
         contract: contractInfo(k), voorschot: k.voorschot || { betaald: false }, bijlages: bijlagesVan(), naGoedkeuringVerstuurdOp: k.naGoedkeuringVerstuurdOp || '',
         facturen: (k.facturen || []).map(f => ({ id: f.id, omschrijving: f.omschrijving || '', bedrag: f.bedrag || '', vervaldatum: f.vervaldatum || '', betaald: !!f.betaald, betaaldOp: f.betaaldOp || '', bestandId: f.bestandId || '', verstuurdOp: f.verstuurdOp || '' })),
         projectTotaal: (num(k.factuurTotaal) > 0 ? num(k.factuurTotaal) : zichtbaar.filter(o => o.status === 'Goedgekeurd').reduce((a, o) => a + offerteTotalen(o).tot, 0)),
-        ontwerpen: (k.ontwerpen || []).filter(o => o.verwittigdOp || o.ingediendOp).map((o, i) => ({ id: o.id, naam: o.naam || 'Ontwerp', versie: o.versie || (i + 1), bestandId: o.bestandId || '', type: o.type || '', toegevoegd: o.toegevoegd || '', ingediendOp: o.ingediendOp || '', goedgekeurd: o.goedgekeurd ? { op: o.goedgekeurd.op || '', naam: o.goedgekeurd.naam || '' } : null, comments: (o.comments || []).map(c => ({ id: c.id, x: c.x, y: c.y, tekst: c.tekst || '' })) })) });
+        ontwerpen: (k.ontwerpen || []).filter(o => o.verwittigdOp || o.ingediendOp).map((o, i) => ({ id: o.id, naam: o.naam || ('Versie ' + (o.versie || (i + 1))), versie: o.versie || (i + 1), bestanden: owBestanden(o).map(f => ({ id: f.id, naam: f.naam || 'Ontwerp', type: f.type || '' })), toegevoegd: o.toegevoegd || '', ingediendOp: o.ingediendOp || '', goedgekeurd: o.goedgekeurd ? { op: o.goedgekeurd.op || '', naam: o.goedgekeurd.naam || '' } : null, comments: (o.comments || []).map(c => ({ id: c.id, bestandId: c.bestandId || '', x: c.x, y: c.y, tekst: c.tekst || '' })) })) });
     }
     if (sub === 'slots' && m === 'GET') return json(res, 200, { actief: !!cfg.actief, duur: cfg.duur, dagen: cfg.actief ? slotsVoorPeriode(cfg, bezetteSlots(kid)) : [] });
     if (sub === 'verplaats' && m === 'POST') {
@@ -739,7 +741,7 @@ async function api(req, res, url) {
     const bm = sub.match(/^bestand\/([a-f0-9]{32})$/);
     if (bm && m === 'GET') {
       const factuurIds = (k.facturen || []).map(f => f.bestandId).filter(Boolean);
-      const ontwerpIds = (k.ontwerpen || []).filter(o => o.verwittigdOp || o.ingediendOp).map(o => o.bestandId).filter(Boolean);
+      const ontwerpIds = (k.ontwerpen || []).filter(o => o.verwittigdOp || o.ingediendOp).flatMap(o => owBestanden(o).map(f => f.id)).filter(Boolean);
       if (!bijlagesVan().some(f => f.id === bm[1]) && !factuurIds.includes(bm[1]) && !ontwerpIds.includes(bm[1])) return text(res, 404, 'Niet gevonden');
       const b = bestandOpSchijf(bm[1]); if (!b) return text(res, 404, 'Niet gevonden');
       return serveFile(res, b.pad, { 'Cache-Control': 'private, max-age=3600', 'Content-Disposition': 'inline' });
@@ -827,10 +829,12 @@ async function api(req, res, url) {
       const ontwerp = (k.ontwerpen || []).find(o => o.id === ocMatch[1] && (o.verwittigdOp || o.ingediendOp));
       if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
       if (ontwerp.goedgekeurd) return json(res, 400, { error: 'Dit ontwerp is al definitief goedgekeurd; er kunnen geen opmerkingen meer bijkomen.' });
-      const b = await readJson(req, 100e3).catch(() => ({}));
+      const b = await readJson(req, 200e3).catch(() => ({}));
       const lijst = Array.isArray(b.comments) ? b.comments : [];
-      const comments = lijst.slice(0, 100).map(c => ({
+      const files = owBestanden(ontwerp); const geldigeIds = new Set(files.map(f => f.id)); const standaardId = files[0] ? files[0].id : '';
+      const comments = lijst.slice(0, 200).map(c => ({
         id: 'c' + crypto.randomBytes(6).toString('hex'),
+        bestandId: geldigeIds.has(String(c.bestandId)) ? String(c.bestandId) : standaardId,
         x: Math.max(0, Math.min(100, num(c.x))), y: Math.max(0, Math.min(100, num(c.y))),
         tekst: String(c.tekst || '').trim().slice(0, 1000)
       })).filter(c => c.tekst);
@@ -1128,17 +1132,42 @@ async function api(req, res, url) {
     store.set('klanten', bijlageMatch[1], k);
     return json(res, 200, { ok: true });
   }
-  // Ontwerp toevoegen aan een klantdossier (bestand komt binnen via /api/upload).
+  // Nieuwe ontwerp-versie aanmaken (optioneel meteen met een eerste bestand; bestanden komen binnen via /api/upload).
   const ontwerpMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/ontwerp$/);
   if (ontwerpMatch && m === 'POST') {
     const k = store.get('klanten', ontwerpMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
     const b = await readJson(req, 10e3).catch(() => ({}));
-    const best = bestandOpSchijf(String(b.id || '')); if (!best) return json(res, 400, { error: 'Bestand niet gevonden' });
+    const bestanden = [];
+    if (b.id) { const best = bestandOpSchijf(String(b.id)); if (!best) return json(res, 400, { error: 'Bestand niet gevonden' }); bestanden.push({ id: b.id, naam: String(b.naam || best.naam || 'Ontwerp').slice(0, 200), type: best.type || '' }); }
     const versie = (k.ontwerpen || []).reduce((mx, o) => Math.max(mx, o.versie || 0), 0) + 1;
-    const ontwerp = { id: 'ow' + crypto.randomBytes(6).toString('hex'), naam: String(b.naam || best.naam || 'Ontwerp').slice(0, 200), versie, bestandId: b.id, type: best.type || '', toegevoegd: new Date().toISOString(), verwittigdOp: '', ingediendOp: '', goedgekeurd: null, comments: [] };
+    const ontwerp = { id: 'ow' + crypto.randomBytes(6).toString('hex'), naam: String(b.naam || 'Versie ' + versie).slice(0, 200), versie, bestanden, toegevoegd: new Date().toISOString(), verwittigdOp: '', ingediendOp: '', goedgekeurd: null, comments: [] };
     k.ontwerpen = (k.ontwerpen || []).concat([ontwerp]);
-    logboek(k, `Ontwerp toegevoegd (versie ${versie}): ${ontwerp.naam}`, 'ontwerp'); store.set('klanten', ontwerpMatch[1], k);
+    logboek(k, `Ontwerp-versie ${versie} aangemaakt${bestanden.length ? ' met ' + bestanden.length + ' bestand' : ''}`, 'ontwerp'); store.set('klanten', ontwerpMatch[1], k);
     return json(res, 200, { ok: true, ontwerp });
+  }
+  // Bestand toevoegen aan / verwijderen uit een ontwerp-versie.
+  const owFileMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/ontwerp\/([A-Za-z0-9_-]{1,40})\/bestand(?:\/([a-f0-9]{32}))?$/);
+  if (owFileMatch && (m === 'POST' || m === 'DELETE')) {
+    const k = store.get('klanten', owFileMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    const ontwerp = (k.ontwerpen || []).find(o => o.id === owFileMatch[2]); if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
+    if (ontwerp.goedgekeurd) return json(res, 400, { error: 'Deze versie is al goedgekeurd en kan niet meer gewijzigd worden.' });
+    ontwerp.bestanden = owBestanden(ontwerp).slice(); delete ontwerp.bestandId; delete ontwerp.type;
+    if (m === 'POST' && !owFileMatch[3]) {
+      const b = await readJson(req, 10e3).catch(() => ({}));
+      const best = bestandOpSchijf(String(b.id || '')); if (!best) return json(res, 400, { error: 'Bestand niet gevonden' });
+      if (!ontwerp.bestanden.some(f => f.id === b.id)) ontwerp.bestanden.push({ id: b.id, naam: String(b.naam || best.naam || 'bestand').slice(0, 200), type: best.type || '' });
+      logboek(k, `Bestand toegevoegd aan ontwerp-versie ${ontwerp.versie || '?'}: ${b.naam || best.naam}`, 'ontwerp'); store.set('klanten', owFileMatch[1], k);
+      return json(res, 200, { ok: true, bestanden: ontwerp.bestanden });
+    }
+    if (m === 'DELETE' && owFileMatch[3]) {
+      const fid = owFileMatch[3];
+      ontwerp.bestanden = ontwerp.bestanden.filter(f => f.id !== fid);
+      ontwerp.comments = (ontwerp.comments || []).filter(c => c.bestandId !== fid);
+      for (const x of fs.readdirSync(UPLOAD_DIR)) if (x.startsWith(fid)) try { fs.unlinkSync(path.join(UPLOAD_DIR, x)); } catch (e) {}
+      logboek(k, `Bestand verwijderd uit ontwerp-versie ${ontwerp.versie || '?'}`, 'ontwerp'); store.set('klanten', owFileMatch[1], k);
+      return json(res, 200, { ok: true, bestanden: ontwerp.bestanden });
+    }
+    return json(res, 404, { error: 'Onbekende route' });
   }
   // Ontwerp verwijderen of de klant verwittigen dat het ontwerp klaarstaat.
   const ontwerpIdMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/ontwerp\/([A-Za-z0-9_-]{1,40})(?:\/(verwittig))?$/);
@@ -1147,12 +1176,13 @@ async function api(req, res, url) {
     const ontwerp = (k.ontwerpen || []).find(o => o.id === ontwerpIdMatch[2]); if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
     if (m === 'DELETE') {
       k.ontwerpen = (k.ontwerpen || []).filter(o => o.id !== ontwerp.id);
-      for (const x of fs.readdirSync(UPLOAD_DIR)) if (x.startsWith(ontwerp.bestandId)) try { fs.unlinkSync(path.join(UPLOAD_DIR, x)); } catch (e) {}
-      logboek(k, `Ontwerp verwijderd: ${ontwerp.naam || 'Ontwerp'}`, 'ontwerp'); store.set('klanten', ontwerpIdMatch[1], k);
+      for (const f of owBestanden(ontwerp)) for (const x of fs.readdirSync(UPLOAD_DIR)) if (x.startsWith(f.id)) try { fs.unlinkSync(path.join(UPLOAD_DIR, x)); } catch (e) {}
+      logboek(k, `Ontwerp-versie ${ontwerp.versie || '?'} verwijderd`, 'ontwerp'); store.set('klanten', ontwerpIdMatch[1], k);
       return json(res, 200, { ok: true });
     }
     // verwittig: mail de klant dat het ontwerp klaarstaat
     if (ontwerpIdMatch[3] === 'verwittig') {
+      if (!owBestanden(ontwerp).length) return json(res, 400, { error: 'Voeg eerst minstens één bestand toe aan deze versie.' });
       if (!mailActief()) return json(res, 400, { error: 'E-mail is niet ingesteld (zie Koppelingen).' });
       if (!k.email) return json(res, 400, { error: 'Deze klant heeft nog geen e-mailadres op de fiche.' });
       if (!k.wijzigCode) { k.wijzigCode = crypto.randomBytes(9).toString('base64url'); }

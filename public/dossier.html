@@ -74,6 +74,9 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 .ow-item{display:flex;gap:10px;align-items:flex-start;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:10px 12px}
 .ow-item .num{flex:none;width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--green-ink);font-size:12px;font-weight:700;display:grid;place-items:center}
 .ow-item .txt{flex:1;font-size:14.5px;white-space:pre-wrap;word-break:break-word}
+.ow-fileblokken{display:grid;gap:26px}
+.ow-fileblok{display:grid;gap:0}
+.ow-fname{font-family:var(--f-display);font-weight:600;font-size:15px;margin:0 0 8px;color:var(--ink)}
 .ow-canvas.ro{cursor:default}
 .ow-pin.ro{cursor:default}
 .ow-vers{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
@@ -283,9 +286,8 @@ function renderOntwerp(){
   const approvedOw=list.find(o=>o.goedgekeurd);const anyApproved=!!approvedOw;
   const isLatest=ow.id===latest.id;
   const editable=isLatest&&!anyApproved;
-  if(owForId!==ow.id){owForId=ow.id;owPins=(ow.comments||[]).map(c=>({id:c.id,x:c.x,y:c.y,tekst:c.tekst}));owDraft=null;owSel=null;}
-  const url=`/api/dossier/${encodeURIComponent(code)}/bestand/${esc(ow.bestandId)}`;
-  const isImg=(ow.type||'').startsWith('image/');
+  const files=ow.bestanden||[];
+  if(owForId!==ow.id){owForId=ow.id;owPins=(ow.comments||[]).map(c=>({id:c.id,bestandId:c.bestandId||(files[0]||{}).id||'',x:c.x,y:c.y,tekst:c.tekst}));owDraft=null;owSel=null;}
   const m=msg.ontwerp;
   const statusPill=ow.goedgekeurd?`<span class="pill ok">Goedgekeurd op ${esc(fmtShort(ow.goedgekeurd.op.slice(0,10)))}</span>`:(ow.ingediendOp?`<span class="pill">Reactie verstuurd op ${esc(fmtShort(ow.ingediendOp.slice(0,10)))}</span>`:'<span class="pill">Klaar om te bekijken</span>');
   const switcher=list.length>1?`<div class="ow-vers">${list.map(o=>`<button class="ow-vchip${o.id===owView?' on':''}" data-owview="${esc(o.id)}">Versie ${vnum(o)}${o.id===latest.id?' · nieuwste':''}${o.goedgekeurd?' ✓':''}</button>`).join('')}</div>`:'';
@@ -303,32 +305,37 @@ function renderOntwerp(){
         ${m&&!m.ok?`<p class="err">${esc(m.t)}</p>`:''}
         <div class="actions" style="margin-top:12px"><button class="btn primary" id="owApproveGo" ${busy?'disabled':''}>${busy?'Even geduld…':'Definitief goedkeuren'}</button><button class="btn ghost" id="owApproveCancel">Annuleer</button></div></div>`;
     }else{
-      akkoordBlok=`<div class="card" style="margin-top:18px;border-color:var(--green)"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between"><div><b>Helemaal tevreden?</b><div class="note" style="margin-top:3px">Keur het ontwerp definitief goed. Daarna gebeuren er geen aanpassingen meer en geldt dit als jullie akkoord.</div></div><button class="btn primary" id="owApproveOpen">Ontwerp definitief goedkeuren</button></div></div>`;
+      akkoordBlok=`<div class="card" style="margin-top:18px;border-color:var(--green)"><div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between"><div><b>Helemaal tevreden?</b><div class="note" style="margin-top:3px">Keur het volledige ontwerp (alle bestanden) definitief goed. Daarna gebeuren er geen aanpassingen meer en geldt dit als jullie akkoord.</div></div><button class="btn primary" id="owApproveOpen">Ontwerp definitief goedkeuren</button></div></div>`;
     }
   }
-  if(!isImg){
-    return `<section class="blok"><div class="bhead"><h2>Ontwerp${list.length>1?' · versie '+vnum(ow):''}</h2>${statusPill}</div>
-      ${switcher}
-      <div class="card"><p class="note">Dit ontwerp staat klaar als bestand. Opmerkingen rechtstreeks op de afbeelding plaatsen kan enkel bij een afbeelding (PNG/JPG); laat je reactie gerust per mail of telefoon weten.</p>
-      <div class="files"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open ontwerp · ${esc(ow.naam||'ontwerp')}</a></div></div>
-      ${m&&m.ok?`<p class="ok">${esc(m.t)}</p>`:''}
-      ${akkoordBlok}</section>`;
-  }
-  const pins=owPins.map((p,i)=>editable?`<button class="ow-pin${owSel===p.id?' sel':''}" data-owpin="${esc(p.id)}" style="left:${p.x}%;top:${p.y}%">${i+1}</button>`:`<span class="ow-pin ro" style="left:${p.x}%;top:${p.y}%" title="${esc(p.tekst)}">${i+1}</span>`).join('');
-  const draftPin=editable&&owDraft&&!owDraft.editId?`<span class="ow-pin draft" style="left:${owDraft.x}%;top:${owDraft.y}%">+</span>`:'';
-  const composer=editable&&owDraft?`<div class="ow-cmp"><div class="note" style="margin-bottom:8px">${owDraft.editId?'Opmerking aanpassen':'Nieuwe opmerking op het aangeduide punt'}</div>
+  const composerHtml=()=>`<div class="ow-cmp"><div class="note" style="margin-bottom:8px">${owDraft.editId?'Opmerking aanpassen':'Nieuwe opmerking op het aangeduide punt'}</div>
      <textarea id="owText" rows="2" maxlength="1000" placeholder="Wat wil je hierover zeggen? bv. mogen de namen iets groter?">${esc(owDraft.tekst||'')}</textarea>
-     <div class="actions" style="margin-top:10px"><button class="btn primary small" id="owSave">${owDraft.editId?'Opslaan':'Plaats opmerking'}</button>${owDraft.editId?'<button class="btn ghost small danger" id="owDel">Verwijder</button>':''}<button class="btn ghost small" id="owCancel">Annuleer</button></div></div>`:'';
-  const lijst=owPins.length?`<div class="ow-list">${owPins.map((p,i)=>`<div class="ow-item"><span class="num">${i+1}</span><span class="txt">${esc(p.tekst)}</span>${editable?`<button class="btn ghost small" data-owpin="${esc(p.id)}">Aanpassen</button>`:''}</div>`).join('')}</div>`:(editable?'<p class="note" style="margin-top:14px">Klik ergens op het ontwerp om er je eerste opmerking bij te plaatsen.</p>':'<p class="note" style="margin-top:14px">Geen opmerkingen bij deze versie.</p>');
-  const intro=editable?'<p class="note" style="margin:-4px 0 14px"><b>Klik op de afbeelding</b> op de plek waar je iets over wil zeggen — net als een speldje. Als al je opmerkingen erop staan, klik je op "Reacties indienen".</p>':(anyApproved?'':'<p class="note" style="margin:-4px 0 14px">Je bekijkt een <b>oudere versie</b>. Opmerkingen plaatsen kan enkel op de nieuwste versie.</p>');
-  const guide=editable?`<details class="vl-intro ow-guide"${owPins.length?'':' open'}>
+     <div class="actions" style="margin-top:10px"><button class="btn primary small" id="owSave">${owDraft.editId?'Opslaan':'Plaats opmerking'}</button>${owDraft.editId?'<button class="btn ghost small danger" id="owDel">Verwijder</button>':''}<button class="btn ghost small" id="owCancel">Annuleer</button></div></div>`;
+  const canvasFor=f=>{
+    const isImg=(f.type||'').startsWith('image/');
+    const url=`/api/dossier/${encodeURIComponent(code)}/bestand/${esc(f.id)}`;
+    const naam=esc(f.naam||'bestand');
+    const label=files.length>1?`<div class="ow-fname">${isImg?'🖼':'📄'} ${naam}</div>`:'';
+    if(!isImg)return `<div class="ow-fileblok">${label||`<div class="ow-fname">📄 ${naam}</div>`}<div class="files" style="margin-top:0"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open ${naam}</a></div><p class="note" style="margin-top:6px">Opmerkingen plaatsen kan enkel op afbeeldingen (PNG/JPG).</p></div>`;
+    const fp=owPins.filter(p=>p.bestandId===f.id);
+    const pins=fp.map((p,i)=>editable?`<button class="ow-pin${owSel===p.id?' sel':''}" data-owpin="${esc(p.id)}" style="left:${p.x}%;top:${p.y}%">${i+1}</button>`:`<span class="ow-pin ro" style="left:${p.x}%;top:${p.y}%" title="${esc(p.tekst)}">${i+1}</span>`).join('');
+    const draftPin=editable&&owDraft&&!owDraft.editId&&owDraft.bestandId===f.id?`<span class="ow-pin draft" style="left:${owDraft.x}%;top:${owDraft.y}%">+</span>`:'';
+    const composer=editable&&owDraft&&owDraft.bestandId===f.id?composerHtml():'';
+    const lijst=fp.length?`<div class="ow-list">${fp.map((p,i)=>`<div class="ow-item"><span class="num">${i+1}</span><span class="txt">${esc(p.tekst)}</span>${editable?`<button class="btn ghost small" data-owpin="${esc(p.id)}">Aanpassen</button>`:''}</div>`).join('')}</div>`:(editable?'<p class="note" style="margin-top:10px">Klik op deze afbeelding om er een opmerking bij te plaatsen.</p>':'');
+    return `<div class="ow-fileblok">${label}<div class="ow-canvas${editable?'':' ro'}" data-owcanvas="${esc(f.id)}"><img src="${url}" alt="${naam}" draggable="false">${pins}${draftPin}</div>${composer}${lijst}</div>`;
+  };
+  const bestandenHtml=files.length?`<div class="ow-fileblokken">${files.map(canvasFor).join('')}</div>`:'<div class="card"><p class="note" style="margin:0">Er staan nog geen bestanden klaar in deze versie.</p></div>';
+  const intro=editable?'<p class="note" style="margin:-4px 0 14px"><b>Klik op een afbeelding</b> op de plek waar je iets over wil zeggen — net als een speldje. Staan al je opmerkingen erop, klik dan op "Reacties indienen".</p>':(anyApproved?'':'<p class="note" style="margin:-4px 0 14px">Je bekijkt een <b>oudere versie</b>. Opmerkingen plaatsen kan enkel op de nieuwste versie.</p>');
+  const heeftImg=files.some(f=>(f.type||'').startsWith('image/'));
+  const guide=editable&&heeftImg?`<details class="vl-intro ow-guide"${owPins.length?'':' open'}>
      <summary>Hoe laat ik opmerkingen achter?</summary>
      <div class="body">
        <ul>
-         <li><b>Klik</b> op de plek in het ontwerp waar je iets over wil zeggen — er verschijnt een speldje met een nummer.</li>
+         <li><b>Klik</b> op de plek in een afbeelding waar je iets over wil zeggen — er verschijnt een speldje met een nummer.</li>
          <li><b>Typ</b> je opmerking in het vakje dat verschijnt en klik op <b>"Plaats opmerking"</b>.</li>
-         <li>Herhaal dit voor elk punt. Een opmerking <b>aanpassen of verwijderen</b>? Klik op het speldje, of op "Aanpassen" in de lijst eronder.</li>
-         <li>Klaar met kijken? Klik op <b>"Reacties indienen"</b> — ik krijg dan automatisch een seintje en ga ermee aan de slag.</li>
+         <li>Staan er meerdere bestanden? Je kan op elke afbeelding opmerkingen plaatsen.</li>
+         <li>Een opmerking <b>aanpassen of verwijderen</b>? Klik op het speldje, of op "Aanpassen" in de lijst eronder.</li>
+         <li>Klaar met kijken? Klik op <b>"Reacties indienen"</b> — ik krijg dan automatisch een seintje.</li>
          <li>Helemaal tevreden? Dan kan je het ontwerp onderaan <b>definitief goedkeuren</b>. Let op: daarna gebeuren er geen aanpassingen meer.</li>
        </ul>
        <p>Geen zorgen — zolang je nog niet definitief goedkeurt, kan je je opmerkingen altijd nog aanpassen of opnieuw indienen.</p>
@@ -339,9 +346,7 @@ function renderOntwerp(){
     ${switcher}
     ${intro}
     ${guide}
-    <div class="ow-canvas${editable?'':' ro'}" id="ow-canvas"><img id="ow-img" src="${url}" alt="Jullie ontwerp" draggable="false">${pins}${draftPin}</div>
-    ${composer}
-    ${lijst}
+    ${bestandenHtml}
     ${m&&!(owApprove&&!m.ok)?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}
     ${submitBtn}
     ${akkoordBlok}</section>`;
@@ -354,23 +359,23 @@ document.addEventListener('click',e=>{
   if(e.target.id==='owApproveOpen'){owApprove=true;msg.ontwerp=null;render();setTimeout(()=>{const n=$('#owNaam');if(n)n.focus()},0);return}
   if(e.target.id==='owApproveCancel'){owApprove=false;msg.ontwerp=null;render();return}
   const pinEl=e.target.closest('[data-owpin]');
-  if(pinEl){const id=pinEl.dataset.owpin;const p=owPins.find(x=>x.id===id);if(p){owDraft={x:p.x,y:p.y,tekst:p.tekst,editId:id};owSel=id;render();owFocusCmp();const c=$('#ow-canvas');if(c&&pinEl.closest('.ow-item'))c.scrollIntoView({behavior:'smooth',block:'center'})}return}
+  if(pinEl){const id=pinEl.dataset.owpin;const p=owPins.find(x=>x.id===id);if(p){owDraft={bestandId:p.bestandId,x:p.x,y:p.y,tekst:p.tekst,editId:id};owSel=id;render();owFocusCmp();if(pinEl.closest('.ow-item')){const c=document.querySelector('[data-owcanvas="'+p.bestandId+'"]');if(c)c.scrollIntoView({behavior:'smooth',block:'center'})}}return}
   if(e.target.id==='owSave'){const ta=$('#owText');const v=ta?ta.value.trim():'';if(!v){if(ta)ta.focus();return}
     if(owDraft&&owDraft.editId){const p=owPins.find(x=>x.id===owDraft.editId);if(p)p.tekst=v}
-    else owPins.push({id:'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),x:owDraft.x,y:owDraft.y,tekst:v});
+    else owPins.push({id:'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),bestandId:owDraft.bestandId,x:owDraft.x,y:owDraft.y,tekst:v});
     owDraft=null;owSel=null;render();return}
   if(e.target.id==='owDel'){if(owDraft&&owDraft.editId)owPins=owPins.filter(x=>x.id!==owDraft.editId);owDraft=null;owSel=null;render();return}
   if(e.target.id==='owCancel'){owDraft=null;owSel=null;render();return}
-  const cv=e.target.closest('#ow-canvas');
+  const cv=e.target.closest('[data-owcanvas]');
   if(cv){if(cv.classList.contains('ro'))return;const img=cv.querySelector('img');if(!img)return;const r=img.getBoundingClientRect();if(!r.width||!r.height)return;
     const x=Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100)),y=Math.max(0,Math.min(100,(e.clientY-r.top)/r.height*100));
-    owDraft={x:Math.round(x*10)/10,y:Math.round(y*10)/10,tekst:'',editId:null};owSel=null;render();owFocusCmp();return}
+    owDraft={bestandId:cv.dataset.owcanvas,x:Math.round(x*10)/10,y:Math.round(y*10)/10,tekst:'',editId:null};owSel=null;render();owFocusCmp();return}
 });
 document.addEventListener('click',async e=>{
   if(e.target.id==='owSubmit'&&!busy){
     const list=me.ontwerpen||[];const ow=list[list.length-1];if(!ow)return;
     busy=true;render();
-    try{await api('/ontwerp/'+encodeURIComponent(ow.id)+'/comments',{comments:owPins.map(p=>({x:p.x,y:p.y,tekst:p.tekst}))});owForId=null;await herlaad();msg.ontwerp={ok:true,t:'Bedankt! Je reacties zijn doorgestuurd. Ik bekijk ze en kom erop terug.'}}
+    try{await api('/ontwerp/'+encodeURIComponent(ow.id)+'/comments',{comments:owPins.map(p=>({bestandId:p.bestandId,x:p.x,y:p.y,tekst:p.tekst}))});owForId=null;await herlaad();msg.ontwerp={ok:true,t:'Bedankt! Je reacties zijn doorgestuurd. Ik bekijk ze en kom erop terug.'}}
     catch(err){msg.ontwerp={ok:false,t:err.message}}finally{busy=false}render();return}
   if(e.target.id==='owApproveGo'&&!busy){
     const list=me.ontwerpen||[];const ow=list[list.length-1];if(!ow)return;
