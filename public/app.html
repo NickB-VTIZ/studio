@@ -481,6 +481,16 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
 .vl-opties textarea{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:13px;resize:vertical;width:100%;box-sizing:border-box}
 .vl-add{padding:8px 0}
 @media(max-width:600px){.vl-field-head{flex-wrap:wrap}.vl-type-sel{min-width:100px;font-size:11px}}
+.chip.g-ok{color:#2C6A4C;background:#e7f0ea}
+.ow-admin{display:grid;gap:22px;margin-top:18px}
+.ow-card{border:1px solid var(--line);border-radius:10px;padding:16px;background:var(--bg)}
+.ow-card-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.ow-canvas{position:relative;display:inline-block;max-width:100%;border:1px solid var(--line);border-radius:8px;overflow:hidden;line-height:0}
+.ow-canvas img{display:block;max-width:100%;height:auto}
+.ow-pin{position:absolute;transform:translate(-50%,-50%);min-width:24px;height:24px;padding:0 6px;border-radius:50% 50% 50% 3px;background:#2C6A4C;color:#fff;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);font-size:12px;font-weight:700;display:grid;place-items:center;line-height:1}
+.ow-clist{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
+.ow-clist li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px}
+.ow-clist .num{flex:none;width:22px;height:22px;border-radius:50%;background:#2C6A4C;color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center}
 </style>
 </head>
 <body>
@@ -911,6 +921,7 @@ function vKlant(){
     <div class="sheet" id="tab-offerte" role="tabpanel" ${klantTab!=='offerte'?'hidden':''}></div>
     <div class="sheet" id="tab-facturen" role="tabpanel" ${klantTab!=='facturen'?'hidden':''}></div>
     <div class="sheet" id="tab-vragenlijst" role="tabpanel" ${klantTab!=='vragenlijst'?'hidden':''}></div>
+    <div class="sheet" id="tab-ontwerp" role="tabpanel" ${klantTab!=='ontwerp'?'hidden':''}></div>
     <div class="sheet" id="tab-bijlages" role="tabpanel" ${klantTab!=='bijlages'?'hidden':''}></div>
     <div class="sheet" id="tab-logboek" role="tabpanel" ${klantTab!=='logboek'?'hidden':''}></div>
   </div><aside id="side"></aside></div>`;
@@ -930,7 +941,7 @@ function renderSide(){
     <div class="kmeta-grid">${metaItems.join('')}</div>
   </div>`;
   const nOf=(k.offertes||[]).length;
-  const TABS=[['overzicht','Overzicht'],['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['facturen','Facturatie'],['vragenlijst','Vragenlijst'],['bijlages','Bijlages'],['logboek','Logboek']];
+  const TABS=[['overzicht','Overzicht'],['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['facturen','Facturatie'],['vragenlijst','Vragenlijst'],['ontwerp','Ontwerp'],['bijlages','Bijlages'],['logboek','Logboek']];
   $('#tabs').innerHTML=TABS.map(([id,l])=>`<button role="tab" id="tabbtn-${id}" aria-selected="${klantTab===id}" data-tab="${id}">${l}${hasNew(k,id)?'<span class="newdot" title="Nieuw sinds je laatst keek"></span><span class="sr">(nieuw)</span>':''}</button>`).join('');
   const overz=klantTab==='overzicht';
   const det=$('#detail');if(det)det.classList.toggle('solo',overz);
@@ -941,6 +952,7 @@ function renderSide(){
   if(klantTab==='offerte'&&!ofMounted)renderOffertes();
   if(klantTab==='planning')renderPlanningTab();
   if(klantTab==='vragenlijst')renderVragenlijstTab();
+  if(klantTab==='ontwerp')renderOntwerpTab();
   if(klantTab==='bijlages')renderBijlagesTab();
   if(klantTab==='logboek'&&logEdit===null&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tab-logboek')))renderLogTab();
   $('#delsec').innerHTML=confirmDel?`<div class="confirm">Deze klant en de hele fiche definitief verwijderen? <button class="btn small danger" id="delYes">Ja, verwijder</button><button class="btn small" id="delNo">Annuleer</button></div>`:`<button class="btn small ghost danger" id="delAsk">Klant verwijderen</button>`;
@@ -1090,6 +1102,23 @@ function renderBijlagesTab(){
    <div class="files" style="margin-top:12px">${list.length?list.map(f=>`<div class="file"><span class="ic">${esc(BIJLAGE_SOORT[f.soort]||'Bijlage')}</span><a href="/_blob/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.naam||'bestand')}</a>${f.bron?`<span class="hint">· ${esc(f.bron)}</span>`:''}<span style="font-size:12px;color:var(--muted);white-space:nowrap">${fmt(f.d)}</span>${f.soort==='contract'&&c.getekend?`<span class="chip">getekend door ${esc(c.getekend.naam)}</span>`:''}${f.vast||f.soort==='contract_getekend'?'':`<button class="iconbtn" data-bjdel="${esc(f.id)}" data-naam="${esc(f.naam||'')}" aria-label="Bijlage verwijderen">×</button>`}</div>`).join(''):'<p class="hint">Nog geen bijlages.</p>'}</div>
    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px"><select id="bjSoort" style="border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:7px 10px"><option value="factuur">Voorschotfactuur</option><option value="contract">Contract</option><option value="ander">Andere bijlage</option></select><label class="btn small" style="cursor:pointer">+ Bestand toevoegen (PDF/afbeelding)<input type="file" id="bjFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden></label><span class="hint" id="bjMsg"></span></div></section>`;
 }
+/* ---------- ontwerp tab (admin) ---------- */
+function renderOntwerpTab(){
+  const box=$('#tab-ontwerp');if(!box||!work)return;const k=work;const list=k.ontwerpen||[];
+  const kaart=o=>{
+    const isImg=(o.type||'').startsWith('image/');const url='/_blob/'+esc(o.bestandId);
+    const cs=o.comments||[];
+    const pins=cs.map((c,i)=>`<span class="ow-pin" style="left:${c.x}%;top:${c.y}%" title="${esc(c.tekst)}">${i+1}</span>`).join('');
+    const canvas=isImg?`<div class="ow-canvas"><img src="${url}" alt="Ontwerp ${esc(o.naam||'')}">${pins}</div>`:`<div class="files" style="margin-top:10px"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open ontwerp · ${esc(o.naam||'bestand')}</a></div>`;
+    const lijst=cs.length?`<ol class="ow-clist">${cs.map((c,i)=>`<li><span class="num">${i+1}</span><span>${esc(c.tekst)}</span></li>`).join('')}</ol>`:(o.verwittigdOp?'<p class="hint" style="margin-top:10px">De klant heeft nog geen opmerkingen ingediend.</p>':'');
+    const status=o.ingediendOp?`<span class="chip g-ok">${cs.length} reactie${cs.length===1?'':'s'} · ${fmt(o.ingediendOp.slice(0,10))}</span>`:(o.verwittigdOp?`<span class="chip">verwittigd ${fmt(o.verwittigdOp)}</span>`:'<span class="chip">nog niet verstuurd</span>');
+    const verwBtn=`<button class="btn small" data-owverwittig="${esc(o.id)}" ${k.email?'':'disabled'} title="${k.email?'Mailt de klant dat dit ontwerp klaarstaat':'Vul eerst een e-mailadres in op de fiche'}">${o.verwittigdOp?'Opnieuw verwittigen':'Verwittig klant'}</button>`;
+    return `<div class="ow-card"><div class="ow-card-head"><div><b>${esc(o.naam||'Ontwerp')}</b> <span class="hint">· toegevoegd ${fmt((o.toegevoegd||'').slice(0,10))}</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${status}${verwBtn}<button class="btn small ghost danger" data-owdel="${esc(o.id)}" data-naam="${esc(o.naam||'')}">Verwijder</button></div></div>${canvas}${lijst}</div>`;
+  };
+  box.innerHTML=`<section class="sec"><h2>Ontwerp</h2><p class="hint">Voeg hier het ontwerp toe (afbeelding of PDF) en verwittig de klant. De klant bekijkt het in zijn dossier en plaatst opmerkingen rechtstreeks op de afbeelding — net als in Figma. Zodra de klant indient, krijg je een mail en zie je de opmerkingen hier met speldjes op de afbeelding.</p>
+   <div style="margin-top:14px"><label class="btn small" style="cursor:pointer">+ Ontwerp toevoegen (afbeelding of PDF)<input type="file" id="owFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden></label> <span class="hint" id="owMsg"></span></div>
+   ${list.length?`<div class="ow-admin">${list.map(kaart).join('')}</div>`:'<p class="hint" style="margin-top:16px">Nog geen ontwerp toegevoegd. Tip: upload een afbeelding (PNG/JPG) zodat de klant er opmerkingen op kan plaatsen.</p>'}</section>`;
+}
 /* ---------- facturatie tab (admin) ---------- */
 function facRow(f,i,bijlages){
   return `<div class="fac-row" data-faci="${i}">
@@ -1236,12 +1265,20 @@ document.addEventListener('click',async e=>{
   if(t.id==='ngSend'){openMailModal('nagoedkeuring');return}
   if(t.dataset.bjdel){if(!confirm('Bijlage "'+t.dataset.naam+'" verwijderen?'))return;try{await klantPost('/bijlage/'+t.dataset.bjdel,null);toast('Bijlage verwijderd');await herlaadKlant()}catch(err){toast(err.message)}return}
   if(t.dataset.ofmail){const o=findOf(t.dataset.ofmail);if(!o)return;openMailModal('offerte',o.id);return}
+  if(t.dataset.owverwittig){t.disabled=true;const was=t.textContent;t.textContent='Versturen…';try{const r=await klantPost('/ontwerp/'+t.dataset.owverwittig+'/verwittig',{});toast('Klant verwittigd per mail');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false;t.textContent=was}return}
+  if(t.dataset.owdel){if(!confirm('Ontwerp "'+(t.dataset.naam||'')+'" verwijderen? Ook de opmerkingen van de klant gaan dan verloren.'))return;try{await klantPost('/ontwerp/'+t.dataset.owdel,null);toast('Ontwerp verwijderd');await herlaadKlant()}catch(err){toast(err.message)}return}
 });
 document.addEventListener('change',async e=>{
   const inp=e.target;if(inp.id!=='bjFile'||!work)return;const f=inp.files&&inp.files[0];if(!f)return;const soort=($('#bjSoort')||{}).value||'ander';const msg=$('#bjMsg');
   const type=f.type||(f.name.toLowerCase().endsWith('.pdf')?'application/pdf':'');if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(type)){if(msg)msg.textContent='Enkel PDF, PNG, JPG of WebP';return}
   if(msg)msg.textContent='Opladen…';
   try{const r=await assets.upload(f,{type});await klantPost('/bijlage',{id:r.id,naam:f.name,soort});toast('Bijlage toegevoegd');await herlaadKlant()}catch(err){if(msg)msg.textContent=err.message||'Opladen mislukt'}
+});
+document.addEventListener('change',async e=>{
+  const inp=e.target;if(inp.id!=='owFile'||!work)return;const f=inp.files&&inp.files[0];if(!f)return;const msg=$('#owMsg');
+  const type=f.type||(f.name.toLowerCase().endsWith('.pdf')?'application/pdf':'');if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(type)){if(msg)msg.textContent='Enkel PDF, PNG, JPG of WebP';return}
+  if(msg)msg.textContent='Opladen…';
+  try{const r=await assets.upload(f,{type});await klantPost('/ontwerp',{id:r.id,naam:f.name});toast('Ontwerp toegevoegd');await herlaadKlant()}catch(err){if(msg)msg.textContent=err.message||'Opladen mislukt'}
 });
 
 /* ---------- saving ---------- */
@@ -1656,7 +1693,7 @@ document.addEventListener('drop',e=>{const d=e.target.closest&&e.target.closest(
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-tab],[data-factuur],[data-ofstop],[data-ofnew],[data-ofaddrow],[data-ofdelrow],[data-ofdel],[data-ofdelyes],[data-ofcancel],[data-ofdup],[data-ofcopy],[data-ofphase],[data-ofdelfile],[data-ofdelfileyes]');
   if(!t||!work)return;const D=t.dataset;
-  if(D.tab){klantTab=D.tab;markSeen(klantTab);['overzicht','fiche','planning','logboek','offerte','facturen','vragenlijst','bijlages'].forEach(x=>{$('#tab-'+x).hidden=klantTab!==x});if(klantTab==='overzicht')renderOverzichtTab();if(klantTab==='offerte')renderOffertes();if(klantTab==='facturen')renderFacturenTab();if(klantTab==='logboek')renderLogTab();if(klantTab==='vragenlijst')renderVragenlijstTab();if(klantTab==='bijlages')renderBijlagesTab();renderSide();const tb=$('#tabs');if(tb&&tb.getBoundingClientRect().top<0)tb.scrollIntoView({block:'start'});return}
+  if(D.tab){klantTab=D.tab;markSeen(klantTab);['overzicht','fiche','planning','logboek','offerte','facturen','vragenlijst','ontwerp','bijlages'].forEach(x=>{$('#tab-'+x).hidden=klantTab!==x});if(klantTab==='overzicht')renderOverzichtTab();if(klantTab==='offerte')renderOffertes();if(klantTab==='facturen')renderFacturenTab();if(klantTab==='logboek')renderLogTab();if(klantTab==='vragenlijst')renderVragenlijstTab();if(klantTab==='ontwerp')renderOntwerpTab();if(klantTab==='bijlages')renderBijlagesTab();renderSide();const tb=$('#tabs');if(tb&&tb.getBoundingClientRect().top<0)tb.scrollIntoView({block:'start'});return}
   if(D.ofstop){if(!work.stopReden)work.stopReden='Te duur';stopForm=true;renderSide();const sp=$('#stopform');if(sp)sp.scrollIntoView({block:'center',behavior:'smooth'});return}
   if(D.ofnew){work.offertes=(work.offertes||[]).concat([newOfferte()]);ofChanged(true);return}
   if(D.ofaddrow){findOf(D.ofaddrow).regels.push({oms:'',aantal:'',prijs:''});ofChanged(true);const i=findOf(D.ofaddrow).regels.length-1;const n=$(`#of-${D.ofaddrow}-r${i}-oms`);if(n)n.focus();return}

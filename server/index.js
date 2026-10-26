@@ -721,7 +721,8 @@ async function api(req, res, url) {
         vragenlijst: { vragen: vl, antwoorden: vlAnt, ingevuldOp: (k.vragenlijst && k.vragenlijst.ingevuldOp) || '', conceptOp: (k.vragenlijst && k.vragenlijst.conceptOp) || '', nodig: FI_SERVER[k.fase] >= FI_SERVER.goedgekeurd && !GESTOPT.has(k.fase) },
         contract: contractInfo(k), voorschot: k.voorschot || { betaald: false }, bijlages: bijlagesVan(), naGoedkeuringVerstuurdOp: k.naGoedkeuringVerstuurdOp || '',
         facturen: (k.facturen || []).map(f => ({ id: f.id, omschrijving: f.omschrijving || '', bedrag: f.bedrag || '', vervaldatum: f.vervaldatum || '', betaald: !!f.betaald, betaaldOp: f.betaaldOp || '', bestandId: f.bestandId || '', verstuurdOp: f.verstuurdOp || '' })),
-        projectTotaal: (num(k.factuurTotaal) > 0 ? num(k.factuurTotaal) : zichtbaar.filter(o => o.status === 'Goedgekeurd').reduce((a, o) => a + offerteTotalen(o).tot, 0)) });
+        projectTotaal: (num(k.factuurTotaal) > 0 ? num(k.factuurTotaal) : zichtbaar.filter(o => o.status === 'Goedgekeurd').reduce((a, o) => a + offerteTotalen(o).tot, 0)),
+        ontwerpen: (k.ontwerpen || []).filter(o => o.verwittigdOp || o.ingediendOp).map(o => ({ id: o.id, naam: o.naam || 'Ontwerp', bestandId: o.bestandId || '', type: o.type || '', toegevoegd: o.toegevoegd || '', ingediendOp: o.ingediendOp || '', comments: (o.comments || []).map(c => ({ id: c.id, x: c.x, y: c.y, tekst: c.tekst || '' })) })) });
     }
     if (sub === 'slots' && m === 'GET') return json(res, 200, { actief: !!cfg.actief, duur: cfg.duur, dagen: cfg.actief ? slotsVoorPeriode(cfg, bezetteSlots(kid)) : [] });
     if (sub === 'verplaats' && m === 'POST') {
@@ -738,7 +739,8 @@ async function api(req, res, url) {
     const bm = sub.match(/^bestand\/([a-f0-9]{32})$/);
     if (bm && m === 'GET') {
       const factuurIds = (k.facturen || []).map(f => f.bestandId).filter(Boolean);
-      if (!bijlagesVan().some(f => f.id === bm[1]) && !factuurIds.includes(bm[1])) return text(res, 404, 'Niet gevonden');
+      const ontwerpIds = (k.ontwerpen || []).filter(o => o.verwittigdOp || o.ingediendOp).map(o => o.bestandId).filter(Boolean);
+      if (!bijlagesVan().some(f => f.id === bm[1]) && !factuurIds.includes(bm[1]) && !ontwerpIds.includes(bm[1])) return text(res, 404, 'Niet gevonden');
       const b = bestandOpSchijf(bm[1]); if (!b) return text(res, 404, 'Niet gevonden');
       return serveFile(res, b.pad, { 'Cache-Control': 'private, max-age=3600', 'Content-Disposition': 'inline' });
     }
@@ -804,6 +806,24 @@ async function api(req, res, url) {
       store.set('klanten', kid, k);
       meldAdmin(req, `Contract getekend: ${k.naam}`, mailBasis(k, req, { bericht: `${naam} tekende het contract op ${op.slice(0, 16).replace('T', ' ')} (IP ${clientIp(req)}). De handtekening staat bij de bijlages.` }), 'contract getekend');
       return json(res, 200, { ok: true });
+    }
+    const ocMatch = sub.match(/^ontwerp\/([A-Za-z0-9_-]{1,40})\/comments$/);
+    if (ocMatch && m === 'POST') {
+      const ontwerp = (k.ontwerpen || []).find(o => o.id === ocMatch[1] && (o.verwittigdOp || o.ingediendOp));
+      if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
+      const b = await readJson(req, 100e3).catch(() => ({}));
+      const lijst = Array.isArray(b.comments) ? b.comments : [];
+      const comments = lijst.slice(0, 100).map(c => ({
+        id: 'c' + crypto.randomBytes(6).toString('hex'),
+        x: Math.max(0, Math.min(100, num(c.x))), y: Math.max(0, Math.min(100, num(c.y))),
+        tekst: String(c.tekst || '').trim().slice(0, 1000)
+      })).filter(c => c.tekst);
+      ontwerp.comments = comments;
+      ontwerp.ingediendOp = new Date().toISOString();
+      logboek(k, `Klant diende ${comments.length} opmerking${comments.length === 1 ? '' : 'en'} in op het ontwerp "${ontwerp.naam || 'Ontwerp'}"`, 'ontwerp');
+      store.set('klanten', kid, k);
+      meldAdmin(req, `Reactie op ontwerp: ${k.naam}`, mailBasis(k, req, { bericht: `De klant plaatste ${comments.length} opmerking${comments.length === 1 ? '' : 'en'} op het ontwerp "${ontwerp.naam || 'Ontwerp'}". Bekijk ze in de fiche onder Ontwerp.` }), 'reactie op ontwerp');
+      return json(res, 200, { ok: true, aantal: comments.length });
     }
     return json(res, 404, { error: 'Onbekende route' });
   }
@@ -1091,6 +1111,44 @@ async function api(req, res, url) {
     if (f && f.soort !== 'contract_getekend') { for (const x of fs.readdirSync(UPLOAD_DIR)) if (x.startsWith(bijlageMatch[2])) try { fs.unlinkSync(path.join(UPLOAD_DIR, x)); } catch (e) {} }
     store.set('klanten', bijlageMatch[1], k);
     return json(res, 200, { ok: true });
+  }
+  // Ontwerp toevoegen aan een klantdossier (bestand komt binnen via /api/upload).
+  const ontwerpMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/ontwerp$/);
+  if (ontwerpMatch && m === 'POST') {
+    const k = store.get('klanten', ontwerpMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    const best = bestandOpSchijf(String(b.id || '')); if (!best) return json(res, 400, { error: 'Bestand niet gevonden' });
+    const ontwerp = { id: 'ow' + crypto.randomBytes(6).toString('hex'), naam: String(b.naam || best.naam || 'Ontwerp').slice(0, 200), bestandId: b.id, type: best.type || '', toegevoegd: new Date().toISOString(), verwittigdOp: '', ingediendOp: '', comments: [] };
+    k.ontwerpen = (k.ontwerpen || []).concat([ontwerp]);
+    logboek(k, `Ontwerp toegevoegd: ${ontwerp.naam}`, 'ontwerp'); store.set('klanten', ontwerpMatch[1], k);
+    return json(res, 200, { ok: true, ontwerp });
+  }
+  // Ontwerp verwijderen of de klant verwittigen dat het ontwerp klaarstaat.
+  const ontwerpIdMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/ontwerp\/([A-Za-z0-9_-]{1,40})(?:\/(verwittig))?$/);
+  if (ontwerpIdMatch && (m === 'POST' || m === 'DELETE')) {
+    const k = store.get('klanten', ontwerpIdMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    const ontwerp = (k.ontwerpen || []).find(o => o.id === ontwerpIdMatch[2]); if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
+    if (m === 'DELETE') {
+      k.ontwerpen = (k.ontwerpen || []).filter(o => o.id !== ontwerp.id);
+      for (const x of fs.readdirSync(UPLOAD_DIR)) if (x.startsWith(ontwerp.bestandId)) try { fs.unlinkSync(path.join(UPLOAD_DIR, x)); } catch (e) {}
+      logboek(k, `Ontwerp verwijderd: ${ontwerp.naam || 'Ontwerp'}`, 'ontwerp'); store.set('klanten', ontwerpIdMatch[1], k);
+      return json(res, 200, { ok: true });
+    }
+    // verwittig: mail de klant dat het ontwerp klaarstaat
+    if (ontwerpIdMatch[3] === 'verwittig') {
+      if (!mailActief()) return json(res, 400, { error: 'E-mail is niet ingesteld (zie Koppelingen).' });
+      if (!k.email) return json(res, 400, { error: 'Deze klant heeft nog geen e-mailadres op de fiche.' });
+      if (!k.wijzigCode) { k.wijzigCode = crypto.randomBytes(9).toString('base64url'); }
+      const basis = mailBasis(k, req, { bericht: '' });
+      const mm = bouwMail(sjablonen().ontwerpKlaar, basis, { dossierlink: dossierKnop(req, k, 'Bekijk je ontwerp') });
+      const r = await verstuurMail({ to: k.email, subject: 'Jullie ontwerp staat klaar – justPIXIT', text: mm.text, html: mm.html }, { soort: 'ontwerp klaar' });
+      if (!r.ok) return json(res, 502, { error: 'Mail versturen mislukt: ' + r.error });
+      ontwerp.verwittigdOp = vandaagBE();
+      logboek(k, `Klant verwittigd dat ontwerp "${ontwerp.naam || 'Ontwerp'}" klaarstaat (${k.email})`, 'ontwerp');
+      store.set('klanten', ontwerpIdMatch[1], k);
+      return json(res, 200, { ok: true, verwittigdOp: ontwerp.verwittigdOp });
+    }
+    return json(res, 404, { error: 'Onbekende route' });
   }
   const voorschotMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/voorschot$/);
   if (voorschotMatch && m === 'POST') {

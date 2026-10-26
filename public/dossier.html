@@ -61,6 +61,19 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 .paylegend .dot{width:11px;height:11px;border-radius:3px;flex:none}
 .dot.betaald{background:var(--green)}.dot.open{background:#C58A3D}.dot.verwacht{background:var(--sage-deep)}
 .verwacht-card{border-style:dashed}
+.ow-canvas{position:relative;display:inline-block;max-width:100%;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:crosshair;line-height:0;box-shadow:0 1px 0 var(--hair)}
+.ow-canvas img{display:block;max-width:100%;height:auto;user-select:none}
+.ow-pin{position:absolute;transform:translate(-50%,-50%);min-width:28px;height:28px;padding:0 7px;border-radius:50% 50% 50% 3px;background:var(--green);color:var(--green-ink);border:2px solid #fff;box-shadow:0 2px 7px rgba(0,0,0,.33);font-size:13px;font-weight:700;cursor:pointer;display:grid;place-items:center;line-height:1;z-index:1}
+.ow-pin.sel{outline:3px solid var(--sage-deep);outline-offset:1px}
+.ow-pin.draft{background:#C58A3D;cursor:default;animation:owpulse 1.1s ease-in-out infinite}
+@keyframes owpulse{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.18)}}
+.ow-cmp{margin-top:14px;border:1px solid var(--green);border-radius:4px;padding:14px;background:var(--card)}
+.ow-cmp textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:3px;padding:11px 13px;resize:vertical;min-height:62px}
+.ow-cmp textarea:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--sage)}
+.ow-list{display:grid;gap:8px;margin-top:16px}
+.ow-item{display:flex;gap:10px;align-items:flex-start;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:10px 12px}
+.ow-item .num{flex:none;width:22px;height:22px;border-radius:50%;background:var(--green);color:var(--green-ink);font-size:12px;font-weight:700;display:grid;place-items:center}
+.ow-item .txt{flex:1;font-size:14.5px;white-space:pre-wrap;word-break:break-word}
 .steps{list-style:none;margin:0;padding:0;display:grid}.steps li{position:relative;padding:0 0 18px 30px}.steps li::before{content:"";position:absolute;left:8px;top:22px;bottom:-2px;width:2px;background:var(--line)}.steps li:last-child::before{display:none}
 .steps .mk{position:absolute;left:0;top:4px;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);background:var(--card)}.steps li.done .mk{background:var(--green);border-color:var(--green)}
 .steps li.done .mk::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid var(--green-ink);border-width:0 2px 2px 0;transform:rotate(45deg)}.steps li.done::before{background:var(--green)}
@@ -147,6 +160,7 @@ const eindUur=(slot,duur)=>{const [h,m]=slot.slice(11,16).split(':').map(Number)
 const euro=n=>(Number(n)||0).toLocaleString('nl-BE',{style:'currency',currency:'EUR'});
 const code=new URLSearchParams(location.search).get('c')||'';
 let me=null,kiezen=false,annuleren=false,byDay={},month=null,selDay=null,selSlot=null,busy=false,msg={},ofOpen={},tab='overzicht';
+let owPins=[],owDraft=null,owForId=null,owSel=null;
 const numEur=v=>{const n=parseFloat(String(v??'').replace(/\s|€/g,'').replace(',','.'));return Number.isFinite(n)?n:0};
 
 async function api(path,body){const r=await fetch('/api/dossier/'+encodeURIComponent(code)+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});let j={};try{j=await r.json()}catch(e){}if(!r.ok)throw Object.assign(new Error(j.error||'Er liep iets mis'),{status:r.status});return j}
@@ -168,11 +182,12 @@ function render(){
   if((me.offertes||[]).length)tabDefs.push(['offerte','Offerte']);
   if(toonVragen)tabDefs.push(['vragenlijst','Vragenlijst']);
   if(toonContract)tabDefs.push(['contract','Contract']);
+  if((me.ontwerpen||[]).length)tabDefs.push(['ontwerp','Ontwerp']);
   if(heeftFac)tabDefs.push(['facturen','Facturatie']);
   if(!tabDefs.some(([k])=>k===tab))tab='overzicht';
-  const subs={overzicht:'Hier zie je in één oogopslag wat er nog te doen is en hoe ver we staan.',offerte:'Bekijk je offerte en laat weten of je akkoord bent.',vragenlijst:'Vul de vragen in zodat ik je ontwerp helemaal op maat kan maken.',contract:'Lees het contract rustig na en teken het online.',facturen:'Hier volg je de betalingen op: wat al betaald is en wat er nog moet aankomen.'};
+  const subs={overzicht:'Hier zie je in één oogopslag wat er nog te doen is en hoe ver we staan.',offerte:'Bekijk je offerte en laat weten of je akkoord bent.',vragenlijst:'Vul de vragen in zodat ik je ontwerp helemaal op maat kan maken.',contract:'Lees het contract rustig na en teken het online.',ontwerp:'Bekijk je ontwerp en laat je opmerkingen achter — klik gewoon op de afbeelding.',facturen:'Hier volg je de betalingen op: wat al betaald is en wat er nog moet aankomen.'};
   const tabsBar=`<div class="dtabs" role="tablist">${tabDefs.map(([k,l])=>`<button role="tab" class="${tab===k?'on':''}" data-dtab="${k}">${esc(l)}</button>`).join('')}</div>`;
-  const content=tab==='offerte'?renderOffertes():tab==='vragenlijst'?renderVragenlijst():tab==='contract'?renderContract():tab==='facturen'?renderFacturatie():renderOverzichtDash();
+  const content=tab==='offerte'?renderOffertes():tab==='vragenlijst'?renderVragenlijst():tab==='contract'?renderContract():tab==='ontwerp'?renderOntwerp():tab==='facturen'?renderFacturatie():renderOverzichtDash();
   $('#main').innerHTML=`<div class="hero"><h1>Hoi ${esc(me.voornaam||'daar')}</h1><p>${subs[tab]||''}</p></div><hr class="rule">
    ${tabsBar}
    ${content}`;
@@ -191,6 +206,11 @@ function renderOverzichtDash(){
   if(me.contract&&me.contract.bestandId){
     if(me.contract.getekend)taken.push({done:true,t:'Contract getekend',sub:'Getekend op '+fmtShort(me.contract.getekend.op.slice(0,10))});
     else taken.push({done:false,t:'Contract tekenen',sub:'Lees het contract na en onderteken online.',tab:'contract',cta:'Teken contract'});
+  }
+  const ows=me.ontwerpen||[];const laatsteOw=ows[ows.length-1];
+  if(laatsteOw){
+    if(laatsteOw.ingediendOp)taken.push({done:true,t:'Reactie op ontwerp verstuurd',sub:'Doorgestuurd op '+fmtShort(laatsteOw.ingediendOp.slice(0,10))});
+    else taken.push({done:false,t:'Ontwerp bekijken & reageren',sub:'Je ontwerp staat klaar — bekijk het en plaats gerust je opmerkingen.',tab:'ontwerp',cta:'Bekijk ontwerp'});
   }
   const facs=me.facturen||[];const openFac=facs.filter(f=>!f.betaald&&numEur(f.bedrag)>0);
   if(openFac.length)taken.push({done:false,t:'Betaling openstaand',sub:openFac.length+(openFac.length>1?' facturen':' factuur')+' nog te betalen.',tab:'facturen',cta:'Bekijk facturatie'});
@@ -242,6 +262,60 @@ function renderFacturatie(){
   </section>`;
 }
 document.addEventListener('click',e=>{const t=e.target.closest('[data-dtab]');if(!t)return;tab=t.dataset.dtab;render();window.scrollTo({top:0,behavior:'smooth'})});
+/* ---- ontwerp (Figma-stijl opmerkingen op de afbeelding) ---- */
+function renderOntwerp(){
+  const list=me.ontwerpen||[];
+  if(!list.length)return `<section class="blok"><div class="bhead"><h2>Ontwerp</h2></div><div class="card"><p class="note" style="margin:0">Er staat nog geen ontwerp klaar. Zodra ik een ontwerp voor jullie klaarzet, verschijnt het hier en krijg je een seintje per mail.</p></div></section>`;
+  const ow=list[list.length-1];
+  if(owForId!==ow.id){owForId=ow.id;owPins=(ow.comments||[]).map(c=>({id:c.id,x:c.x,y:c.y,tekst:c.tekst}));owDraft=null;owSel=null;}
+  const url=`/api/dossier/${encodeURIComponent(code)}/bestand/${esc(ow.bestandId)}`;
+  const isImg=(ow.type||'').startsWith('image/');
+  const m=msg.ontwerp;
+  const statusPill=ow.ingediendOp?`<span class="pill ok">Reactie verstuurd op ${esc(fmtShort(ow.ingediendOp.slice(0,10)))}</span>`:'<span class="pill">Klaar om te bekijken</span>';
+  const vorige=list.length>1?`<p class="note" style="margin-top:14px">Vorige versies: ${list.slice(0,-1).map((o,i)=>`<a href="/api/dossier/${encodeURIComponent(code)}/bestand/${esc(o.bestandId)}" target="_blank" rel="noopener">versie ${i+1}</a>`).join(' · ')}</p>`:'';
+  if(!isImg){
+    return `<section class="blok"><div class="bhead"><h2>Ontwerp</h2>${statusPill}</div>
+      <div class="card"><p class="note">Je ontwerp staat klaar als bestand. Opmerkingen rechtstreeks op de afbeelding plaatsen kan enkel bij een afbeelding; laat je reactie gerust per mail of telefoon weten.</p>
+      <div class="files"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open ontwerp · ${esc(ow.naam||'ontwerp')}</a></div></div>${vorige}</section>`;
+  }
+  const pins=owPins.map((p,i)=>`<button class="ow-pin${owSel===p.id?' sel':''}" data-owpin="${esc(p.id)}" style="left:${p.x}%;top:${p.y}%">${i+1}</button>`).join('');
+  const draftPin=owDraft&&!owDraft.editId?`<span class="ow-pin draft" style="left:${owDraft.x}%;top:${owDraft.y}%">+</span>`:'';
+  const composer=owDraft?`<div class="ow-cmp"><div class="note" style="margin-bottom:8px">${owDraft.editId?'Opmerking aanpassen':'Nieuwe opmerking op het aangeduide punt'}</div>
+     <textarea id="owText" rows="2" maxlength="1000" placeholder="Wat wil je hierover zeggen? bv. mogen de namen iets groter?">${esc(owDraft.tekst||'')}</textarea>
+     <div class="actions" style="margin-top:10px"><button class="btn primary small" id="owSave">${owDraft.editId?'Opslaan':'Plaats opmerking'}</button>${owDraft.editId?'<button class="btn ghost small danger" id="owDel">Verwijder</button>':''}<button class="btn ghost small" id="owCancel">Annuleer</button></div></div>`:'';
+  const lijst=owPins.length?`<div class="ow-list">${owPins.map((p,i)=>`<div class="ow-item"><span class="num">${i+1}</span><span class="txt">${esc(p.tekst)}</span><button class="btn ghost small" data-owpin="${esc(p.id)}">Aanpassen</button></div>`).join('')}</div>`:'<p class="note" style="margin-top:14px">Klik ergens op het ontwerp om er je eerste opmerking bij te plaatsen.</p>';
+  return `<section class="blok"><div class="bhead"><h2>Ontwerp</h2>${statusPill}</div>
+    <p class="note" style="margin:-4px 0 14px"><b>Klik op de afbeelding</b> op de plek waar je iets over wil zeggen — net als een speldje. Als al je opmerkingen erop staan, klik je op "Reacties indienen".</p>
+    <div class="ow-canvas" id="ow-canvas"><img id="ow-img" src="${url}" alt="Jullie ontwerp" draggable="false">${pins}${draftPin}</div>
+    ${composer}
+    ${lijst}
+    ${m?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}
+    <div class="actions"><button class="btn primary" id="owSubmit" ${busy||!owPins.length?'disabled':''}>${ow.ingediendOp?'Reacties opnieuw indienen':'Reacties indienen'}</button>${ow.ingediendOp?'<span class="note">Je kan opmerkingen aanpassen en opnieuw indienen.</span>':''}</div>
+    ${vorige}</section>`;
+}
+function owFocusCmp(){setTimeout(()=>{const t=$('#owText');if(t){t.focus();const v=t.value;t.value='';t.value=v}},0)}
+document.addEventListener('click',e=>{
+  if(tab!=='ontwerp')return;
+  const pinEl=e.target.closest('[data-owpin]');
+  if(pinEl){const id=pinEl.dataset.owpin;const p=owPins.find(x=>x.id===id);if(p){owDraft={x:p.x,y:p.y,tekst:p.tekst,editId:id};owSel=id;render();owFocusCmp();const c=$('#ow-canvas');if(c&&pinEl.closest('.ow-item'))c.scrollIntoView({behavior:'smooth',block:'center'})}return}
+  if(e.target.id==='owSave'){const ta=$('#owText');const v=ta?ta.value.trim():'';if(!v){if(ta)ta.focus();return}
+    if(owDraft&&owDraft.editId){const p=owPins.find(x=>x.id===owDraft.editId);if(p)p.tekst=v}
+    else owPins.push({id:'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),x:owDraft.x,y:owDraft.y,tekst:v});
+    owDraft=null;owSel=null;render();return}
+  if(e.target.id==='owDel'){if(owDraft&&owDraft.editId)owPins=owPins.filter(x=>x.id!==owDraft.editId);owDraft=null;owSel=null;render();return}
+  if(e.target.id==='owCancel'){owDraft=null;owSel=null;render();return}
+  const cv=e.target.closest('#ow-canvas');
+  if(cv){const img=cv.querySelector('img');if(!img)return;const r=img.getBoundingClientRect();if(!r.width||!r.height)return;
+    const x=Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100)),y=Math.max(0,Math.min(100,(e.clientY-r.top)/r.height*100));
+    owDraft={x:Math.round(x*10)/10,y:Math.round(y*10)/10,tekst:'',editId:null};owSel=null;render();owFocusCmp();return}
+});
+document.addEventListener('click',async e=>{
+  if(e.target.id!=='owSubmit'||busy)return;
+  const list=me.ontwerpen||[];const ow=list[list.length-1];if(!ow)return;
+  busy=true;render();
+  try{await api('/ontwerp/'+encodeURIComponent(ow.id)+'/comments',{comments:owPins.map(p=>({x:p.x,y:p.y,tekst:p.tekst}))});owForId=null;await herlaad();msg.ontwerp={ok:true,t:'Bedankt! Je reacties zijn doorgestuurd. Ik bekijk ze en kom erop terug.'}}
+  catch(err){msg.ontwerp={ok:false,t:err.message}}finally{busy=false}render();
+});
 /* ---- afspraak ---- */
 function renderAfspraak(){
   const k=me.kennismaking;

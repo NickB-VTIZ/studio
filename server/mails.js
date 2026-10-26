@@ -13,6 +13,7 @@ const STANDAARD_MAILS = {
   dossierMelding: '{onderwerp}\n\nKlant: {naam}\nE-mail: {email}\n\n{bericht}\n\nOpen de fiche: {app}',
   naGoedkeuringKlant: 'Hoi {voornaam},\n\nFijn dat jullie doorgaan! In bijlage vinden jullie de voorschotfactuur en het contract.\n\n{bericht}\n\nMet de knop hieronder vullen jullie de vragenlijst in en tekenen jullie het contract online. Van zodra het voorschot betaald is en ik de vragenlijst heb, plan ik jullie ontwerp in.\n\n{dossierlink}\n\nTot snel!\n{afzender}',
   offerteGoedgekeurdKlant: 'Hoi {voornaam},\n\nWat fijn — jullie hebben de offerte "{offerte}" ({totaal}) goedgekeurd. Bedankt voor het vertrouwen!\n\nIk stuur jullie binnenkort de voorschotfactuur, het contract en de vragenlijst. Van zodra het voorschot betaald is en ik de vragenlijst heb, plan ik jullie ontwerp in.\n\n{dossierlink}\n\nTot snel!\n{afzender}',
+  ontwerpKlaar: 'Hoi {voornaam},\n\nSpannend — jullie ontwerp staat klaar! Bekijk het rustig in jullie dossier.\n\nFeedback geven is heel eenvoudig: klik gewoon op een plekje in het ontwerp om daar een opmerking achter te laten. Zo weet ik precies wat je bedoelt. Als je al je opmerkingen hebt geplaatst, klik je op "Reacties indienen" en krijg ik meteen een seintje.\n\n{dossierlink}\n\nIk kijk uit naar jullie reactie!\n{afzender}',
 };
 
 // Vervangt {sleutel} door de waarde. Gekende sleutel met lege waarde → leeg; onbekende sleutel → ongewijzigd.
