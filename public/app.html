@@ -1254,23 +1254,23 @@ async function klantPost(pad,body){const r=await fetch('/api/klant/'+encodeURICo
 /* ---------- e-mail verzendmodal ---------- */
 let mailCtx=null, mailBijlagen=[];
 function fmtBytes(n){n=Number(n)||0;if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(0)+' KB';return (n/1048576).toFixed(1)+' MB'}
-const MAIL_TITELS={offerte:'Offerte versturen',nagoedkeuring:'Voorschot, contract & vragenlijst versturen'};
+const MAIL_TITELS={offerte:'Offerte versturen',nagoedkeuring:'Voorschot, contract & vragenlijst versturen',ontwerp:'Klant verwittigen dat het ontwerp klaarstaat'};
 const MAIL_ATT_LABEL={offerte:'Offerte',factuur:'Voorschotfactuur',contract:'Contract'};
 function renderMailAtt(){
   const box=$('#mail-att');if(!box)return;
   if(!mailBijlagen.length){box.innerHTML='<div class="mail-att-none">Geen documenten om mee te sturen. De klant krijgt enkel de link naar zijn dossier in de mail.</div>';return}
   box.innerHTML=`<div class="mail-atts"><div class="label">Bijlagen <span class="hint">(vink uit wat je niet meestuurt)</span></div>${mailBijlagen.map(f=>`<label class="mail-att-row"><input type="checkbox" data-att="${esc(f.id)}" ${f.checked?'checked':''}><span class="nm">${esc(f.naam)}</span><span class="tag">${esc(MAIL_ATT_LABEL[f.soort]||'Bijlage')}</span><span class="sz">${fmtBytes(f.size)}</span></label>`).join('')}</div>`;
 }
-async function openMailModal(soort,offerteId){
+async function openMailModal(soort,refId){
   if(!work)return;const msg=$('#mailMsg');if(msg){msg.style.color='var(--muted)';msg.textContent=''}
   $('#mailTitel').textContent=MAIL_TITELS[soort]||'E-mail versturen';
   $('#mail-to').value='';$('#mail-subject').value='';$('#mail-text').value='Laden…';$('#mail-att').innerHTML='';
   const sendBtn=$('#mailSend');if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Verzenden'}
   $('#mailOverlay').classList.add('open');
   try{
-    const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/mail-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({soort,offerteId}),credentials:'same-origin'}).then(x=>x.json());
+    const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/mail-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({soort,offerteId:soort==='offerte'?refId:undefined,ontwerpId:soort==='ontwerp'?refId:undefined}),credentials:'same-origin'}).then(x=>x.json());
     if(r.error){$('#mail-text').value='';if(msg){msg.style.color='var(--late)';msg.textContent=r.error}return}
-    mailCtx={soort:r.soort,offerteId:r.offerteId};
+    mailCtx={soort:r.soort,offerteId:r.offerteId,ontwerpId:r.ontwerpId};
     mailBijlagen=(r.bijlagen||[]).map(f=>Object.assign({checked:true},f));
     $('#mail-to').value=r.to||'';$('#mail-subject').value=r.subject||'';$('#mail-text').value=r.body||'';
     renderMailAtt();$('#mail-to').focus();
@@ -1287,9 +1287,9 @@ async function verstuurMailModal(){
   const bijlageIds=[...document.querySelectorAll('#mail-att input[data-att]:checked')].map(c=>c.dataset.att);
   btn.disabled=true;btn.textContent='Versturen…';if(msg)msg.textContent='';
   try{
-    const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/mail-verstuur',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({soort:mailCtx.soort,offerteId:mailCtx.offerteId,to,subject,body,bijlageIds}),credentials:'same-origin'}).then(x=>x.json());
+    const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/mail-verstuur',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({soort:mailCtx.soort,offerteId:mailCtx.offerteId,ontwerpId:mailCtx.ontwerpId,to,subject,body,bijlageIds}),credentials:'same-origin'}).then(x=>x.json());
     if(r.error){fout(r.error);btn.disabled=false;btn.textContent='Verzenden';return}
-    closeMailModal();toast('Gemaild naar '+r.to+' ('+r.bijlagen+' bijlage'+(r.bijlagen===1?'':'n')+')');await herlaadKlant();
+    closeMailModal();toast('Gemaild naar '+r.to+(r.bijlagen?' ('+r.bijlagen+' bijlage'+(r.bijlagen===1?'':'n')+')':''));await herlaadKlant();
   }catch(e){fout('Versturen mislukt');btn.disabled=false;btn.textContent='Verzenden'}
 }
 document.addEventListener('click',e=>{
@@ -1310,7 +1310,7 @@ document.addEventListener('click',async e=>{
   if(t.dataset.owzichtbaar){const [owid,val]=t.dataset.owzichtbaar.split(':');t.disabled=true;try{await klantPost('/ontwerp/'+owid+'/zichtbaar',{zichtbaar:val==='1'});toast(val==='1'?'Zichtbaar gemaakt voor de klant (geen mail verstuurd)':'Verborgen voor de klant');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
   if(t.id==='owNieuweVersie'){t.disabled=true;try{await klantPost('/ontwerp',{});toast('Nieuwe versie aangemaakt — sleep er bestanden in');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
   if(t.dataset.owdrop){if(e.target.tagName!=='INPUT'){const inp=t.querySelector('input[type=file]');if(inp)inp.click()}return}
-  if(t.dataset.owverwittig){t.disabled=true;const was=t.textContent;t.textContent='Versturen…';try{const r=await klantPost('/ontwerp/'+t.dataset.owverwittig+'/verwittig',{});toast('Klant verwittigd per mail');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false;t.textContent=was}return}
+  if(t.dataset.owverwittig){openMailModal('ontwerp',t.dataset.owverwittig);return}
   if(t.dataset.owfiledel){const [owid,fid]=t.dataset.owfiledel.split(':');if(!confirm('Bestand "'+(t.dataset.naam||'')+'" verwijderen uit deze versie?'))return;try{await klantPost('/ontwerp/'+owid+'/bestand/'+fid,null);toast('Bestand verwijderd');await herlaadKlant()}catch(err){toast(err.message)}return}
   if(t.dataset.owdel){if(!confirm((t.dataset.naam||'Deze versie')+' verwijderen? Ook de bestanden en opmerkingen van de klant gaan dan verloren.'))return;try{await klantPost('/ontwerp/'+t.dataset.owdel,null);toast('Versie verwijderd');await herlaadKlant()}catch(err){toast(err.message)}return}
 });

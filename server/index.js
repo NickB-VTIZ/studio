@@ -1062,7 +1062,7 @@ async function api(req, res, url) {
   if (mailPrevMatch && m === 'POST') {
     const k = store.get('klanten', mailPrevMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
     const b = await readJson(req, 10e3).catch(() => ({}));
-    const soort = b.soort === 'offerte' ? 'offerte' : b.soort === 'nagoedkeuring' ? 'nagoedkeuring' : '';
+    const soort = b.soort === 'offerte' ? 'offerte' : b.soort === 'nagoedkeuring' ? 'nagoedkeuring' : b.soort === 'ontwerp' ? 'ontwerp' : '';
     if (!soort) return json(res, 400, { error: 'Onbekende mailsoort' });
     if (!k.wijzigCode) { k.wijzigCode = crypto.randomBytes(9).toString('base64url'); store.set('klanten', mailPrevMatch[1], k); }
     let subject = '', body = '';
@@ -1071,6 +1071,12 @@ async function api(req, res, url) {
       const basis = mailBasis(k, req, { offerte: o.titel || 'Offerte', totaal: euro(offerteTotalen(o).tot), geldigTot: o.geldigTot || '-', bericht: '' });
       const mm = bouwMail(sjablonen().offerteVerstuurd, basis, { dossierlink: dossierKnop(req, k, 'Bekijk en bevestig de offerte') });
       subject = `Offerte ${o.titel && o.titel !== 'Offerte' ? '"' + o.titel + '" ' : ''}van justPIXIT`; body = mm.text;
+    } else if (soort === 'ontwerp') {
+      const ontwerp = (k.ontwerpen || []).find(x => x.id === b.ontwerpId); if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
+      if (!owBestanden(ontwerp).length) return json(res, 400, { error: 'Voeg eerst minstens één bestand toe aan deze versie.' });
+      const basis = mailBasis(k, req, { bericht: '' });
+      const mm = bouwMail(sjablonen().ontwerpKlaar, basis, { dossierlink: dossierKnop(req, k, 'Bekijk je ontwerp') });
+      subject = 'Jullie ontwerp staat klaar – justPIXIT'; body = mm.text;
     } else {
       const factuur = (k.bijlages || []).filter(f => f.soort === 'factuur'), contract = k.contract && k.contract.bestandId ? [1] : [];
       const basis = mailBasis(k, req, { bericht: '', heeftFactuur: factuur.length ? 'ja' : 'nee', heeftContract: contract.length ? 'ja' : 'nee' });
@@ -1078,7 +1084,7 @@ async function api(req, res, url) {
       subject = 'Volgende stap: voorschot, contract en vragenlijst – justPIXIT'; body = mm.text;
     }
     body = body.replace(/\n{3,}/g, '\n\n').trim();
-    return json(res, 200, { ok: true, to: k.email || '', subject, body, bijlagen: mailBijlagenVoor(k, soort, b.offerteId), soort, offerteId: b.offerteId || '' });
+    return json(res, 200, { ok: true, to: k.email || '', subject, body, bijlagen: soort === 'ontwerp' ? [] : mailBijlagenVoor(k, soort, b.offerteId), soort, offerteId: b.offerteId || '', ontwerpId: b.ontwerpId || '' });
   }
   // Mail versturen vanuit de modal met aangepaste ontvanger, onderwerp, tekst en gekozen bijlagen.
   const mailSendMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/mail-verstuur$/);
@@ -1086,13 +1092,22 @@ async function api(req, res, url) {
     const id = mailSendMatch[1], k = store.get('klanten', id); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
     if (!mailActief()) return json(res, 400, { error: 'E-mail is niet ingesteld (zie Koppelingen).' });
     const b = await readJson(req, 100e3).catch(() => ({}));
-    const soort = b.soort === 'offerte' ? 'offerte' : b.soort === 'nagoedkeuring' ? 'nagoedkeuring' : '';
+    const soort = b.soort === 'offerte' ? 'offerte' : b.soort === 'nagoedkeuring' ? 'nagoedkeuring' : b.soort === 'ontwerp' ? 'ontwerp' : '';
     if (!soort) return json(res, 400, { error: 'Onbekende mailsoort' });
     const to = String(b.to || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json(res, 400, { error: 'Vul een geldig e-mailadres in.' });
     const subject = String(b.subject || '').trim(), body = String(b.body || '').trim();
     if (!subject) return json(res, 400, { error: 'Het onderwerp mag niet leeg zijn.' });
     if (!body) return json(res, 400, { error: 'Het bericht mag niet leeg zijn.' });
+    if (soort === 'ontwerp') {
+      const ontwerp = (k.ontwerpen || []).find(x => x.id === b.ontwerpId); if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
+      const r = await verstuurMail({ to, subject, text: body, html: tekstNaarHtmlMail(body) }, { soort: 'ontwerp klaar' });
+      if (!r.ok) return json(res, 502, { error: 'Mail versturen mislukt: ' + r.error });
+      ontwerp.verwittigdOp = vandaagBE(); ontwerp.zichtbaar = true;
+      logboek(k, `Klant verwittigd dat ontwerp-versie ${ontwerp.versie || '?'} klaarstaat (${to})`, 'ontwerp');
+      store.set('klanten', id, k);
+      return json(res, 200, { ok: true, bijlagen: 0, to });
+    }
     const beschikbaar = mailBijlagenVoor(k, soort, b.offerteId);
     const gekozen = Array.isArray(b.bijlageIds) ? b.bijlageIds.map(String) : beschikbaar.map(x => x.id);
     const ids = beschikbaar.filter(x => gekozen.includes(x.id));
