@@ -499,6 +499,17 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
 .ow-drop{margin-top:14px;border:2px dashed var(--line);border-radius:8px;padding:18px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;transition:border-color .15s,background .15s}
 .ow-drop:hover,.ow-drop.drag{border-color:#2C6A4C;background:var(--sunk)}
 .ow-drop u{color:#2C6A4C}
+.ow-gallery{display:grid;grid-template-columns:92px minmax(0,1fr);gap:16px;align-items:start;margin-top:12px}
+.ow-thumbs{display:flex;flex-direction:column;gap:9px;max-height:70vh;overflow:auto;padding:2px}
+.ow-thumb{position:relative;border:2px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;background:var(--card);padding:0;aspect-ratio:1;display:block;width:100%}
+.ow-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ow-thumb:hover{border-color:var(--muted)}
+.ow-thumb.on{border-color:#2C6A4C;box-shadow:0 0 0 2px var(--sunk)}
+.ow-thumb-pdf{display:grid;place-items:center;width:100%;height:100%;font-size:11px;font-weight:700;color:var(--muted);background:var(--sunk)}
+.ow-thumb-badge{position:absolute;top:3px;right:3px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#2C6A4C;color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center}
+.ow-stage{min-width:0}
+.ow-stage .ow-file{border:0;padding:0}
+@media(max-width:640px){.ow-gallery{grid-template-columns:1fr}.ow-thumbs{flex-direction:row;max-height:none;overflow-x:auto}.ow-thumb{flex:0 0 64px;width:64px}}
 </style>
 </head>
 <body>
@@ -746,7 +757,7 @@ function planning(k){
 /* ---------- state ---------- */
 let db=null, sample=null, klanten=[], loaded=false, showEnded=false;
 let view={v:'vandaag'}; let work=null; let mounted=null; let pendingTop={}; let saveTimer=null; let chain=Promise.resolve();
-let search='', filterType='', confirmDel=false, klantTab='overzicht', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null, vpOpen=false, vpMsg=null, vpBusy=false, notitieEdit=null;
+let search='', filterType='', confirmDel=false, klantTab='overzicht', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null, vpOpen=false, vpMsg=null, vpBusy=false, notitieEdit=null, owAdminActive={};
 // Na het inloggen start de beheerder altijd op "Vandaag".
 
 function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;ofConfirm=null;vpOpen=false;vpMsg=null;if(v==='klant'){klantTab='overzicht';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
@@ -1130,7 +1141,16 @@ function renderOntwerpTab(){
     const verwBtn=`<button class="btn small" data-owverwittig="${esc(o.id)}" ${(k.email&&files.length)?'':'disabled'} title="${!files.length?'Voeg eerst een bestand toe aan deze versie':k.email?'Mailt de klant dat deze versie klaarstaat':'Vul eerst een e-mailadres in op de fiche'}">${o.verwittigdOp?'Opnieuw verwittigen':'Verwittig klant'}</button>`;
     const akkoord=o.goedgekeurd?`<p class="hint" style="margin:10px 0 0">🔒 Definitief goedgekeurd door <b>${esc(o.goedgekeurd.naam)}</b> op ${fmt(o.goedgekeurd.op.slice(0,10))} — geldt als akkoord, geen aanpassingen meer.</p>`:'';
     const drop=o.goedgekeurd?'':`<div class="ow-drop" data-owdrop="${esc(o.id)}" tabindex="0"><span>Sleep bestanden hierheen of <u>klik om te uploaden</u></span><br><small>PNG, JPG, WebP of PDF · meerdere tegelijk kan</small><input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" multiple hidden></div>`;
-    return `<div class="ow-card${o.goedgekeurd?' ow-card-ok':''}"><div class="ow-card-head"><div><b>Versie ${vnr}</b> <span class="hint">· ${files.length} bestand${files.length===1?'':'en'} · ${fmt((o.toegevoegd||'').slice(0,10))}</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${status}${verwBtn}<button class="btn small ghost danger" data-owdel="${esc(o.id)}" data-naam="Versie ${vnr}">Versie verwijderen</button></div></div>${akkoord}${files.length?`<div class="ow-files">${files.map((f,i)=>fileBlok(o,f,i===0)).join('')}</div>`:'<p class="hint" style="margin:10px 0 6px">Nog geen bestanden in deze versie — sleep ze hieronder erin.</p>'}${drop}</div>`;
+    let filesHtml;
+    if(!files.length){filesHtml='<p class="hint" style="margin:10px 0 6px">Nog geen bestanden in deze versie — sleep ze hieronder erin.</p>';}
+    else if(files.length===1){filesHtml=`<div class="ow-files">${fileBlok(o,files[0],true)}</div>`;}
+    else{
+      let act=owAdminActive[o.id];if(!act||!files.some(f=>f.id===act))act=files[0].id;owAdminActive[o.id]=act;
+      const thumbs=files.map(f=>{const isImg=(f.type||'').startsWith('image/');const url='/_blob/'+esc(f.id);const n=(o.comments||[]).filter(c=>(c.bestandId||'')===f.id||(!c.bestandId&&files[0].id===f.id)).length;return `<button class="ow-thumb${f.id===act?' on':''}" data-owthumbadm="${esc(o.id)}:${esc(f.id)}" title="${esc(f.naam||'')}">${isImg?`<img src="${url}" alt="" loading="lazy">`:'<span class="ow-thumb-pdf">PDF</span>'}${n?`<span class="ow-thumb-badge">${n}</span>`:''}</button>`}).join('');
+      const activeF=files.find(f=>f.id===act);
+      filesHtml=`<div class="ow-gallery"><div class="ow-thumbs">${thumbs}</div><div class="ow-stage">${fileBlok(o,activeF,files[0].id===activeF.id)}</div></div>`;
+    }
+    return `<div class="ow-card${o.goedgekeurd?' ow-card-ok':''}"><div class="ow-card-head"><div><b>Versie ${vnr}</b> <span class="hint">· ${files.length} bestand${files.length===1?'':'en'} · ${fmt((o.toegevoegd||'').slice(0,10))}</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${status}${verwBtn}<button class="btn small ghost danger" data-owdel="${esc(o.id)}" data-naam="Versie ${vnr}">Versie verwijderen</button></div></div>${akkoord}${filesHtml}${drop}</div>`;
   };
   box.innerHTML=`<section class="sec"><h2>Ontwerp</h2><p class="hint">Maak een versie aan en upload er één of meerdere bestanden in (sleep ze erin of klik). De klant bekijkt elke versie in zijn dossier en plaatst opmerkingen rechtstreeks op de afbeeldingen, net als in Figma. Zodra de klant indient of een versie goedkeurt, krijg je een mail.</p>
    ${anyApproved?'<p class="hint" style="margin-top:8px;color:var(--g-klaar)">✓ De klant heeft een versie definitief goedgekeurd — dit geldt als akkoord.</p>':''}
@@ -1276,13 +1296,14 @@ document.addEventListener('click',e=>{
   if(e.target.closest('#mailSend')){verstuurMailModal();return}
 });
 document.addEventListener('click',async e=>{
-  const t=e.target.closest('#vpAnnuleer,#vsToggle,#ngSend,[data-bjdel],[data-ofmail],[data-owverwittig],[data-owdel],[data-owfiledel],#owNieuweVersie,[data-owdrop]');if(!t||!work)return;
+  const t=e.target.closest('#vpAnnuleer,#vsToggle,#ngSend,[data-bjdel],[data-ofmail],[data-owverwittig],[data-owdel],[data-owfiledel],#owNieuweVersie,[data-owdrop],[data-owthumbadm]');if(!t||!work)return;
   if(t.id==='vpAnnuleer'){const reden=prompt('Afspraak van '+fmtDT(work.kennismaking)+' annuleren? Het agenda-item wordt verwijderd en de fiche gaat naar "Gesprek geannuleerd".\n\nReden (optioneel, komt in de mail naar de klant):');if(reden===null)return;
     t.disabled=true;try{const r=await klantPost('/annuleer',{reden});toast('Afspraak geannuleerd'+(r.gemaild?' — klant verwittigd':''));await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
   if(t.id==='vsToggle'){const vs=work.voorschot||{};t.disabled=true;try{await klantPost('/voorschot',{betaald:!vs.betaald});toast(vs.betaald?'Voorschot op niet betaald':'Voorschot als betaald gemarkeerd');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
   if(t.id==='ngSend'){openMailModal('nagoedkeuring');return}
   if(t.dataset.bjdel){if(!confirm('Bijlage "'+t.dataset.naam+'" verwijderen?'))return;try{await klantPost('/bijlage/'+t.dataset.bjdel,null);toast('Bijlage verwijderd');await herlaadKlant()}catch(err){toast(err.message)}return}
   if(t.dataset.ofmail){const o=findOf(t.dataset.ofmail);if(!o)return;openMailModal('offerte',o.id);return}
+  if(t.dataset.owthumbadm){const [owid,fid]=t.dataset.owthumbadm.split(':');owAdminActive[owid]=fid;renderOntwerpTab();return}
   if(t.id==='owNieuweVersie'){t.disabled=true;try{await klantPost('/ontwerp',{});toast('Nieuwe versie aangemaakt — sleep er bestanden in');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false}return}
   if(t.dataset.owdrop){if(e.target.tagName!=='INPUT'){const inp=t.querySelector('input[type=file]');if(inp)inp.click()}return}
   if(t.dataset.owverwittig){t.disabled=true;const was=t.textContent;t.textContent='Versturen…';try{const r=await klantPost('/ontwerp/'+t.dataset.owverwittig+'/verwittig',{});toast('Klant verwittigd per mail');await herlaadKlant()}catch(err){toast(err.message);t.disabled=false;t.textContent=was}return}
