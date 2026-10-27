@@ -652,19 +652,20 @@ const DEFAULTS={
     annulatieKlant:'Hoi {voornaam},\n\nJullie kennismakingsgesprek van {wanneer} is geannuleerd.\n\nWillen jullie later toch nog samenzitten? Plan dan gerust een nieuw moment:\n{boeklink}\n\nGroetjes,\n{afzender}',
     dossierMelding:'{onderwerp}\n\nKlant: {naam}\nE-mail: {email}\n\n{bericht}\n\nOpen de fiche: {app}',
     naGoedkeuringKlant:'Hoi {voornaam},\n\nFijn dat jullie doorgaan! In bijlage vinden jullie de voorschotfactuur en het contract.\n\n{bericht}\n\nMet de knop hieronder vullen jullie de vragenlijst in en tekenen jullie het contract online. Van zodra het voorschot betaald is en ik de vragenlijst heb, plan ik jullie ontwerp in.\n\n{dossierlink}\n\nTot snel!\n{afzender}',
-    offerteGoedgekeurdKlant:'Hoi {voornaam},\n\nWat fijn — jullie hebben de offerte "{offerte}" ({totaal}) goedgekeurd. Bedankt voor het vertrouwen!\n\nIk stuur jullie binnenkort de voorschotfactuur, het contract en de vragenlijst. Van zodra het voorschot betaald is en ik de vragenlijst heb, plan ik jullie ontwerp in.\n\n{dossierlink}\n\nTot snel!\n{afzender}'
+    offerteGoedgekeurdKlant:'Hoi {voornaam},\n\nWat fijn — jullie hebben de offerte "{offerte}" ({totaal}) goedgekeurd. Bedankt voor het vertrouwen!\n\nIk stuur jullie binnenkort de voorschotfactuur, het contract en de vragenlijst. Van zodra het voorschot betaald is en ik de vragenlijst heb, plan ik jullie ontwerp in.\n\n{dossierlink}\n\nTot snel!\n{afzender}',
+    ontwerpKlaar:'Hoi {voornaam},\n\nSpannend — jullie ontwerp staat klaar! Bekijk het rustig in jullie dossier.\n\nFeedback geven is heel eenvoudig: klik gewoon op een plekje in het ontwerp om daar een opmerking achter te laten. Zo weet ik precies wat je bedoelt. Als je al je opmerkingen hebt geplaatst, klik je op "Reacties indienen" en krijg ik meteen een seintje.\n\n{dossierlink}\n\nIk kijk uit naar jullie reactie!\n{afzender}'
   }
 };
 const LIJST_LABELS={stopReden:'Reden niet doorgegaan',bron:'Hoe gevonden?',type:'Type klant',versies:'Uitnodiging · versies',opOfferte:'Uitnodiging · op offerte',formaat:'Uitnodiging · formaat',enveloppen:'Uitnodiging · enveloppen',foto:'Uitnodiging · foto',afwerking:'Uitnodiging · afwerking'};
 const TERMIJN_LABELS={offerte:['Offerte versturen','dagen na het kennismakingsgesprek'],opvolging:['Offerte opvolgen','dagen na het versturen van de offerte'],herhaling:['Tweede opvolging','dagen na de eerste opvolging'],vragenlijst:['Herinnering vragenlijst','dagen na goedkeuring'],proef:['Feedback digitale proef opvolgen','dagen na het versturen van de proef'],proefdruk:['Proefdruk nakijken','dagen na bestelling'],deadlineWaarschuwing:['Deadline tonen op Vandaag','dagen vooraf']};
 const PLAN_LABELS={beslissing:['Beslissing klant over offerte','dagen na versturen offerte'],wachttijdOntwerp:['Wachttijd tot start ontwerp','dagen na ontvangst vragenlijst'],ontwerpduur:['Ontwerpen tot digitale proef','dagen'],feedback:['Feedbackrondes tot proefdruk','dagen'],proefdrukDuur:['Proefdruk tot drukwerk besteld','dagen'],levering:['Drukwerk tot levering (afgerond)','dagen']};
-const MAIL_LABELS={boekingKlant:'Bevestiging afspraak (naar de klant)',boekingAdmin:'Melding nieuwe afspraak (naar jou)',verplaatstKlant:'Afspraak verplaatst (naar de klant)',verplaatstAdmin:'Afspraak verplaatst door de klant (naar jou)',portaalLogin:'Uitnodiging portaal (wachtwoord instellen, naar de klant)',wachtwoordReset:'Wachtwoord vergeten (naar de gebruiker)',offerteVerstuurd:'Offerte versturen (PDF in bijlage, naar de klant)',offerteReactie:'Offerte goedgekeurd / afgekeurd / vraag (naar jou)',offerteGoedgekeurdKlant:'Bevestiging offerte goedgekeurd (naar de klant)',naGoedkeuringKlant:'Na goedkeuring: voorschot, contract & vragenlijst (naar de klant)',annulatieKlant:'Afspraak geannuleerd (naar de klant)',dossierMelding:'Melding uit het dossier (naar jou)',opvolging:'Opvolging offerte',onboarding:'Onboarding (na goedkeuring)',vragenlijst:'Herinnering vragenlijst',proef:'Feedback digitale proef'};
-const MAIL_AUTO=['boekingKlant','boekingAdmin','verplaatstKlant','verplaatstAdmin','annulatieKlant','offerteVerstuurd','offerteReactie','offerteGoedgekeurdKlant','naGoedkeuringKlant','dossierMelding','portaalLogin','wachtwoordReset'];
+const MAIL_LABELS={boekingKlant:'Bevestiging afspraak (naar de klant)',boekingAdmin:'Melding nieuwe afspraak (naar jou)',verplaatstKlant:'Afspraak verplaatst (naar de klant)',verplaatstAdmin:'Afspraak verplaatst door de klant (naar jou)',portaalLogin:'Uitnodiging portaal (wachtwoord instellen, naar de klant)',wachtwoordReset:'Wachtwoord vergeten (naar de gebruiker)',offerteVerstuurd:'Offerte versturen (PDF in bijlage, naar de klant)',offerteReactie:'Offerte goedgekeurd / afgekeurd / vraag (naar jou)',offerteGoedgekeurdKlant:'Bevestiging offerte goedgekeurd (naar de klant)',naGoedkeuringKlant:'Na goedkeuring: voorschot, contract & vragenlijst (naar de klant)',ontwerpKlaar:'Ontwerp klaar — klant verwittigen (naar de klant)',annulatieKlant:'Afspraak geannuleerd (naar de klant)',dossierMelding:'Melding uit het dossier (naar jou)',opvolging:'Opvolging offerte',onboarding:'Onboarding (na goedkeuring)',vragenlijst:'Herinnering vragenlijst',proef:'Feedback digitale proef'};
+const MAIL_AUTO=['boekingKlant','boekingAdmin','verplaatstKlant','verplaatstAdmin','annulatieKlant','offerteVerstuurd','offerteReactie','offerteGoedgekeurdKlant','naGoedkeuringKlant','ontwerpKlaar','dossierMelding','portaalLogin','wachtwoordReset'];
 const MAIL_PLACEHOLDERS={boekingKlant:'{voornaam} {naam} {wanneer} {duur} {locatie} {videolink} {wijziglink} {bevestiging} {afzender}',boekingAdmin:'{naam} {wanneer} {email} {telefoon} {type} {datumEvent} {bericht} {videolink} {app}',
   verplaatstKlant:'{voornaam} {naam} {wanneer} {vorig} {duur} {locatie} {videolink} {wijziglink} {afzender}',verplaatstAdmin:'{naam} {wanneer} {vorig} {email} {door} {app}',
   portaalLogin:'{voornaam} {naam} {loginlink} {app} {afzender}',wachtwoordReset:'{voornaam} {loginlink} {afzender}',
   offerteReactie:'{naam} {offerte} {totaal} {reactie} {bericht} {email} {app}',offerteGoedgekeurdKlant:'{voornaam} {naam} {offerte} {totaal} {dossierlink} {afzender}',
-  offerteVerstuurd:'{voornaam} {naam} {offerte} {totaal} {geldigTot} {bericht} {dossierlink} {afzender}',naGoedkeuringKlant:'{voornaam} {naam} {bericht} {dossierlink} {afzender}',annulatieKlant:'{voornaam} {naam} {wanneer} {reden} {boeklink} {afzender}',dossierMelding:'{onderwerp} {naam} {email} {bericht} {app}'};
+  offerteVerstuurd:'{voornaam} {naam} {offerte} {totaal} {geldigTot} {bericht} {dossierlink} {afzender}',naGoedkeuringKlant:'{voornaam} {naam} {bericht} {dossierlink} {afzender}',ontwerpKlaar:'{voornaam} {naam} {dossierlink} {afzender}',annulatieKlant:'{voornaam} {naam} {wanneer} {reden} {boeklink} {afzender}',dossierMelding:'{onderwerp} {naam} {email} {bericht} {app}'};
 const KNOP_UITLEG={videolink:'knop “Deelnemen aan Teams/Zoom” (valt weg zonder videocall)',wijziglink:'knop naar het persoonlijke dossier van de klant (verzetten/annuleren)',dossierlink:'knop naar het persoonlijke dossier (offerte bevestigen, vragenlijst, contract)',boeklink:'knop naar de afsprakenpagina',portaallink:'knop “Mijn pagina” (klantenportaal)',loginlink:'knop “Inloggen” met de persoonlijke inloglink'};
 let cfg=JSON.parse(JSON.stringify(DEFAULTS));
 function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!stored)return c;
@@ -1299,10 +1300,13 @@ async function verstuurMailModal(){
     closeMailModal();toast('Gemaild naar '+r.to+(r.bijlagen?' ('+r.bijlagen+' bijlage'+(r.bijlagen===1?'':'n')+')':''));await herlaadKlant();
   }catch(e){fout('Versturen mislukt');btn.disabled=false;btn.textContent='Verzenden'}
 }
+let mailDownTarget=null;
+document.addEventListener('mousedown',e=>{mailDownTarget=e.target;});
 document.addEventListener('click',e=>{
   if(e.target.closest('#mailClose,#mailCancel')){closeMailModal();return}
   if(e.target.id==='mailCcToggle'){const r=$('#mail-ccrow');if(r){r.hidden=!r.hidden;e.target.textContent=r.hidden?'+ Cc/Bcc toevoegen':'− Cc/Bcc verbergen';if(!r.hidden){const c=$('#mail-cc');if(c)c.focus()}}return}
-  if(e.target.id==='mailOverlay'){closeMailModal();return}
+  // Enkel sluiten bij een echte klik op de donkere achtergrond — niet wanneer je tekst selecteert in een veld en de muis buiten het venster loslaat.
+  if(e.target.id==='mailOverlay'&&mailDownTarget&&mailDownTarget.id==='mailOverlay'){closeMailModal();return}
   if(e.target.closest('#mailSend')){verstuurMailModal();return}
 });
 document.addEventListener('click',async e=>{
@@ -2220,7 +2224,7 @@ document.addEventListener('click',e=>{
   if(e.target.closest('#ddAccount')||e.target.closest('#openAccountPanel')){openAccountPanel();$('#profileWrap')?.classList.remove('open')}
   if(e.target.closest('#ddVersion')){$('#profileWrap')?.classList.remove('open');go('beheer');beheerTab='systeem';rerenderBeheer()}
   if(e.target.closest('#ddBeheer')){$('#profileWrap')?.classList.remove('open');go('beheer')}
-  if(e.target.closest('#accClose')||e.target.id==='accOverlay')closeAccountPanel();
+  if(e.target.closest('#accClose')||(e.target.id==='accOverlay'&&mailDownTarget&&mailDownTarget.id==='accOverlay'))closeAccountPanel();
 });
 function openAccountPanel(){
   const ov=$('#accOverlay');if(!ov)return;
