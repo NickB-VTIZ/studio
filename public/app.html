@@ -564,6 +564,11 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
     <div class="mail-head"><h2 id="mailTitel">E-mail versturen</h2><button class="mail-x" id="mailClose" aria-label="Sluiten">×</button></div>
     <div class="mail-scroll">
       <label class="fld"><span>Aan</span><input id="mail-to" type="email" autocomplete="off" placeholder="klant@voorbeeld.be"></label>
+      <button type="button" id="mailCcToggle" style="background:none;border:0;color:var(--accent);cursor:pointer;padding:0;margin:-4px 0 4px;font:inherit;font-size:13px">+ Cc/Bcc toevoegen</button>
+      <div id="mail-ccrow" hidden>
+        <label class="fld"><span>Cc</span><input id="mail-cc" type="text" autocomplete="off" placeholder="extra ontvanger(s), gescheiden door komma"></label>
+        <label class="fld"><span>Bcc</span><input id="mail-bcc" type="text" autocomplete="off" placeholder="bv. jezelf in blind kopie (optioneel)"></label>
+      </div>
       <label class="fld"><span>Onderwerp</span><input id="mail-subject" type="text"></label>
       <label class="fld"><span>Bericht</span><textarea id="mail-text" rows="11"></textarea></label>
       <div id="mail-att"></div>
@@ -1265,6 +1270,7 @@ async function openMailModal(soort,refId){
   if(!work)return;const msg=$('#mailMsg');if(msg){msg.style.color='var(--muted)';msg.textContent=''}
   $('#mailTitel').textContent=MAIL_TITELS[soort]||'E-mail versturen';
   $('#mail-to').value='';$('#mail-subject').value='';$('#mail-text').value='Laden…';$('#mail-att').innerHTML='';
+  if($('#mail-cc'))$('#mail-cc').value='';if($('#mail-bcc'))$('#mail-bcc').value='';if($('#mail-ccrow'))$('#mail-ccrow').hidden=true;if($('#mailCcToggle'))$('#mailCcToggle').textContent='+ Cc/Bcc toevoegen';
   const sendBtn=$('#mailSend');if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Verzenden'}
   $('#mailOverlay').classList.add('open');
   try{
@@ -1280,6 +1286,7 @@ function closeMailModal(){$('#mailOverlay').classList.remove('open');mailCtx=nul
 async function verstuurMailModal(){
   if(!mailCtx||!work)return;const msg=$('#mailMsg'),btn=$('#mailSend');
   const to=$('#mail-to').value.trim(),subject=$('#mail-subject').value.trim(),body=$('#mail-text').value.trim();
+  const cc=($('#mail-cc')||{}).value||'',bcc=($('#mail-bcc')||{}).value||'';
   const fout=t=>{if(msg){msg.style.color='var(--late)';msg.textContent=t}};
   if(!to){fout('Vul een e-mailadres in.');$('#mail-to').focus();return}
   if(!subject){fout('Het onderwerp mag niet leeg zijn.');return}
@@ -1287,13 +1294,14 @@ async function verstuurMailModal(){
   const bijlageIds=[...document.querySelectorAll('#mail-att input[data-att]:checked')].map(c=>c.dataset.att);
   btn.disabled=true;btn.textContent='Versturen…';if(msg)msg.textContent='';
   try{
-    const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/mail-verstuur',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({soort:mailCtx.soort,offerteId:mailCtx.offerteId,ontwerpId:mailCtx.ontwerpId,to,subject,body,bijlageIds}),credentials:'same-origin'}).then(x=>x.json());
+    const r=await fetch('/api/klant/'+encodeURIComponent(work.id)+'/mail-verstuur',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({soort:mailCtx.soort,offerteId:mailCtx.offerteId,ontwerpId:mailCtx.ontwerpId,to,cc,bcc,subject,body,bijlageIds}),credentials:'same-origin'}).then(x=>x.json());
     if(r.error){fout(r.error);btn.disabled=false;btn.textContent='Verzenden';return}
     closeMailModal();toast('Gemaild naar '+r.to+(r.bijlagen?' ('+r.bijlagen+' bijlage'+(r.bijlagen===1?'':'n')+')':''));await herlaadKlant();
   }catch(e){fout('Versturen mislukt');btn.disabled=false;btn.textContent='Verzenden'}
 }
 document.addEventListener('click',e=>{
   if(e.target.closest('#mailClose,#mailCancel')){closeMailModal();return}
+  if(e.target.id==='mailCcToggle'){const r=$('#mail-ccrow');if(r){r.hidden=!r.hidden;e.target.textContent=r.hidden?'+ Cc/Bcc toevoegen':'− Cc/Bcc verbergen';if(!r.hidden){const c=$('#mail-cc');if(c)c.focus()}}return}
   if(e.target.id==='mailOverlay'){closeMailModal();return}
   if(e.target.closest('#mailSend')){verstuurMailModal();return}
 });

@@ -16,10 +16,14 @@ function smtpConfig(env = process.env) {
 }
 
 // attachments: [{ filename, content: Buffer, contentType }]
-function sendMail({ to, subject, text, html, replyTo, attachments }, cfg = smtpConfig()) {
+function sendMail({ to, subject, text, html, replyTo, attachments, cc, bcc }, cfg = smtpConfig()) {
   if (!cfg || !cfg.from || !to) return Promise.resolve(false);
+  const _lijst = v => (Array.isArray(v) ? v : [v]).map(x => String(x || '').trim()).filter(Boolean);
+  const _adres = a => String(a || '').replace(/.*<|>.*/g, '').trim();
+  const ccA = _lijst(cc), bccA = _lijst(bcc);
+  const rcpts = [to].concat(ccA).concat(bccA).map(_adres).filter(Boolean);
   return new Promise((resolve, reject) => {
-    let socket, buffer = '', step = 0, upgraded = cfg.secure;
+    let socket, buffer = '', step = 0, upgraded = cfg.secure, ri = 0;
     const timeout = setTimeout(() => { try { socket.destroy(); } catch (e) {} reject(new Error('SMTP timeout')); }, 20000);
     const fail = e => { clearTimeout(timeout); try { socket.destroy(); } catch (_) {} reject(e); };
     const write = s => socket.write(s + '\r\n');
@@ -27,7 +31,7 @@ function sendMail({ to, subject, text, html, replyTo, attachments }, cfg = smtpC
     const wrap = s => b64(s).replace(/.{76}/g, '$&\r\n');
     const wrapBuf = buf => buf.toString('base64').replace(/.{76}/g, '$&\r\n');
     const encHeader = s => /[^\x20-\x7e]/.test(s) ? `=?UTF-8?B?${b64(s)}?=` : s;
-    const kop = [`From: ${cfg.from}`, `To: ${to}`, replyTo ? `Reply-To: ${replyTo}` : null, `Subject: ${encHeader(subject)}`, `Date: ${new Date().toUTCString()}`, 'MIME-Version: 1.0'];
+    const kop = [`From: ${cfg.from}`, `To: ${to}`, ccA.length ? `Cc: ${ccA.join(', ')}` : null, replyTo ? `Reply-To: ${replyTo}` : null, `Subject: ${encHeader(subject)}`, `Date: ${new Date().toUTCString()}`, 'MIME-Version: 1.0'];
     const grensId = () => 'bnd_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
     // tekstdeel (plain of plain+html)
     let inhoudType, inhoud;
@@ -72,8 +76,8 @@ function sendMail({ to, subject, text, html, replyTo, attachments }, cfg = smtpC
         case 'auth': write(b64(cfg.user)); state = 'user'; break;
         case 'user': write(b64(cfg.pass)); state = 'pass'; break;
         case 'pass': write(`MAIL FROM:<${cfg.from.replace(/.*<|>.*/g, '')}>`); state = 'mail'; break;
-        case 'mail': write(`RCPT TO:<${to.replace(/.*<|>.*/g, '')}>`); state = 'rcpt'; break;
-        case 'rcpt': write('DATA'); state = 'data'; break;
+        case 'mail': write(`RCPT TO:<${rcpts[0]}>`); ri = 1; state = 'rcpt'; break;
+        case 'rcpt': if (ri < rcpts.length) { write(`RCPT TO:<${rcpts[ri++]}>`); } else { write('DATA'); state = 'data'; } break;
         case 'data': socket.write(message + '\r\n'); state = 'sent'; break;
         case 'sent': write('QUIT'); state = 'quit'; clearTimeout(timeout); resolve(true); break;
         case 'quit': try { socket.end(); } catch (e) {} break;

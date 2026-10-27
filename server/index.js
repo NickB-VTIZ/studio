@@ -1099,9 +1099,13 @@ async function api(req, res, url) {
     const subject = String(b.subject || '').trim(), body = String(b.body || '').trim();
     if (!subject) return json(res, 400, { error: 'Het onderwerp mag niet leeg zijn.' });
     if (!body) return json(res, 400, { error: 'Het bericht mag niet leeg zijn.' });
+    const parseAdres = v => String(v || '').split(/[,;]/).map(x => x.trim()).filter(Boolean);
+    const cc = parseAdres(b.cc), bcc = parseAdres(b.bcc);
+    const foutAdres = [...cc, ...bcc].find(a => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a));
+    if (foutAdres) return json(res, 400, { error: 'Ongeldig e-mailadres in Cc/Bcc: ' + foutAdres });
     if (soort === 'ontwerp') {
       const ontwerp = (k.ontwerpen || []).find(x => x.id === b.ontwerpId); if (!ontwerp) return json(res, 404, { error: 'Ontwerp niet gevonden' });
-      const r = await verstuurMail({ to, subject, text: body, html: tekstNaarHtmlMail(body) }, { soort: 'ontwerp klaar' });
+      const r = await verstuurMail({ to, cc, bcc, subject, text: body, html: tekstNaarHtmlMail(body) }, { soort: 'ontwerp klaar' });
       if (!r.ok) return json(res, 502, { error: 'Mail versturen mislukt: ' + r.error });
       ontwerp.verwittigdOp = vandaagBE(); ontwerp.zichtbaar = true;
       logboek(k, `Klant verwittigd dat ontwerp-versie ${ontwerp.versie || '?'} klaarstaat (${to})`, 'ontwerp');
@@ -1112,7 +1116,7 @@ async function api(req, res, url) {
     const gekozen = Array.isArray(b.bijlageIds) ? b.bijlageIds.map(String) : beschikbaar.map(x => x.id);
     const ids = beschikbaar.filter(x => gekozen.includes(x.id));
     const attachments = ids.map(x => bijlageVan(x.id)).filter(Boolean);
-    const r = await verstuurMail({ to, subject, text: body, html: tekstNaarHtmlMail(body), attachments }, { soort: soort === 'offerte' ? 'offerte verstuurd' : 'na goedkeuring (voorschot/contract/vragenlijst)' });
+    const r = await verstuurMail({ to, cc, bcc, subject, text: body, html: tekstNaarHtmlMail(body), attachments }, { soort: soort === 'offerte' ? 'offerte verstuurd' : 'na goedkeuring (voorschot/contract/vragenlijst)' });
     if (!r.ok) return json(res, 502, { error: 'Mail versturen mislukt: ' + r.error });
     const vandaag = vandaagBE();
     if (soort === 'offerte') {

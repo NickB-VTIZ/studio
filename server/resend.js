@@ -7,11 +7,13 @@ function resendConfig(env = process.env) {
 }
 
 // attachments: [{ filename, content: Buffer }]
-function sendViaResend({ to, subject, text, html, replyTo, attachments }, cfg = resendConfig()) {
+function sendViaResend({ to, subject, text, html, replyTo, attachments, cc, bcc }, cfg = resendConfig()) {
   if (!to) return Promise.reject(new Error('geen ontvanger'));
   if (!cfg || !cfg.from) return Promise.reject(new Error('geen afzender ingesteld (vul een afzender in bij Koppelingen → E-mail)'));
   const att = (attachments || []).map(a => ({ filename: a.filename, content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : String(a.content) }));
-  const body = JSON.stringify({ from: cfg.from, to: [to], subject, text, html: html || undefined, reply_to: replyTo || undefined, attachments: att.length ? att : undefined });
+  const lijst = v => (Array.isArray(v) ? v : [v]).map(x => String(x || '').trim()).filter(Boolean);
+  const ccA = lijst(cc), bccA = lijst(bcc);
+  const body = JSON.stringify({ from: cfg.from, to: [to], cc: ccA.length ? ccA : undefined, bcc: bccA.length ? bccA : undefined, subject, text, html: html || undefined, reply_to: replyTo || undefined, attachments: att.length ? att : undefined });
   return new Promise((resolve, reject) => {
     const req = https.request('https://api.resend.com/emails', {
       method: 'POST',
