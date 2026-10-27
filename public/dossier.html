@@ -128,6 +128,11 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 .vl-intro .body p{margin:0}
 .vl-intro .body ul{margin:4px 0;padding-left:20px}
 .vl-intro .body li{margin:2px 0}
+/* ontwerp-uitleg: subtieler — geen kader, vette onderlijnde accenttekst */
+.ow-guide{background:none;border:0;border-radius:0;padding:0;margin:2px 0 16px}
+.ow-guide summary{font-family:var(--f-ui);font-weight:700;font-size:14px;color:var(--green);text-decoration:underline;text-underline-offset:3px;gap:6px}
+.ow-guide summary::before{font-size:13px;width:13px;color:var(--green)}
+.ow-guide .body{margin-top:10px;color:var(--ink-soft)}
 .vl-progress{display:flex;align-items:center;gap:12px;margin-bottom:4px;font-size:13px;color:var(--ink-soft)}
 .vl-progress .bar{flex:1;height:6px;background:var(--sage);border-radius:3px;overflow:hidden}.vl-progress .bar i{display:block;height:100%;background:var(--green);border-radius:3px;transition:width .3s}
 .vl-saved{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ok-ink);opacity:0;transition:opacity .3s}
@@ -352,7 +357,7 @@ function renderOntwerp(){
   }
   const intro=editable?'<p class="note" style="margin:-4px 0 14px"><b>Klik op een afbeelding</b> op de plek waar je iets over wil zeggen — net als een speldje. Staan al je opmerkingen erop, klik dan op "Reacties indienen".</p>':(anyApproved?'':'<p class="note" style="margin:-4px 0 14px">Je bekijkt een <b>oudere versie</b>. Opmerkingen plaatsen kan enkel op de nieuwste versie.</p>');
   const heeftImg=files.some(f=>(f.type||'').startsWith('image/'));
-  const guide=editable&&heeftImg?`<details class="vl-intro ow-guide"${owPins.length?'':' open'}>
+  const guide=editable&&heeftImg?`<details class="vl-intro ow-guide">
      <summary>Hoe laat ik opmerkingen achter?</summary>
      <div class="body">
        <ul>
