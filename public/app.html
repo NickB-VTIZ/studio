@@ -405,6 +405,43 @@ aside{display:grid;gap:18px;position:sticky;top:calc(env(safe-area-inset-top,0px
 .mailgrid textarea{width:100%;min-height:200px;border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:10px;resize:vertical;font-size:13px;line-height:1.5}
 .mailgrid .row{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
+/* e-mails: master-detail */
+.mail-md{display:grid;grid-template-columns:270px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:760px){.mail-md{grid-template-columns:1fr}}
+.mail-md-list{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:10px;padding:6px;background:var(--bg);max-height:72vh;overflow:auto}
+.mail-cat-head{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:12px 10px 4px}
+.mail-row{display:flex;flex-direction:column;gap:1px;text-align:left;border:0;background:none;cursor:pointer;font:inherit;padding:8px 10px;border-radius:7px;width:100%}
+.mail-row:hover{background:var(--sunk)}
+.mail-row.on{background:var(--accent);color:var(--accent-ink)}
+.mail-row .mr-naam{font-size:13px;font-weight:500}
+.mail-row .mr-cat{font-size:11px;color:var(--muted)}
+.mail-row.on .mr-cat{color:var(--accent-ink);opacity:.8}
+.mail-md-detail{border:1px solid var(--line);border-radius:10px;padding:18px;background:var(--bg);display:grid;gap:4px;min-width:0}
+.mail-md-detail textarea{width:100%;border:1px solid var(--line);background:var(--card,#fff);border-radius:7px;padding:10px;resize:vertical;font-size:13px;line-height:1.55}
+.mail-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.mail-detail-head h3{font-size:16px;font-weight:600;margin:0}
+.mail-tag{display:inline-block;font-size:11px;color:var(--muted);margin-top:2px}
+.mail-tag.auto{color:var(--ok)}
+.mail-test{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.mail-test input{flex:1 1 200px;border:1px solid var(--line);background:var(--card,#fff);border-radius:7px;padding:8px 10px;font-size:13px}
+/* e-mails: logboek-tabel */
+.ml-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.ml-filters input{border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:7px 10px;font-size:13px}
+.ml-filters input[type=search]{flex:1 1 240px}
+.ml-tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.ml-table{width:100%;border-collapse:collapse;font-size:13px}
+.ml-table th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.ml-table td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.ml-table tr:last-child td{border-bottom:0}
+.ml-table tr.ml-badrow{background:var(--late-soft)}
+.ml-dt{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--muted)}
+.ml-to{word-break:break-all}
+.ml-via{color:var(--muted)}
+.ml-fout{color:var(--late);font-size:12px}
+.ml-st{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.ml-st.ok{background:var(--ok-soft);color:var(--ok)}
+.ml-st.bad{background:var(--late-soft);color:var(--late)}
+.ml-pager{display:flex;gap:12px;align-items:center;justify-content:center;margin-top:12px}
 
 /* planning tab */
 .gantt{overflow-x:auto}
@@ -764,6 +801,7 @@ function planning(k){
 let db=null, sample=null, klanten=[], loaded=false, showEnded=false;
 let view={v:'vandaag'}; let work=null; let mounted=null; let pendingTop={}; let saveTimer=null; let chain=Promise.resolve();
 let search='', filterType='', confirmDel=false, klantTab='overzicht', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null, vpOpen=false, vpMsg=null, vpBusy=false, notitieEdit=null, owAdminActive={};
+let mailSel='afzender', mailtestAdres='', mlFilter='', mlDate='', mlPage=0, mailLogItems=null;
 // Na het inloggen start de beheerder altijd op "Vandaag".
 
 function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;ofConfirm=null;vpOpen=false;vpMsg=null;if(v==='klant'){klantTab='overzicht';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
@@ -783,7 +821,7 @@ function render(){
   else if(view.v==='pipeline')app.innerHTML=vPipeline();
   else if(view.v==='klanten')app.innerHTML=vKlanten();
   else if(view.v==='nieuw'){if(!document.getElementById('newform'))app.innerHTML=vNieuw()}
-  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel();laadAgenda();laadMailtest();if(beheerTab==='koppelingen')laadKoppelingen()}}
+  else if(view.v==='beheer'){if(!beheerOpen){app.innerHTML=vBeheer();beheerOpen=true;laadVersiePaneel();laadAgenda();laadMailLog();if(beheerTab==='koppelingen')laadKoppelingen()}}
   else if(view.v==='gebruikers'){app.innerHTML=vGebruikers();laadGebruikers()}
   else if(view.v==='koppelingen'){beheerTab='koppelingen';go('beheer')}
   else if(view.v==='klant'){
@@ -1945,20 +1983,39 @@ function renderVlField(q,i,total){
 function _vlBuilderDummy(){ // placeholder so the old closing brace matches
   return '';
 }
-function mailVak(k){
+function mailSplit(l){const m=String(l||'').match(/^(.*?)\s*\(([^)]+)\)\s*$/);return m?{naam:m[1],cat:m[2]}:{naam:l,cat:''}}
+function renderMailList(){
+  const row=(k,naam,cat)=>`<button class="mail-row${mailSel===k?' on':''}" data-mailsel="${k}"><span class="mr-naam">${esc(naam)}</span>${cat?`<span class="mr-cat">${esc(cat)}</span>`:''}</button>`;
+  const grp=keys=>keys.map(k=>{const s=mailSplit(MAIL_LABELS[k]);return row(k,s.naam,s.cat)}).join('');
+  return `${row('afzender','Ondertekening','{afzender}')}
+    <div class="mail-cat-head">Automatische mails</div>${grp(MAIL_AUTO)}
+    <div class="mail-cat-head">Mails om te kopiëren</div>${grp(Object.keys(MAIL_LABELS).filter(k=>!MAIL_AUTO.includes(k)))}`;
+}
+function renderMailDetail(k){
+  if(k==='afzender'){
+    return `<div class="mail-detail-head"><div><h3>Ondertekening</h3><span class="mail-tag">Komt onderaan al je mails</span></div></div>
+      <p class="hint" style="margin:0 0 8px">Deze tekst vervangt <code>{afzender}</code> in elke mail.</p>
+      <textarea id="mail-afzender" data-afzender="1" style="min-height:120px" aria-label="Ondertekening">${esc(cfg.afzender)}</textarea>`;
+  }
+  const label=MAIL_LABELS[k]||k, s=mailSplit(label), auto=MAIL_AUTO.includes(k);
   const knoppen=Object.keys(KNOP_UITLEG).filter(b=>(MAIL_PLACEHOLDERS[k]||'').includes('{'+b+'}'));
-  return `<div class="sec"><div class="row"><h3 style="font-size:13px;font-weight:600">${esc(MAIL_LABELS[k])}</h3>
-    ${resetMail===k?`<span class="confirm">Standaardtekst terugzetten? <button class="btn small" data-resetyes="${k}">Ja</button><button class="btn small ghost" data-resetno="1">Nee</button></span>`:`<button class="btn small ghost" data-reset="${k}">Standaardtekst</button>`}</div>
-    <textarea id="mail-${k}" data-mail="${k}" aria-label="${esc(MAIL_LABELS[k])}">${esc(cfg.mails[k]||'')}</textarea><p class="hint" style="margin:2px 0 0">Plaatshouders: ${esc(MAIL_PLACEHOLDERS[k]||'{voornaam} {naam} {afzender}')}</p>
-    ${knoppen.length?`<p class="hint" style="margin:2px 0 0">${knoppen.map(b=>'{'+b+'} = '+esc(KNOP_UITLEG[b])).join(' · ')}. Zet een knop waar je wil; de plaats in de tekst bepaalt waar hij in de mail komt.</p>`:''}</div>`;
+  return `<div class="mail-detail-head"><div><h3>${esc(s.naam)}</h3><span class="mail-tag ${auto?'auto':'kopie'}">${auto?'Vertrekt automatisch':'Zelf versturen'}${s.cat?' · '+esc(s.cat):''}</span></div>
+     ${resetMail===k?`<span class="confirm">Terugzetten? <button class="btn small" data-resetyes="${k}">Ja</button><button class="btn small ghost" data-resetno="1">Nee</button></span>`:`<button class="btn small ghost" data-reset="${k}">Standaardtekst</button>`}</div>
+    <textarea id="mail-${k}" data-mail="${k}" style="min-height:230px" aria-label="${esc(label)}">${esc(cfg.mails[k]||'')}</textarea>
+    <p class="hint" style="margin:6px 0 0">Plaatshouders: ${esc(MAIL_PLACEHOLDERS[k]||'{voornaam} {naam} {afzender}')}</p>
+    ${knoppen.length?`<p class="hint" style="margin:4px 0 0">${knoppen.map(b=>'{'+b+'} = '+esc(KNOP_UITLEG[b])).join(' · ')}.</p>`:''}
+    <div class="mail-test">
+      <input id="mailtestTo" type="email" placeholder="jij@justpixit.be" value="${esc(mailtestAdres)}" aria-label="Testmail sturen naar">
+      <button class="btn small" data-testtemplate="${k}" ${serverInfo.mail?'':'disabled'} title="${serverInfo.mail?'Stuurt deze mail met voorbeeldgegevens naar het ingevulde adres':'Stel eerst Resend in bij Koppelingen'}">Stuur testmail</button>
+      <span class="hint" id="mailtestMsg">${serverInfo.mail?'':'Stel eerst Resend in bij Koppelingen.'}</span>
+    </div>`;
 }
 function beheerMails(){
-  const auto=MAIL_AUTO.map(mailVak).join(''), kopie=Object.keys(MAIL_LABELS).filter(k=>!MAIL_AUTO.includes(k)).map(mailVak).join('');
-  return `<section><h2>E-mail testen &amp; logboek</h2><p>Stuur een testmail naar jezelf en bekijk wat er verstuurd werd. Zie je hier een fout, dan toont die meteen waarom een mail niet aankwam.</p>
-    <div class="sec" style="display:grid;gap:12px" id="mailtestBox"><p class="hint" style="margin:0">Laden…</p></div></section>
-   <section><h2>Automatische mails</h2><p>Deze vertrekken vanzelf: bij een online boeking, bij het verplaatsen van een afspraak en bij een inloglink voor Mijn pagina. Plaatshouders tussen accolades worden ingevuld; onder elk vak staat welke je kan gebruiken.</p>
-    <div class="mailgrid"><div class="sec"><h3 style="font-size:13px;font-weight:600">Ondertekening <code>{afzender}</code></h3><textarea id="mail-afzender" data-afzender="1" style="min-height:80px" aria-label="Ondertekening">${esc(cfg.afzender)}</textarea></div>${auto}</div></section>
-   <section><h2>Mails om te kopiëren</h2><p>Deze stelt het systeem klaar op de klantpagina (onder “Nu te doen”); je kopieert ze en verstuurt ze zelf.</p><div class="mailgrid">${kopie}</div></section>`;
+  if(mailSel!=='afzender'&&!MAIL_LABELS[mailSel])mailSel='afzender';
+  return `<section><h2>E-mails</h2><p>Kies links een e-mail om de tekst te bekijken, aan te passen of er een testmail van te sturen. “Automatische” mails vertrekken vanzelf; de andere zet het systeem voor je klaar om zelf te versturen.</p>
+     <div class="mail-md"><div class="mail-md-list">${renderMailList()}</div><div class="mail-md-detail" id="mailDetail">${renderMailDetail(mailSel)}</div></div></section>
+   <section><h2>Logboek</h2><p>Alle verstuurde e-mails met hun status, en bij een fout de reden waarom ze niet aankwam. Filter op ontvanger of datum.</p>
+     <div id="maillogBox"><p class="hint" style="margin:0">Laden…</p></div></section>`;
 }
 function beheerStijl(){
   const k=cfg.stijl.kleuren;
@@ -2013,32 +2070,51 @@ function beheerAfspraken(){
    <section><h2>Agenda (Office 365 / Outlook)</h2><p>Zet je kennismakingsgesprekken automatisch in je Outlook-agenda. Voeg de onderstaande link toe in Outlook via <b>Agenda toevoegen → Abonneren vanaf internet</b>. Outlook ververst die daarna zelf (meestal elke paar uur). Heb je Office 365 gekoppeld (zie Koppelingen), dan komen afspraken ook rechtstreeks in je agenda.</p>
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
 }
-function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();if(beheerTab==='koppelingen')laadKoppelingen();window.scrollTo(0,y)}
+function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailLog();if(beheerTab==='koppelingen')laadKoppelingen();window.scrollTo(0,y)}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-btab],[data-gonav],#copyPortaalLink');if(!t)return;
-  if(t.dataset.btab){beheerTab=t.dataset.btab;try{localStorage.setItem('jp-beheer',beheerTab)}catch(err){}$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailtest();if(beheerTab==='koppelingen')laadKoppelingen();window.scrollTo(0,0);return}
+  if(t.dataset.btab){beheerTab=t.dataset.btab;try{localStorage.setItem('jp-beheer',beheerTab)}catch(err){}$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailLog();if(beheerTab==='koppelingen')laadKoppelingen();window.scrollTo(0,0);return}
   if(t.dataset.gonav){go(t.dataset.v);return}
   if(t.id==='copyPortaalLink')copy(serverInfo.base+'/mijn');
 });
-async function laadMailtest(){
-  const box=$('#mailtestBox');if(!box)return;
-  let d={items:[],actief:false};try{d=await (await fetch('/api/maillog',{credentials:'same-origin'})).json()}catch(e){}
-  const rows=(d.items||[]).slice(0,20).map(it=>{const t=new Date(it.ts);const dt=t.toLocaleDateString('nl-BE',{day:'numeric',month:'short'})+' '+t.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});
-    const kl=it.status==='ok'?'ok':'bad';
-    return `<li class="dlrow ${kl}" style="margin:0"><b>${it.status==='ok'?'Verzonden':'Mislukt'} · ${esc(it.soort||'mail')}</b><span>${esc(dt)} · naar ${esc(it.to||'')}${it.via?' · '+esc(it.via):''}${it.fout?' — '+esc(it.fout):''}</span></li>`}).join('');
-  box.innerHTML=`<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-     <label class="fld" style="flex:1 1 240px"><span>Testmail sturen naar</span><input id="mailtestTo" type="email" placeholder="jij@justpixit.be"></label>
-     <button class="btn primary" id="mailtestSend" ${d.actief?'':'disabled'}>Stuur testmail</button>
-     <span class="hint" id="mailtestMsg">${d.actief?'':'Stel eerst Resend in bij Koppelingen.'}</span></div>
-    <div><div class="label" style="margin-bottom:6px">Recente e-mails</div>${rows?`<ul style="list-style:none;margin:0;padding:0;display:grid;gap:6px">${rows}</ul>`:'<p class="hint" style="margin:0">Nog geen e-mails verstuurd.</p>'}</div>`;
+async function laadMailLog(){
+  const box=$('#maillogBox');if(!box)return;
+  try{const d=await (await fetch('/api/maillog',{credentials:'same-origin'})).json();mailLogItems=d.items||[];}catch(e){mailLogItems=[]}
+  mailLogRender();
 }
-async function stuurTestmail(){
-  const to=($('#mailtestTo')||{}).value||'';const msg=$('#mailtestMsg');if(msg){msg.style.color='';msg.textContent='Versturen…'}
-  try{const r=await fetch('/api/mailtest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to}),credentials:'same-origin'}).then(x=>x.json());
-    if(r.error){if(msg){msg.style.color='var(--late)';msg.textContent=r.error}}else{if(msg){msg.style.color='var(--ok)';msg.textContent='Verstuurd! Kijk je mailbox na.'}}
-    laadMailtest();
+function mailLogRender(){
+  const box=$('#maillogBox');if(!box||!mailLogItems)return;
+  const f=(mlFilter||'').toLowerCase().trim();
+  const items=mailLogItems.filter(it=>{
+    if(f&&!((it.to||'').toLowerCase().includes(f)||(it.soort||'').toLowerCase().includes(f)))return false;
+    if(mlDate&&(it.ts||'').slice(0,10)!==mlDate)return false;
+    return true;
+  });
+  const per=12,total=items.length,pages=Math.max(1,Math.ceil(total/per));
+  if(mlPage>=pages)mlPage=pages-1;if(mlPage<0)mlPage=0;
+  const slice=items.slice(mlPage*per,mlPage*per+per);
+  const fmtTs=ts=>{const t=new Date(ts);return t.toLocaleDateString('nl-BE',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+t.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})};
+  const rows=slice.map(it=>`<tr class="${it.status==='ok'?'':'ml-badrow'}"><td class="ml-dt">${esc(fmtTs(it.ts))}</td><td><span class="ml-st ${it.status==='ok'?'ok':'bad'}">${it.status==='ok'?'Verzonden':'Mislukt'}</span></td><td>${esc(it.soort||'mail')}</td><td class="ml-to">${esc(it.to||'')}</td><td class="ml-via">${esc(it.via||'')}</td><td class="ml-fout">${esc(it.fout||'')}</td></tr>`).join('');
+  box.innerHTML=`<div class="ml-filters"><input id="mlFilter" type="search" placeholder="Zoek op e-mailadres of soort…" value="${esc(mlFilter)}"><input id="mlDate" type="date" value="${esc(mlDate)}">${(mlFilter||mlDate)?'<button class="btn small ghost" id="mlClear">Wis</button>':''}<span class="hint" style="margin-left:auto">${total} e-mail${total===1?'':'s'}</span></div>
+    ${total?`<div class="ml-tablewrap"><table class="ml-table"><thead><tr><th>Datum</th><th>Status</th><th>Soort</th><th>Naar</th><th>Via</th><th>Reden (bij fout)</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="ml-pager"><button class="btn small ghost" id="mlPrev" ${mlPage<=0?'disabled':''}>← Vorige</button><span class="hint">${total?mlPage*per+1:0}–${Math.min(total,mlPage*per+per)} van ${total}</span><button class="btn small ghost" id="mlNext" ${mlPage>=pages-1?'disabled':''}>Volgende →</button></div>`
+    :'<p class="hint" style="margin:0">Geen e-mails gevonden'+((mlFilter||mlDate)?' voor deze filter.':'.')+'</p>'}`;
+}
+async function stuurTestmail(k){
+  const to=($('#mailtestTo')||{}).value||'';mailtestAdres=to;const msg=$('#mailtestMsg');if(msg){msg.style.color='';msg.textContent='Versturen…'}
+  try{const r=await fetch('/api/mailtest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to,template:k}),credentials:'same-origin'}).then(x=>x.json());
+    if(r.error){if(msg){msg.style.color='var(--late)';msg.textContent=r.error}}else{if(msg){msg.style.color='var(--ok)';msg.textContent='Testmail verstuurd! Kijk je mailbox na.'}laadMailLog()}
   }catch(e){if(msg){msg.style.color='var(--late)';msg.textContent='Versturen mislukt'}}
 }
-document.addEventListener('click',e=>{if(e.target.closest('#mailtestSend'))stuurTestmail()});
+document.addEventListener('click',e=>{
+  const sel=e.target.closest('[data-mailsel]');
+  if(sel){mailSel=sel.dataset.mailsel;const d=$('#mailDetail');if(d)d.innerHTML=renderMailDetail(mailSel);document.querySelectorAll('.mail-row').forEach(b=>b.classList.toggle('on',b.dataset.mailsel===mailSel));return}
+  const tt=e.target.closest('[data-testtemplate]');if(tt){stuurTestmail(tt.dataset.testtemplate);return}
+  if(e.target.id==='mlClear'){mlFilter='';mlDate='';mlPage=0;mailLogRender();return}
+  if(e.target.id==='mlPrev'){mlPage--;mailLogRender();return}
+  if(e.target.id==='mlNext'){mlPage++;mailLogRender();return}
+});
+document.addEventListener('input',e=>{if(e.target.id==='mlFilter'){mlFilter=e.target.value;mlPage=0;mailLogRender()}});
+document.addEventListener('change',e=>{if(e.target.id==='mlDate'){mlDate=e.target.value;mlPage=0;mailLogRender()}});
 async function laadAgenda(){
   const box=$('#agendaBox');if(!box)return;
   let d=null;try{d=await (await fetch('/api/agenda',{credentials:'same-origin'})).json()}catch(e){}

@@ -1324,6 +1324,15 @@ async function api(req, res, url) {
     const naar = String(b.to || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(naar)) return json(res, 400, { error: 'Vul een geldig e-mailadres in.' });
     const alg = instellingen();
+    const template = String(b.template || '').trim();
+    if (template && template !== 'afzender' && sjablonen()[template]) {
+      const sampleUrl = publicBase(req) + '/dossier?c=voorbeeld';
+      const vals = { voornaam: 'Voornaam', naam: 'Naam Klant', afzender: alg.afzender || 'justPIXIT', offerte: 'Trouwuitnodiging', totaal: euro(250), geldigTot: '31/12/2026', bericht: '(hier komt jouw persoonlijke bericht)', wanneer: 'maandag 1 december om 19:00', vorig: 'maandag 24 november om 19:00', duur: (boekingConfig().duur || 60), locatie: 'Online via videocall', bevestiging: boekingConfig().bevestiging || '', reden: '', door: 'de klant', onderwerp: 'Voorbeeldmelding', email: 'klant@voorbeeld.be', telefoon: '0470 00 00 00', type: 'Huwelijk', datumEvent: '20/06/2026', app: publicBase(req) + '/app', reactie: 'Goedgekeurd', heeftFactuur: 'ja', heeftContract: 'ja' };
+      const knoppen = { dossierlink: { url: sampleUrl, label: 'Open mijn dossier' }, wijziglink: { url: sampleUrl, label: 'Afspraak verplaatsen' }, loginlink: { url: sampleUrl, label: 'Wachtwoord instellen' }, boeklink: { url: publicBase(req) + '/afspraak', label: 'Een moment kiezen' }, videolink: { url: 'https://example.com/meeting', label: 'Deelnemen aan videocall' }, portaallink: { url: publicBase(req) + '/mijn', label: 'Mijn pagina' } };
+      const mm = bouwMail(sjablonen()[template], vals, knoppen, Object.keys(knoppen));
+      const r2 = await verstuurMail({ to: naar, subject: '[Testmail] justPIXIT — ' + template, text: mm.text, html: mm.html }, { soort: 'test: ' + template });
+      return r2.ok ? json(res, 200, { ok: true }) : json(res, 502, { error: r2.error || 'Versturen mislukt' });
+    }
     const r = await verstuurMail({ to: naar, subject: 'Testmail van justPIXIT Studio', text: 'Dit is een testmail van justPIXIT Studio.\n\nAls je dit ontvangt, werkt je e-mailkoppeling.\n\n' + (alg.afzender || 'justPIXIT') }, { soort: 'test' });
     return r.ok ? json(res, 200, { ok: true }) : json(res, 502, { error: r.error || 'Versturen mislukt' });
   }
