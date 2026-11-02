@@ -801,10 +801,11 @@ function planning(k){
 let db=null, sample=null, klanten=[], loaded=false, showEnded=false;
 let view={v:'vandaag'}; let work=null; let mounted=null; let pendingTop={}; let saveTimer=null; let chain=Promise.resolve();
 let search='', filterType='', confirmDel=false, klantTab='overzicht', stopForm=false, logFilter='', logEdit=null, logConfirm=null, ofMounted=false, assets=null, ofConfirm=null, vpOpen=false, vpMsg=null, vpBusy=false, notitieEdit=null, owAdminActive={};
+let selKlanten=new Set(), bulkDelConfirm=false, klantenZichtbaar=[];
 let mailSel='afzender', mailtestAdres='', mlFilter='', mlDate='', mlPage=0, mailLogItems=null;
 // Na het inloggen start de beheerder altijd op "Vandaag".
 
-function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;ofConfirm=null;vpOpen=false;vpMsg=null;if(v==='klant'){klantTab='overzicht';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
+function go(v,id){view={v,id};beheerOpen=false;koppelOpen=false;ofMounted=false;ofConfirm=null;vpOpen=false;vpMsg=null;selKlanten.clear();bulkDelConfirm=false;if(v==='klant'){klantTab='overzicht';stopForm=false;logFilter='';logEdit=null;logConfirm=null}confirmDel=false;if(v!=='klant'){flushSave();mounted=null;work=null}
   try{if(v!=='klant'&&v!=='nieuw')localStorage.setItem('jp-view',v)}catch(e){}
   render();window.scrollTo(0,0)}
 
@@ -889,11 +890,16 @@ function vKlanten(){
   const q=search.toLowerCase();
   const list=klanten.filter(k=>(!q||(k.naam+' '+(k.email||'')+' '+(k.locatie||'')).toLowerCase().includes(q))&&(!filterType||k.type===filterType))
     .sort((a,b)=>(b.kennismaking||'').localeCompare(a.kennismaking||''));
+  klantenZichtbaar=list.map(k=>k.id);
+  selKlanten.forEach(id=>{if(!klanten.some(k=>k.id===id))selKlanten.delete(id)});
+  const alleGeselecteerd=list.length>0&&list.every(k=>selKlanten.has(k.id));
+  const n=selKlanten.size;
   return `<div class="vhead"><div><h1>Klanten</h1><p>${klanten.length} klanten in totaal</p></div></div>
   <div class="tools"><input id="q" type="search" placeholder="Zoek op naam, e-mail of locatie" value="${esc(search)}">
   <select id="ft"><option value="">Alle types</option>${cfg.lijsten.type.map(t=>`<option ${filterType===t?'selected':''}>${esc(t)}</option>`).join('')}</select></div>
-  <div class="tablewrap"><table><thead><tr><th>Klant</th><th>Type</th><th>Fase</th><th>Kennismaking</th><th>Event</th><th>Deadline</th></tr></thead><tbody>
-  ${list.map(k=>`<tr data-open="${esc(k.id)}"><td><b>${esc(k.naam)}</b>${vbChip(k)}</td><td>${esc(k.type||'')}</td><td>${faseChip(k.fase)}${k.fase==='geen_deal'&&k.stopReden?` <span style="color:var(--muted);font-size:12px">${esc(k.stopReden)}</span>`:''}</td><td>${esc(fmtDT(k.kennismaking))}</td><td>${fmt(k.datumEvent)}</td><td>${fmt(k.deadline)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Geen klanten gevonden.</td></tr>'}
+  ${n?`<div class="banner" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><b>${n} geselecteerd</b>${bulkDelConfirm?`<span>Deze ${n===1?'klant':n+' klanten'} en hun volledige fiche definitief verwijderen? <button class="btn small danger" id="bulkDelYes">Ja, verwijder</button> <button class="btn small" id="bulkDelNo">Annuleer</button></span>`:`<button class="btn small ghost danger" id="bulkDel">Verwijder geselecteerde</button> <button class="btn small ghost" id="bulkClear">Selectie wissen</button>`}</div>`:''}
+  <div class="tablewrap"><table><thead><tr><th style="width:36px"><input type="checkbox" id="selAll" ${alleGeselecteerd?'checked':''} title="Alles selecteren"></th><th>Klant</th><th>Type</th><th>Fase</th><th>Kennismaking</th><th>Event</th><th>Deadline</th></tr></thead><tbody>
+  ${list.map(k=>`<tr data-open="${esc(k.id)}"${selKlanten.has(k.id)?' style="background:var(--accent-soft)"':''}><td class="selcell" data-selcell="${esc(k.id)}" style="text-align:center"><input type="checkbox" data-sel="${esc(k.id)}" ${selKlanten.has(k.id)?'checked':''}></td><td><b>${esc(k.naam)}</b>${vbChip(k)}</td><td>${esc(k.type||'')}</td><td>${faseChip(k.fase)}${k.fase==='geen_deal'&&k.stopReden?` <span style="color:var(--muted);font-size:12px">${esc(k.stopReden)}</span>`:''}</td><td>${esc(fmtDT(k.kennismaking))}</td><td>${fmt(k.datumEvent)}</td><td>${fmt(k.deadline)}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">Geen klanten gevonden.</td></tr>'}
   </tbody></table></div>`;
 }
 
@@ -1489,8 +1495,15 @@ function renderOptiesSectie(groep){const b=document.getElementById(groep+'-body'
 
 /* ---------- events ---------- */
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-v],[data-open],[data-nav],[data-fase],[data-copy],[data-opt-add],[data-opt-del],#newBtn,#brand,#toggleEnded,#delAsk,#delNo,#delYes,#delVb');
+  const t=e.target.closest('[data-sel],[data-selcell],#selAll,#bulkDel,#bulkDelNo,#bulkDelYes,#bulkClear,[data-v],[data-open],[data-nav],[data-fase],[data-copy],[data-opt-add],[data-opt-del],#newBtn,#brand,#toggleEnded,#delAsk,#delNo,#delYes,#delVb');
   if(!t)return;
+  const selId=t.dataset.sel!==undefined?t.dataset.sel:t.dataset.selcell;
+  if(selId!==undefined){if(selKlanten.has(selId))selKlanten.delete(selId);else selKlanten.add(selId);bulkDelConfirm=false;return render()}
+  if(t.id==='selAll'){const alle=klantenZichtbaar.length>0&&klantenZichtbaar.every(id=>selKlanten.has(id));if(alle)klantenZichtbaar.forEach(id=>selKlanten.delete(id));else klantenZichtbaar.forEach(id=>selKlanten.add(id));bulkDelConfirm=false;return render()}
+  if(t.id==='bulkClear'){selKlanten.clear();bulkDelConfirm=false;return render()}
+  if(t.id==='bulkDel'){bulkDelConfirm=true;return render()}
+  if(t.id==='bulkDelNo'){bulkDelConfirm=false;return render()}
+  if(t.id==='bulkDelYes'){const ids=[...selKlanten];if(!ids.length)return;Promise.all(ids.map(id=>db.doc('klanten/'+id).delete())).then(()=>{toast(ids.length===1?'Klant verwijderd':ids.length+' klanten verwijderd');selKlanten.clear();bulkDelConfirm=false;render()});return}
   if(t.dataset.v)return go(t.dataset.v);
   if(t.dataset.open)return go('klant',t.dataset.open);
   if(t.dataset.nav==='back'){const v=(()=>{try{return localStorage.getItem('jp-view')}catch(_){return null}})()||'vandaag';return go(v)}
