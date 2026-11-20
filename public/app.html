@@ -991,6 +991,7 @@ function vKlant(){
     <div class="sheet" id="tab-facturen" role="tabpanel" ${klantTab!=='facturen'?'hidden':''}></div>
     <div class="sheet" id="tab-vragenlijst" role="tabpanel" ${klantTab!=='vragenlijst'?'hidden':''}></div>
     <div class="sheet" id="tab-ontwerp" role="tabpanel" ${klantTab!=='ontwerp'?'hidden':''}></div>
+    <div class="sheet" id="tab-moodboard" role="tabpanel" ${klantTab!=='moodboard'?'hidden':''}></div>
     <div class="sheet" id="tab-bijlages" role="tabpanel" ${klantTab!=='bijlages'?'hidden':''}></div>
     <div class="sheet" id="tab-logboek" role="tabpanel" ${klantTab!=='logboek'?'hidden':''}></div>
   </div><aside id="side"></aside></div>`;
@@ -1010,7 +1011,7 @@ function renderSide(){
     <div class="kmeta-grid">${metaItems.join('')}</div>
   </div>`;
   const nOf=(k.offertes||[]).length;
-  const TABS=[['overzicht','Overzicht'],['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['facturen','Facturatie'],['vragenlijst','Vragenlijst'],['ontwerp','Ontwerp'],['bijlages','Bijlages'],['logboek','Logboek']];
+  const TABS=[['overzicht','Overzicht'],['fiche','Kennismakingsfiche'],['planning','Planning'],['offerte','Offerte'],['facturen','Facturatie'],['vragenlijst','Vragenlijst'],['moodboard','Moodboard'],['ontwerp','Ontwerp'],['bijlages','Bijlages'],['logboek','Logboek']];
   $('#tabs').innerHTML=TABS.map(([id,l])=>`<button role="tab" id="tabbtn-${id}" aria-selected="${klantTab===id}" data-tab="${id}">${l}${hasNew(k,id)?'<span class="newdot" title="Nieuw sinds je laatst keek"></span><span class="sr">(nieuw)</span>':''}</button>`).join('');
   const overz=klantTab==='overzicht';
   const det=$('#detail');if(det)det.classList.toggle('solo',overz);
@@ -1023,6 +1024,7 @@ function renderSide(){
   if(klantTab==='vragenlijst')renderVragenlijstTab();
   if(klantTab==='ontwerp')renderOntwerpTab();
   if(klantTab==='bijlages')renderBijlagesTab();
+  if(klantTab==='moodboard')renderMoodboardTab();
   if(klantTab==='logboek'&&logEdit===null&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tab-logboek')))renderLogTab();
   $('#delsec').innerHTML=confirmDel?`<div class="confirm">Deze klant en de hele fiche definitief verwijderen? <button class="btn small danger" id="delYes">Ja, verwijder</button><button class="btn small" id="delNo">Annuleer</button></div>`:`<button class="btn small ghost danger" id="delAsk">Klant verwijderen</button>`;
 }
@@ -1163,14 +1165,47 @@ function naGoedkeuringPanel(k){
     ${allesBinnen&&k.fase==='goedgekeurd'?`<div class="nudge">Voorschot betaald en vragenlijst binnen — plan het ontwerp in. <button class="btn small primary" data-fase="ontwerp_gepland">→ Ontwerp ingepland</button></div>`:''}
    </div></section>`;
 }
-const BIJLAGE_SOORT={offerte:'Offerte',factuur:'Voorschotfactuur',contract:'Contract',contract_getekend:'Handtekening',ander:'Bijlage'};
+const BIJLAGE_SOORT={offerte:'Offerte',factuur:'Voorschotfactuur',factuur_overig:'Factuur',contract:'Contract',contract_getekend:'Handtekening',ander:'Bijlage'};
 function alleBijlages(k){const uit=[];(k.offertes||[]).forEach(o=>(o.bestanden||[]).forEach(f=>uit.push({id:f.id,naam:f.naam,type:f.type,soort:'offerte',bron:o.titel,d:f.d,vast:true})));(k.bijlages||[]).forEach(f=>uit.push(Object.assign({},f)));return uit}
 function renderBijlagesTab(){
   const box=$('#tab-bijlages');if(!box||!work)return;const k=work;const list=alleBijlages(k);const c=k.contract||{};
   box.innerHTML=`<section class="sec"><h2>Bijlages</h2><p class="hint">Offertes staan bij de offerte zelf. Voeg hier de voorschotfactuur, het contract en andere documenten toe — de klant ziet ze ook in zijn dossier. Een geüpload contract kan de klant online tekenen.</p>
    <div class="files" style="margin-top:12px">${list.length?list.map(f=>`<div class="file"><span class="ic">${esc(BIJLAGE_SOORT[f.soort]||'Bijlage')}</span><a href="/_blob/${esc(f.id)}" target="_blank" rel="noopener">${esc(f.naam||'bestand')}</a>${f.bron?`<span class="hint">· ${esc(f.bron)}</span>`:''}<span style="font-size:12px;color:var(--muted);white-space:nowrap">${fmt(f.d)}</span>${f.soort==='contract'&&c.getekend?`<span class="chip">getekend door ${esc(c.getekend.naam)}</span>`:''}${f.vast||f.soort==='contract_getekend'?'':`<button class="iconbtn" data-bjdel="${esc(f.id)}" data-naam="${esc(f.naam||'')}" aria-label="Bijlage verwijderen">×</button>`}</div>`).join(''):'<p class="hint">Nog geen bijlages.</p>'}</div>
-   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px"><select id="bjSoort" style="border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:7px 10px"><option value="factuur">Voorschotfactuur</option><option value="contract">Contract</option><option value="ander">Andere bijlage</option></select><label class="btn small" style="cursor:pointer">+ Bestand toevoegen (PDF/afbeelding)<input type="file" id="bjFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden></label><span class="hint" id="bjMsg"></span></div></section>`;
+   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px"><select id="bjSoort" style="border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:7px 10px"><option value="factuur">Voorschotfactuur</option><option value="factuur_overig">Factuur</option><option value="contract">Contract</option><option value="ander">Andere bijlage</option></select><label class="btn small" style="cursor:pointer">+ Bestand toevoegen (PDF/afbeelding)<input type="file" id="bjFile" accept="application/pdf,image/png,image/jpeg,image/webp" hidden></label><span class="hint" id="bjMsg"></span></div></section>`;
 }
+/* ---------- moodboard tab (admin) ---------- */
+function renderMoodboardTab(){
+  const box=$('#tab-moodboard');if(!box||!work)return;const k=work;const list=(k.moodboard||[]);
+  const item=f=>{const isImg=(f.type||'').startsWith('image/');const url='/_blob/'+esc(f.id);const wie=f.bron==='klant'?'klant':'jij';
+    const thumb=isImg?`<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${esc(f.naam||'')}" loading="lazy" style="width:100%;height:135px;object-fit:cover;display:block"></a>`:`<a href="${url}" target="_blank" rel="noopener" style="display:flex;height:135px;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--muted);font-weight:600;text-decoration:none">PDF</a>`;
+    return `<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg);position:relative">${thumb}
+      <button class="iconbtn" data-mbdel="${esc(f.id)}" data-naam="${esc(f.naam||'')}" aria-label="Uit moodboard verwijderen" title="Verwijderen" style="position:absolute;top:6px;right:6px;background:rgba(255,255,255,.92);border-radius:50%">×</button>
+      <div style="padding:7px 9px;display:flex;align-items:center;gap:6px;justify-content:space-between">
+        <span style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.naam||'inspiratie')}</span>
+        <span class="chip" style="flex:none">${wie}</span>
+      </div></div>`};
+  box.innerHTML=`<section class="sec"><h2>Moodboard</h2><p class="hint">Verzamel hier inspiratie voor dit project — foto's, kleuren, voorbeelden. Zowel jij als de klant kunnen afbeeldingen toevoegen; de klant doet dat vanuit zijn dossier. Alles wat hier staat, ziet de klant ook.</p>
+   <div class="mb-drop" data-mbdrop tabindex="0" style="margin-top:12px;border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center;color:var(--muted);cursor:pointer"><span>Sleep afbeeldingen hierheen of <u>klik om te uploaden</u></span><br><small>PNG, JPG, WebP of PDF · meerdere tegelijk kan</small><input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" multiple hidden></div>
+   <div class="hint" id="mbMsg" style="margin-top:6px"></div>
+   ${list.length?`<div style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">${list.map(item).join('')}</div>`:'<p class="hint" style="margin-top:14px">Nog geen inspiratie toegevoegd.</p>'}</section>`;
+}
+async function mbUpload(fileList){
+  const msg=$('#mbMsg');const files=[...(fileList||[])];if(!files.length)return;
+  if(!assets){toast('Opladen kan hier niet');return}
+  let n=0;if(msg)msg.textContent='Opladen…';
+  for(const f of files){
+    const type=f.type||(f.name.toLowerCase().endsWith('.pdf')?'application/pdf':'');
+    if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(type)){if(msg)msg.textContent=f.name+': enkel PDF, PNG, JPG of WebP';continue}
+    try{const r=await assets.upload(f,{type});await klantPost('/moodboard',{id:r.id,naam:f.name});n++}catch(err){if(msg)msg.textContent=f.name+': '+(err.message||'opladen mislukt')}
+  }
+  if(n){if(msg)msg.textContent='';toast(n+' toegevoegd aan het moodboard')}await herlaadKlant();
+}
+async function mbDel(id,naam){if(!confirm('"'+(naam||'deze afbeelding')+'" uit het moodboard verwijderen?'))return;try{await klantPost('/moodboard/'+id,null);toast('Verwijderd');await herlaadKlant()}catch(err){toast(err.message)}}
+document.addEventListener('click',e=>{const d=e.target.closest('[data-mbdrop]');if(d&&work){if(e.target.tagName!=='INPUT'){const inp=d.querySelector('input[type=file]');if(inp)inp.click()}return}const del=e.target.closest('[data-mbdel]');if(del&&work){e.preventDefault();mbDel(del.dataset.mbdel,del.dataset.naam)}});
+document.addEventListener('change',e=>{const inp=e.target.closest('[data-mbdrop] input[type=file]');if(!inp||!work)return;mbUpload(inp.files).then(()=>{try{inp.value=''}catch(_){}})});
+document.addEventListener('dragover',e=>{const d=e.target.closest('[data-mbdrop]');if(d){e.preventDefault();d.style.borderColor='var(--accent)'}});
+document.addEventListener('dragleave',e=>{const d=e.target.closest('[data-mbdrop]');if(d&&!d.contains(e.relatedTarget))d.style.borderColor=''});
+document.addEventListener('drop',e=>{const d=e.target.closest('[data-mbdrop]');if(!d||!work)return;e.preventDefault();d.style.borderColor='';mbUpload(e.dataTransfer.files)});
 /* ---------- ontwerp tab (admin) ---------- */
 function owFiles(o){return Array.isArray(o.bestanden)&&o.bestanden.length?o.bestanden:(o.bestandId?[{id:o.bestandId,naam:o.naam,type:o.type}]:[])}
 function renderOntwerpTab(){
@@ -1235,7 +1270,7 @@ function renderFacturenTab(){
   const offerteTot=(work.offertes||[]).filter(o=>o.status==='Goedgekeurd').reduce((a,o)=>a+ofTotals(o).tot,0);
   const verwachtTotaal=num(work.factuurTotaal)>0?num(work.factuurTotaal):offerteTot;
   const nogTeFactureren=Math.max(0,verwachtTotaal-gefactureerd);
-  const factuurBijlages=(k.bijlages||[]).filter(f=>f.soort==='factuur');
+  const factuurBijlages=(k.bijlages||[]).filter(f=>f.soort==='factuur'||f.soort==='factuur_overig');
   const rows=facs.map((f,i)=>facRow(f,i,factuurBijlages)).join('');
   box.innerHTML=`<section class="sec"><h2>Facturatie</h2>
     <p class="hint">Houd hier de facturen en betalingen bij. De klant volgt dit mee in zijn dossier: wat al betaald is, wat openstaat én wat er nog moet komen (het resterende bedrag o.b.v. de offerte). Koppel een PDF uit Bijlages om de klant de factuur te laten downloaden.</p>
@@ -1814,7 +1849,7 @@ document.addEventListener('drop',e=>{const d=e.target.closest&&e.target.closest(
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-tab],[data-factuur],[data-ofstop],[data-ofnew],[data-ofaddrow],[data-ofdelrow],[data-ofdel],[data-ofdelyes],[data-ofcancel],[data-ofdup],[data-ofcopy],[data-ofphase],[data-ofdelfile],[data-ofdelfileyes]');
   if(!t||!work)return;const D=t.dataset;
-  if(D.tab){klantTab=D.tab;markSeen(klantTab);['overzicht','fiche','planning','logboek','offerte','facturen','vragenlijst','ontwerp','bijlages'].forEach(x=>{$('#tab-'+x).hidden=klantTab!==x});if(klantTab==='overzicht')renderOverzichtTab();if(klantTab==='offerte')renderOffertes();if(klantTab==='facturen')renderFacturenTab();if(klantTab==='logboek')renderLogTab();if(klantTab==='vragenlijst')renderVragenlijstTab();if(klantTab==='ontwerp')renderOntwerpTab();if(klantTab==='bijlages')renderBijlagesTab();renderSide();const tb=$('#tabs');if(tb&&tb.getBoundingClientRect().top<0)tb.scrollIntoView({block:'start'});return}
+  if(D.tab){klantTab=D.tab;markSeen(klantTab);['overzicht','fiche','planning','logboek','offerte','facturen','vragenlijst','moodboard','ontwerp','bijlages'].forEach(x=>{$('#tab-'+x).hidden=klantTab!==x});if(klantTab==='overzicht')renderOverzichtTab();if(klantTab==='offerte')renderOffertes();if(klantTab==='facturen')renderFacturenTab();if(klantTab==='logboek')renderLogTab();if(klantTab==='vragenlijst')renderVragenlijstTab();if(klantTab==='ontwerp')renderOntwerpTab();if(klantTab==='bijlages')renderBijlagesTab();if(klantTab==='moodboard')renderMoodboardTab();renderSide();const tb=$('#tabs');if(tb&&tb.getBoundingClientRect().top<0)tb.scrollIntoView({block:'start'});return}
   if(D.ofstop){if(!work.stopReden)work.stopReden='Te duur';stopForm=true;renderSide();const sp=$('#stopform');if(sp)sp.scrollIntoView({block:'center',behavior:'smooth'});return}
   if(D.ofnew){work.offertes=(work.offertes||[]).concat([newOfferte()]);ofChanged(true);return}
   if(D.ofaddrow){findOf(D.ofaddrow).regels.push({oms:'',aantal:'',prijs:''});ofChanged(true);const i=findOf(D.ofaddrow).regels.length-1;const n=$(`#of-${D.ofaddrow}-r${i}-oms`);if(n)n.focus();return}

@@ -295,7 +295,7 @@ function contractInfo(k) { const c = k.contract || {}; const b = c.bestandId ? b
 // - PATCH: enkel de meegestuurde velden; PUT: hele fiche, maar server-velden blijven staan
 // - logboek: unie op tijdstempel; faseDatums: samengevoegd
 // - offertes: velden die de klant zette (status, goedkeuring, afwijzing, reactie) winnen van een oudere kopie uit de app
-const SERVER_VELDEN = ['wijzigCode', 'portaalNonce', 'msEventId', 'zoomMeetingId', 'vragenlijst', 'contract', 'voorschot', 'bijlages', 'geannuleerdeAfspraak', 'naGoedkeuringVerstuurdOp'];
+const SERVER_VELDEN = ['wijzigCode', 'portaalNonce', 'msEventId', 'zoomMeetingId', 'vragenlijst', 'contract', 'voorschot', 'bijlages', 'moodboard', 'geannuleerdeAfspraak', 'naGoedkeuringVerstuurdOp'];
 function mergeKlantSchrijf(oud, body, patch) {
   const uit = patch ? Object.assign({}, oud, body) : Object.assign({}, body);
   for (const f of SERVER_VELDEN) if (oud[f] && !(f in body)) uit[f] = oud[f];
@@ -726,7 +726,8 @@ async function api(req, res, url) {
         contract: contractInfo(k), voorschot: k.voorschot || { betaald: false }, bijlages: bijlagesVan(), naGoedkeuringVerstuurdOp: k.naGoedkeuringVerstuurdOp || '',
         facturen: (k.facturen || []).map(f => ({ id: f.id, omschrijving: f.omschrijving || '', bedrag: f.bedrag || '', vervaldatum: f.vervaldatum || '', betaald: !!f.betaald, betaaldOp: f.betaaldOp || '', bestandId: f.bestandId || '', verstuurdOp: f.verstuurdOp || '' })),
         projectTotaal: (num(k.factuurTotaal) > 0 ? num(k.factuurTotaal) : zichtbaar.filter(o => o.status === 'Goedgekeurd').reduce((a, o) => a + offerteTotalen(o).tot, 0)),
-        ontwerpen: (k.ontwerpen || []).filter(o => owZichtbaar(o)).map((o, i) => ({ id: o.id, naam: o.naam || ('Versie ' + (o.versie || (i + 1))), versie: o.versie || (i + 1), bestanden: owBestanden(o).map(f => ({ id: f.id, naam: f.naam || 'Ontwerp', type: f.type || '' })), toegevoegd: o.toegevoegd || '', ingediendOp: o.ingediendOp || '', goedgekeurd: o.goedgekeurd ? { op: o.goedgekeurd.op || '', naam: o.goedgekeurd.naam || '' } : null, comments: (o.comments || []).map(c => ({ id: c.id, bestandId: c.bestandId || '', x: c.x, y: c.y, tekst: c.tekst || '' })) })) });
+        ontwerpen: (k.ontwerpen || []).filter(o => owZichtbaar(o)).map((o, i) => ({ id: o.id, naam: o.naam || ('Versie ' + (o.versie || (i + 1))), versie: o.versie || (i + 1), bestanden: owBestanden(o).map(f => ({ id: f.id, naam: f.naam || 'Ontwerp', type: f.type || '' })), toegevoegd: o.toegevoegd || '', ingediendOp: o.ingediendOp || '', goedgekeurd: o.goedgekeurd ? { op: o.goedgekeurd.op || '', naam: o.goedgekeurd.naam || '' } : null, comments: (o.comments || []).map(c => ({ id: c.id, bestandId: c.bestandId || '', x: c.x, y: c.y, tekst: c.tekst || '' })) })),
+        moodboard: (k.moodboard || []).map(f => ({ id: f.id, naam: f.naam || 'inspiratie', type: f.type || '', bron: f.bron || 'admin', d: f.d || '' })) });
     }
     if (sub === 'slots' && m === 'GET') return json(res, 200, { actief: !!cfg.actief, duur: cfg.duur, dagen: cfg.actief ? slotsVoorPeriode(cfg, bezetteSlots(kid)) : [] });
     if (sub === 'verplaats' && m === 'POST') {
@@ -744,7 +745,8 @@ async function api(req, res, url) {
     if (bm && m === 'GET') {
       const factuurIds = (k.facturen || []).map(f => f.bestandId).filter(Boolean);
       const ontwerpIds = (k.ontwerpen || []).filter(o => owZichtbaar(o)).flatMap(o => owBestanden(o).map(f => f.id)).filter(Boolean);
-      if (!bijlagesVan().some(f => f.id === bm[1]) && !factuurIds.includes(bm[1]) && !ontwerpIds.includes(bm[1])) return text(res, 404, 'Niet gevonden');
+      const moodIds = (k.moodboard || []).map(f => f.id).filter(Boolean);
+      if (!bijlagesVan().some(f => f.id === bm[1]) && !factuurIds.includes(bm[1]) && !ontwerpIds.includes(bm[1]) && !moodIds.includes(bm[1])) return text(res, 404, 'Niet gevonden');
       const b = bestandOpSchijf(bm[1]); if (!b) return text(res, 404, 'Niet gevonden');
       return serveFile(res, b.pad, { 'Cache-Control': 'private, max-age=3600', 'Content-Disposition': 'inline' });
     }
@@ -846,6 +848,33 @@ async function api(req, res, url) {
       store.set('klanten', kid, k);
       meldAdmin(req, `Reactie op ontwerp: ${k.naam}`, mailBasis(k, req, { bericht: `De klant plaatste ${comments.length} opmerking${comments.length === 1 ? '' : 'en'} op het ontwerp "${ontwerp.naam || 'Ontwerp'}". Bekijk ze in de fiche onder Ontwerp.` }), 'reactie op ontwerp');
       return json(res, 200, { ok: true, aantal: comments.length });
+    }
+    if (sub === 'moodboard/upload' && m === 'POST') {
+      const type = (req.headers['content-type'] || '').split(';')[0].trim();
+      const allowed = { 'application/pdf': '.pdf', 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' };
+      if (!allowed[type]) return json(res, 415, { error: 'Enkel PDF, PNG, JPG of WebP' });
+      if ((k.moodboard || []).length >= 60) return json(res, 400, { error: 'Het moodboard is vol (max 60). Verwijder eerst iets.' });
+      let buf; try { buf = await readBody(req, 10 * 1024 * 1024); } catch (e) { return json(res, 413, { error: 'Bestand te groot (max 10 MB)' }); }
+      if (!buf.length) return json(res, 400, { error: 'Leeg bestand' });
+      const fid = crypto.randomBytes(16).toString('hex');
+      fs.writeFileSync(path.join(UPLOAD_DIR, fid + allowed[type]), buf);
+      const naam = (decodeURIComponent(req.headers['x-filename'] || '').slice(0, 200)) || 'inspiratie';
+      fs.writeFileSync(path.join(UPLOAD_DIR, fid + '.json'), JSON.stringify({ naam, type, size: buf.length, d: new Date().toISOString() }));
+      k.moodboard = (k.moodboard || []).concat([{ id: fid, naam, type, bron: 'klant', d: vandaagBE() }]);
+      logboek(k, `Klant voegde inspiratie toe aan het moodboard: ${naam}`, 'moodboard');
+      store.set('klanten', kid, k);
+      meldAdmin(req, `Moodboard-inspiratie: ${k.naam}`, mailBasis(k, req, { bericht: `De klant voegde "${naam}" toe aan het moodboard. Bekijk het in de fiche onder Moodboard.` }), 'moodboard-inspiratie');
+      return json(res, 200, { ok: true, id: fid, naam, type, url: `/api/dossier/${wzMatch[1]}/bestand/${fid}` });
+    }
+    const mbm = sub.match(/^moodboard\/([a-f0-9]{32})$/);
+    if (mbm && m === 'DELETE') {
+      const f = (k.moodboard || []).find(x => x.id === mbm[1]);
+      if (!f) return json(res, 404, { error: 'Niet gevonden' });
+      if (f.bron !== 'klant') return json(res, 403, { error: 'Je kan enkel je eigen uploads verwijderen.' });
+      k.moodboard = (k.moodboard || []).filter(x => x.id !== mbm[1]);
+      for (const x of fs.readdirSync(UPLOAD_DIR)) if (x.startsWith(mbm[1])) try { fs.unlinkSync(path.join(UPLOAD_DIR, x)); } catch (e) {}
+      store.set('klanten', kid, k);
+      return json(res, 200, { ok: true });
     }
     return json(res, 404, { error: 'Onbekende route' });
   }
@@ -1151,6 +1180,24 @@ async function api(req, res, url) {
     k.bijlages = (k.bijlages || []).filter(x => x.id !== bijlageMatch[2]);
     if (f && f.soort !== 'contract_getekend') { for (const x of fs.readdirSync(UPLOAD_DIR)) if (x.startsWith(bijlageMatch[2])) try { fs.unlinkSync(path.join(UPLOAD_DIR, x)); } catch (e) {} }
     store.set('klanten', bijlageMatch[1], k);
+    return json(res, 200, { ok: true });
+  }
+  // Moodboard (inspiratie, langs beide kanten): admin voegt toe via /api/upload en koppelt hier.
+  const moodMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/moodboard(?:\/([a-f0-9]{32}))?$/);
+  if (moodMatch && m === 'POST' && !moodMatch[2]) {
+    const k = store.get('klanten', moodMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    const b = await readJson(req, 10e3).catch(() => ({}));
+    const best = bestandOpSchijf(b.id); if (!b.id || !best) return json(res, 400, { error: 'Upload eerst een bestand' });
+    if ((k.moodboard || []).length >= 60) return json(res, 400, { error: 'Het moodboard is vol (max 60).' });
+    k.moodboard = (k.moodboard || []).filter(f => f.id !== b.id).concat([{ id: b.id, naam: String(b.naam || best.naam || 'inspiratie').slice(0, 200), type: best.type, bron: 'admin', d: vandaagBE() }]);
+    logboek(k, `Inspiratie toegevoegd aan het moodboard: ${b.naam || best.naam}`, 'moodboard'); store.set('klanten', moodMatch[1], k);
+    return json(res, 200, { ok: true });
+  }
+  if (moodMatch && m === 'DELETE' && moodMatch[2]) {
+    const k = store.get('klanten', moodMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    k.moodboard = (k.moodboard || []).filter(x => x.id !== moodMatch[2]);
+    for (const x of fs.readdirSync(UPLOAD_DIR)) if (x.startsWith(moodMatch[2])) try { fs.unlinkSync(path.join(UPLOAD_DIR, x)); } catch (e) {}
+    store.set('klanten', moodMatch[1], k);
     return json(res, 200, { ok: true });
   }
   // Nieuwe ontwerp-versie aanmaken (optioneel meteen met een eerste bestand; bestanden komen binnen via /api/upload).

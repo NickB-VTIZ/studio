@@ -154,6 +154,17 @@ section.blok{margin-top:34px}section.blok:first-of-type{margin-top:0}
 .vl-file .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .vl-file .rm{border:0;background:none;cursor:pointer;color:var(--ink-soft);font-size:16px;padding:0 4px}
 .vl-file .rm:hover{color:var(--warn-ink)}
+.mb-drop{border:2px dashed var(--sage-deep);border-radius:3px;padding:20px;text-align:center;cursor:pointer;color:var(--ink-soft);font-size:14px;transition:border-color .15s,background .15s;margin-top:12px}
+.mb-drop:hover,.mb-drop.drag{border-color:var(--green);background:var(--sage)}
+.mb-grid{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.mb-item{position:relative;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--card)}
+.mb-item img{width:100%;height:140px;object-fit:cover;display:block}
+.mb-item .mb-pdf{display:flex;height:140px;align-items:center;justify-content:center;background:var(--sage);color:var(--green);font-weight:600;text-decoration:none}
+.mb-item .mb-cap{padding:7px 9px;display:flex;align-items:center;gap:6px;justify-content:space-between;font-size:12px;color:var(--ink-soft)}
+.mb-item .mb-cap .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mb-item .mb-cap .who{flex:none;background:var(--sage);border-radius:20px;padding:2px 8px;color:var(--green)}
+.mb-item .mb-rm{position:absolute;top:6px;right:6px;border:0;background:rgba(255,255,255,.92);border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:16px;line-height:1;color:var(--ink-soft)}
+.mb-item .mb-rm:hover{color:var(--warn-ink)}
 </style>
 </head>
 <body>
@@ -211,11 +222,12 @@ function render(){
   if(toonVragen)tabDefs.push(['vragenlijst','Vragenlijst']);
   if(toonContract)tabDefs.push(['contract','Contract']);
   if((me.ontwerpen||[]).length)tabDefs.push(['ontwerp','Ontwerp']);
+  tabDefs.push(['moodboard','Moodboard']);
   if(heeftFac)tabDefs.push(['facturen','Facturatie']);
   if(!tabDefs.some(([k])=>k===tab))tab='overzicht';
-  const subs={overzicht:'Hier zie je in één oogopslag wat er nog te doen is en hoe ver we staan.',offerte:'Bekijk je offerte en laat weten of je akkoord bent.',vragenlijst:'Vul de vragen in zodat ik je ontwerp helemaal op maat kan maken.',contract:'Lees het contract rustig na en teken het online.',ontwerp:'Bekijk je ontwerp en laat je opmerkingen achter — klik gewoon op de afbeelding.',facturen:'Hier volg je de betalingen op: wat al betaald is en wat er nog moet aankomen.'};
+  const subs={overzicht:'Hier zie je in één oogopslag wat er nog te doen is en hoe ver we staan.',offerte:'Bekijk je offerte en laat weten of je akkoord bent.',vragenlijst:'Vul de vragen in zodat ik je ontwerp helemaal op maat kan maken.',contract:'Lees het contract rustig na en teken het online.',ontwerp:'Bekijk je ontwerp en laat je opmerkingen achter — klik gewoon op de afbeelding.',moodboard:'Deel hier inspiratie zodat ik jullie stijl goed aanvoel.',facturen:'Hier volg je de betalingen op: wat al betaald is en wat er nog moet aankomen.'};
   const tabsBar=`<div class="dtabs" role="tablist">${tabDefs.map(([k,l])=>`<button role="tab" class="${tab===k?'on':''}" data-dtab="${k}">${esc(l)}</button>`).join('')}</div>`;
-  const content=tab==='offerte'?renderOffertes():tab==='vragenlijst'?renderVragenlijst():tab==='contract'?renderContract():tab==='ontwerp'?renderOntwerp():tab==='facturen'?renderFacturatie():renderOverzichtDash();
+  const content=tab==='offerte'?renderOffertes():tab==='vragenlijst'?renderVragenlijst():tab==='contract'?renderContract():tab==='ontwerp'?renderOntwerp():tab==='moodboard'?renderMoodboard():tab==='facturen'?renderFacturatie():renderOverzichtDash();
   $('#main').innerHTML=`<div class="hero"><h1>Hoi ${esc(me.voornaam||'daar')}</h1><p>${subs[tab]||''}</p></div><hr class="rule">
    ${tabsBar}
    ${content}`;
@@ -669,6 +681,32 @@ document.addEventListener('change',e=>{
 document.addEventListener('dragover',e=>{const d=e.target.closest('.vl-upload-drop');if(d){e.preventDefault();d.classList.add('drag')}});
 document.addEventListener('dragleave',e=>{const d=e.target.closest('.vl-upload-drop');if(d)d.classList.remove('drag')});
 document.addEventListener('drop',e=>{const d=e.target.closest('.vl-upload-drop');if(!d)return;e.preventDefault();d.classList.remove('drag');const finp=d.querySelector('input[type="file"]');const dt=new DataTransfer();for(const f of e.dataTransfer.files)dt.items.add(f);finp.files=dt.files;finp.dispatchEvent(new Event('change',{bubbles:true}))});
+/* ---- moodboard (inspiratie langs beide kanten) ---- */
+function renderMoodboard(){
+  const list=me.moodboard||[];
+  const item=f=>{const isImg=(f.type||'').startsWith('image/');const url=`/api/dossier/${encodeURIComponent(code)}/bestand/${esc(f.id)}`;const mijn=f.bron==='klant';
+    const thumb=isImg?`<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${esc(f.naam||'')}" loading="lazy"></a>`:`<a href="${url}" target="_blank" rel="noopener" class="mb-pdf">PDF</a>`;
+    return `<div class="mb-item">${thumb}${mijn?`<button class="mb-rm" data-mbrm="${esc(f.id)}" data-naam="${esc(f.naam||'')}" aria-label="Verwijderen">×</button>`:''}<div class="mb-cap"><span class="nm">${esc(f.naam||'inspiratie')}</span><span class="who">${mijn?'jij':'justPIXIT'}</span></div></div>`};
+  return `<section class="blok"><div class="bhead"><h2>Moodboard</h2></div>
+    <div class="card"><p class="note">Deel hier je inspiratie: foto's, kleuren of voorbeelden die je mooi vindt. Zo krijg ik een goed beeld van jullie stijl. Ik voeg hier zelf ook dingen toe.</p>
+    <div class="mb-drop" data-mbdrop tabindex="0"><span>Sleep afbeeldingen hierheen of <u>klik om te kiezen</u></span><br><small>PNG, JPG, WebP of PDF</small><input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" multiple hidden></div>
+    <p class="err" id="mbErr" style="display:none;margin-top:10px"></p>
+    ${list.length?`<div class="mb-grid">${list.map(item).join('')}</div>`:'<p class="note" style="margin-top:14px">Nog niets toegevoegd — voeg gerust je eerste inspiratie toe.</p>'}
+    </div></section>`;
+}
+async function mbDoUpload(fileList){const files=[...(fileList||[])];if(!files.length)return;const err=document.getElementById('mbErr');if(err){err.style.display='none';err.textContent=''}
+  for(const file of files){const type=file.type||(file.name.toLowerCase().endsWith('.pdf')?'application/pdf':'');
+    if(!['application/pdf','image/png','image/jpeg','image/webp'].includes(type)){if(err){err.style.display='';err.textContent=file.name+': enkel PDF, PNG, JPG of WebP'}continue}
+    try{const r=await fetch('/api/dossier/'+encodeURIComponent(code)+'/moodboard/upload',{method:'POST',headers:{'Content-Type':type,'X-Filename':encodeURIComponent(file.name)},body:file});if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||'Upload mislukt')}}catch(e2){if(err){err.style.display='';err.textContent=file.name+': '+e2.message}}
+  }
+  await herlaad();
+}
+async function mbRemove(id,naam){if(!confirm('"'+(naam||'deze afbeelding')+'" verwijderen?'))return;try{const r=await fetch('/api/dossier/'+encodeURIComponent(code)+'/moodboard/'+id,{method:'DELETE'});if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||'Verwijderen mislukt')}await herlaad()}catch(e){alert(e.message)}}
+document.addEventListener('click',e=>{const d=e.target.closest('.mb-drop');if(d){if(e.target.tagName!=='INPUT'){const inp=d.querySelector('input[type=file]');if(inp)inp.click()}return}const rm=e.target.closest('[data-mbrm]');if(rm){mbRemove(rm.dataset.mbrm,rm.dataset.naam)}});
+document.addEventListener('change',e=>{const inp=e.target.closest('.mb-drop input[type=file]');if(!inp)return;mbDoUpload(inp.files).then(()=>{try{inp.value=''}catch(_){}})});
+document.addEventListener('dragover',e=>{const d=e.target.closest('.mb-drop');if(d){e.preventDefault();d.classList.add('drag')}});
+document.addEventListener('dragleave',e=>{const d=e.target.closest('.mb-drop');if(d)d.classList.remove('drag')});
+document.addEventListener('drop',e=>{const d=e.target.closest('.mb-drop');if(!d)return;e.preventDefault();d.classList.remove('drag');mbDoUpload(e.dataTransfer.files)});
 /* initial progress update after render */
 const _origRender=render;render=function(){_origRender();setTimeout(vlUpdateProgress,0)};
 </script>
