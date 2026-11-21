@@ -2311,7 +2311,7 @@ async function doeUpdate(){
   const poll=async()=>{
     tries++;
     let info=null;try{info=await (await fetch('/api/version',{credentials:'same-origin'})).json()}catch(e){}
-    if(info&&info.running.version!==startV){updateBezig=false;toast('Bijgewerkt naar versie '+info.running.version);laadVersiePaneel();return}
+    if(info&&info.running.version!==startV){updateBezig=false;const st=$('#updateStatus');if(st){st.style.color='var(--ok,inherit)';st.textContent='Bijgewerkt naar versie '+info.running.version+' · pagina wordt opnieuw geladen…'}setTimeout(()=>location.reload(),800);return}
     if(tries>30){updateBezig=false;const st=$('#updateStatus');laadVersiePaneel();const s2=$('#updateStatus');if(s2){s2.style.color='var(--muted)';s2.textContent='Geen nieuwe versie geladen. Mogelijk draai je al de nieuwste, of de build is nog bezig.'}return}
     setTimeout(poll,4000);
   };

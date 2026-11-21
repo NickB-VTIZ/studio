@@ -1522,7 +1522,7 @@ nano .env        # ADMIN_PASSWORD en SESSION_SECRET invullen
     // overige statische bestanden uit public/
     const safe = path.normalize(p).replace(/^(\.\.[\/\\])+/, '');
     const file = path.join(PUBLIC_DIR, safe);
-    if (file.startsWith(PUBLIC_DIR) && fs.existsSync(file) && fs.statSync(file).isFile()) return serveFile(res, file, { 'Cache-Control': 'public, max-age=3600' });
+    if (file.startsWith(PUBLIC_DIR) && fs.existsSync(file) && fs.statSync(file).isFile()) return serveFile(res, file, { 'Cache-Control': file.endsWith('.html') ? 'no-store' : 'public, max-age=3600' });
     return text(res, 404, 'Niet gevonden');
   } catch (e) {
     console.error(e);
