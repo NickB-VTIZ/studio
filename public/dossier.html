@@ -748,10 +748,18 @@ document.addEventListener('dragover',e=>{const d=e.target.closest('.vl-upload-dr
 document.addEventListener('dragleave',e=>{const d=e.target.closest('.vl-upload-drop');if(d)d.classList.remove('drag')});
 document.addEventListener('drop',e=>{const d=e.target.closest('.vl-upload-drop');if(!d)return;e.preventDefault();d.classList.remove('drag');const finp=d.querySelector('input[type="file"]');const dt=new DataTransfer();for(const f of e.dataTransfer.files)dt.items.add(f);finp.files=dt.files;finp.dispatchEvent(new Event('change',{bubbles:true}))});
 /* ---- moodboard (inspiratie langs beide kanten) ---- */
+function mbLbEsc(e){if(e.key==='Escape')mbLightboxClose()}
+function mbLightboxClose(){const o=document.getElementById('mbLightbox');if(o)o.style.display='none';document.removeEventListener('keydown',mbLbEsc)}
+function mbLightbox(url){let o=document.getElementById('mbLightbox');
+  if(!o){o=document.createElement('div');o.id='mbLightbox';o.style.cssText='position:fixed;inset:0;z-index:2000;background:rgba(20,16,12,.86);display:none;align-items:center;justify-content:center;padding:32px;cursor:zoom-out';
+   o.innerHTML='<img alt="" style="max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 12px 50px rgba(0,0,0,.5);cursor:default"><button type="button" aria-label="Sluiten" style="position:absolute;top:18px;right:22px;background:rgba(255,255,255,.92);border:0;border-radius:50%;width:40px;height:40px;font-size:24px;line-height:1;cursor:pointer">×</button>';
+   document.body.appendChild(o);o.addEventListener('click',e=>{if(e.target.tagName!=='IMG')mbLightboxClose()});}
+  o.querySelector('img').src=url;o.style.display='flex';document.addEventListener('keydown',mbLbEsc);}
+document.addEventListener('click',e=>{const a=e.target.closest('[data-mblb]');if(!a)return;if(e.metaKey||e.ctrlKey||e.shiftKey||e.button===1)return;e.preventDefault();mbLightbox(a.dataset.mblb)});
 function renderMoodboard(){
   const list=me.moodboard||[];
   const item=f=>{const isImg=(f.type||'').startsWith('image/');const url=`/api/dossier/${encodeURIComponent(code)}/bestand/${esc(f.id)}`;const mijn=f.bron==='klant';
-    const thumb=isImg?`<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${esc(f.naam||'')}" loading="lazy"></a>`:`<a href="${url}" target="_blank" rel="noopener" class="mb-pdf">PDF</a>`;
+    const thumb=isImg?`<a href="${url}" data-mblb="${url}" target="_blank" rel="noopener" style="cursor:zoom-in"><img src="${url}" alt="${esc(f.naam||'')}" loading="lazy"></a>`:`<a href="${url}" target="_blank" rel="noopener" class="mb-pdf">PDF</a>`;
     return `<div class="mb-item">${thumb}${mijn?`<button class="mb-rm" data-mbrm="${esc(f.id)}" data-naam="${esc(f.naam||'')}" aria-label="Verwijderen">×</button>`:''}<div class="mb-cap"><span class="nm">${esc(f.naam||'inspiratie')}</span><span class="who">${mijn?'jij':'justPIXIT'}</span></div></div>`};
   return `<section class="blok"><div class="bhead"><h2>Moodboard</h2></div>
     <div class="card"><p class="note">Deel hier je inspiratie: foto's, kleuren of voorbeelden die je mooi vindt. Zo krijg ik een goed beeld van jullie stijl. Ik voeg hier zelf ook dingen toe.</p>

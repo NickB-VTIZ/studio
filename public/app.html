@@ -1218,7 +1218,7 @@ function renderBijlagesTab(){
 function renderMoodboardTab(){
   const box=$('#tab-moodboard');if(!box||!work)return;const k=work;const list=(k.moodboard||[]);
   const item=f=>{const isImg=(f.type||'').startsWith('image/');const url='/_blob/'+esc(f.id);const wie=f.bron==='klant'?'klant':'jij';
-    const thumb=isImg?`<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${esc(f.naam||'')}" loading="lazy" style="width:100%;height:135px;object-fit:cover;display:block"></a>`:`<a href="${url}" target="_blank" rel="noopener" style="display:flex;height:135px;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--muted);font-weight:600;text-decoration:none">PDF</a>`;
+    const thumb=isImg?`<a href="${url}" data-mblb="${url}" data-mbnaam="${esc(f.naam||'')}" target="_blank" rel="noopener" style="cursor:zoom-in"><img src="${url}" alt="${esc(f.naam||'')}" loading="lazy" style="width:100%;height:135px;object-fit:cover;display:block"></a>`:`<a href="${url}" target="_blank" rel="noopener" style="display:flex;height:135px;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--muted);font-weight:600;text-decoration:none">PDF</a>`;
     return `<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg);position:relative">${thumb}
       <button class="iconbtn" data-mbdel="${esc(f.id)}" data-naam="${esc(f.naam||'')}" aria-label="Uit moodboard verwijderen" title="Verwijderen" style="position:absolute;top:6px;right:6px;background:rgba(255,255,255,.92);border-radius:50%">×</button>
       <div style="padding:7px 9px;display:flex;align-items:center;gap:6px;justify-content:space-between">
@@ -1247,6 +1247,15 @@ document.addEventListener('change',e=>{const inp=e.target.closest('[data-mbdrop]
 document.addEventListener('dragover',e=>{const d=e.target.closest('[data-mbdrop]');if(d){e.preventDefault();d.style.borderColor='var(--accent)'}});
 document.addEventListener('dragleave',e=>{const d=e.target.closest('[data-mbdrop]');if(d&&!d.contains(e.relatedTarget))d.style.borderColor=''});
 document.addEventListener('drop',e=>{const d=e.target.closest('[data-mbdrop]');if(!d||!work)return;e.preventDefault();d.style.borderColor='';mbUpload(e.dataTransfer.files)});
+/* ---------- lightbox voor moodboard-afbeeldingen ---------- */
+function mbLbEsc(e){if(e.key==='Escape')mbLightboxClose()}
+function mbLightboxClose(){const o=document.getElementById('mbLightbox');if(o)o.style.display='none';document.removeEventListener('keydown',mbLbEsc)}
+function mbLightbox(url,naam){let o=document.getElementById('mbLightbox');
+  if(!o){o=document.createElement('div');o.id='mbLightbox';o.style.cssText='position:fixed;inset:0;z-index:2000;background:rgba(20,16,12,.86);display:none;align-items:center;justify-content:center;padding:32px;cursor:zoom-out';
+   o.innerHTML='<img alt="" style="max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 12px 50px rgba(0,0,0,.5);cursor:default"><button type="button" aria-label="Sluiten" style="position:absolute;top:18px;right:22px;background:rgba(255,255,255,.92);border:0;border-radius:50%;width:40px;height:40px;font-size:24px;line-height:1;cursor:pointer">×</button>';
+   document.body.appendChild(o);o.addEventListener('click',e=>{if(e.target.tagName!=='IMG')mbLightboxClose()});}
+  o.querySelector('img').src=url;o.style.display='flex';document.addEventListener('keydown',mbLbEsc);}
+document.addEventListener('click',e=>{const a=e.target.closest('[data-mblb]');if(!a)return;if(e.metaKey||e.ctrlKey||e.shiftKey||e.button===1)return;e.preventDefault();mbLightbox(a.dataset.mblb,a.dataset.mbnaam||'')});
 /* ---------- contract tab (admin, per klant) ---------- */
 function ctAutoAdres(k){return [k.straat,[k.postcode,k.gemeente].filter(Boolean).join(' ')].filter(Boolean).join('\n')}
 function ctVelden(k){const c=k.contract||{},v=c.velden||{};return {naamKlant:v.naamKlant||k.naam||'',adres:v.adres||ctAutoAdres(k),offertenummer:v.offertenummer||'',offertedatum:v.offertedatum||'',opgemaaktTe:v.opgemaaktTe||k.gemeente||''}}
