@@ -218,16 +218,15 @@ function render(){
   const toonContract=me.contract&&me.contract.actief;
   const heeftFac=(me.facturen||[]).length||Number(me.projectTotaal)>0||(me.bijlages||[]).some(b=>b.soort==='factuur');
   const tabDefs=[['overzicht','Overzicht']];
-  if((me.offertes||[]).length)tabDefs.push(['offerte','Offerte']);
+  if((me.offertes||[]).length||heeftFac)tabDefs.push(['offerte','Offerte & facturatie']);
   if(toonVragen)tabDefs.push(['vragenlijst','Vragenlijst']);
   if(toonContract)tabDefs.push(['contract','Contract']);
   if((me.ontwerpen||[]).length)tabDefs.push(['ontwerp','Ontwerp']);
   tabDefs.push(['moodboard','Moodboard']);
-  if(heeftFac)tabDefs.push(['facturen','Facturatie']);
   if(!tabDefs.some(([k])=>k===tab))tab='overzicht';
-  const subs={overzicht:'Hier zie je in één oogopslag wat er nog te doen is en hoe ver we staan.',offerte:'Bekijk je offerte en laat weten of je akkoord bent.',vragenlijst:'Vul de vragen in zodat ik je ontwerp helemaal op maat kan maken.',contract:'Lees het contract rustig na en teken het online.',ontwerp:'Bekijk je ontwerp en laat je opmerkingen achter — klik gewoon op de afbeelding.',moodboard:'Deel hier inspiratie zodat ik jullie stijl goed aanvoel.',facturen:'Hier volg je de betalingen op: wat al betaald is en wat er nog moet aankomen.'};
+  const subs={overzicht:'Hier zie je in één oogopslag wat er nog te doen is en hoe ver we staan.',offerte:'Bekijk je offerte, laat weten of je akkoord bent en volg hier je betalingen op.',vragenlijst:'Vul de vragen in zodat ik je ontwerp helemaal op maat kan maken.',contract:'Lees het contract rustig na en teken het online.',ontwerp:'Bekijk je ontwerp en laat je opmerkingen achter — klik gewoon op de afbeelding.',moodboard:'Deel hier inspiratie zodat ik jullie stijl goed aanvoel.'};
   const tabsBar=`<div class="dtabs" role="tablist">${tabDefs.map(([k,l])=>`<button role="tab" class="${tab===k?'on':''}" data-dtab="${k}">${esc(l)}</button>`).join('')}</div>`;
-  const content=tab==='offerte'?renderOffertes():tab==='vragenlijst'?renderVragenlijst():tab==='contract'?renderContract():tab==='ontwerp'?renderOntwerp():tab==='moodboard'?renderMoodboard():tab==='facturen'?renderFacturatie():renderOverzichtDash();
+  const content=tab==='offerte'?(renderOffertes()+(heeftFac?renderFacturatie():'')):tab==='vragenlijst'?renderVragenlijst():tab==='contract'?renderContract():tab==='ontwerp'?renderOntwerp():tab==='moodboard'?renderMoodboard():renderOverzichtDash();
   $('#main').innerHTML=`<div class="hero"><h1>Hoi ${esc(me.voornaam||'daar')}</h1><p>${subs[tab]||''}</p></div><hr class="rule">
    ${tabsBar}
    ${content}`;
@@ -254,7 +253,7 @@ function renderOverzichtDash(){
     else taken.push({done:false,t:'Ontwerp bekijken & reageren',sub:'Je ontwerp staat klaar — bekijk het en plaats gerust je opmerkingen.',tab:'ontwerp',cta:'Bekijk ontwerp'});
   }
   const facs=me.facturen||[];const openFac=facs.filter(f=>!f.betaald&&numEur(f.bedrag)>0);
-  if(openFac.length)taken.push({done:false,t:'Betaling openstaand',sub:openFac.length+(openFac.length>1?' facturen':' factuur')+' nog te betalen.',tab:'facturen',cta:'Bekijk facturatie'});
+  if(openFac.length)taken.push({done:false,t:'Betaling openstaand',sub:openFac.length+(openFac.length>1?' facturen':' factuur')+' nog te betalen.',tab:'offerte',cta:'Bekijk facturatie'});
   else if(facs.some(f=>f.betaald))taken.push({done:true,t:'Betalingen in orde',sub:'Alles betaald — bedankt!'});
   const openT=taken.filter(t=>!t.done),klaarT=taken.filter(t=>t.done);
   const kaart=t=>`<div class="task ${t.done?'done':''}"><span class="tmk">${t.done?'✓':''}</span><div class="tinfo"><div class="tt">${esc(t.t)}</div><div class="ts">${esc(t.sub)}</div></div>${!t.done&&t.cta?`<button class="btn primary small" data-dtab="${t.tab}">${esc(t.cta)} →</button>`:''}</div>`;

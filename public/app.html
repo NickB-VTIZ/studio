@@ -1386,20 +1386,27 @@ document.addEventListener('click',e=>{const a=e.target.closest('[data-facadd],[d
   if(a.hasAttribute('data-facadd')){if(!Array.isArray(work.facturen))work.facturen=[];work.facturen.push({id:'f'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),omschrijving:a.dataset.facadd||'',bedrag:'',vervaldatum:'',betaald:false,betaaldOp:'',bestandId:''});queue('facturen');renderFacturenTab();return}
   if(a.hasAttribute('data-facdel')){const idx=+a.dataset.facdel;if(Array.isArray(work.facturen)){work.facturen.splice(idx,1);queue('facturen');renderFacturenTab()}return}
 });
+function vlSectieToggle(k,vragen){
+  const koppen=vragen.filter(q=>q.type==='kop');if(!koppen.length)return '';
+  const verb=new Set(k.vlVerborgen||[]);
+  return `<div class="sec" style="background:var(--sunk);border-radius:8px;padding:12px 14px;margin:0 0 16px"><div class="label" style="margin-bottom:8px">Onderdelen tonen voor deze klant</div><div style="display:grid;gap:7px">${koppen.map(q=>`<label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-vlsec="${esc(q.id)}" ${verb.has(q.id)?'':'checked'}><span>${esc(q.label)}</span></label>`).join('')}</div><p class="hint" style="margin:8px 0 0">Vinkje uit = dit onderdeel en z'n vragen verschijnen niet in het dossier van deze klant.</p></div>`;
+}
+document.addEventListener('change',e=>{const el=e.target;if(!el.dataset||el.dataset.vlsec===undefined||!work)return;const id=el.dataset.vlsec;const set=new Set(work.vlVerborgen||[]);if(el.checked)set.delete(id);else set.add(id);work.vlVerborgen=[...set];queue('vlVerborgen');flushSave();renderVragenlijstTab()});
 function renderVragenlijstTab(){
   const box=$('#tab-vragenlijst');if(!box||!work)return;const k=work;const v=k.vragenlijst;
   let vragen=(cfg.vragenlijsten[k.type]||cfg.vragenlijsten.Ander||[]).map(migreerVraag);
+  const secTog=vlSectieToggle(k,vragen);
   const ant=(v&&v.antwoorden)||{};
   const kop=`<section class="sec"><h2>Vragenlijst${k.type?' · '+esc(k.type):''}</h2>`;
   const beantwoordbaar=vragen.filter(q=>q.type!=='kop');
   const heeftAntwoorden=Object.values(ant).some(a=>a&&(typeof a==='string'?a.trim():true));
   const conceptOnly=v&&v.conceptOp&&!v.ingevuldOp;
   function antVal(q){const a=ant[q.id]!==undefined?ant[q.id]:(ant[q.label]!==undefined?ant[q.label]:undefined);if(a===undefined)return '';if(Array.isArray(a))return a.map(x=>typeof x==='object'?esc(x.naam||'bestand'):esc(x)).join(', ');return typeof a==='string'?a.trim():String(a)}
-  if(!v||(!v.ingevuldOp&&!heeftAntwoorden)){box.innerHTML=kop+`<p class="hint">Nog niet ingevuld. De klant vult de vragenlijst in via zijn dossier (link in de mail na goedkeuring, of kopieer de dossierlink in de zijbalk). De vragen zelf pas je aan in Beheer → Fiche &amp; planning → Vragenlijsten.</p>
+  if(!v||(!v.ingevuldOp&&!heeftAntwoorden)){box.innerHTML=kop+secTog+`<p class="hint">Nog niet ingevuld. De klant vult de vragenlijst in via zijn dossier (link in de mail na goedkeuring, of kopieer de dossierlink in de zijbalk). De vragen zelf pas je aan in Beheer → Fiche &amp; planning → Vragenlijsten.</p>
      <div style="margin-top:14px"><div class="label" style="margin-bottom:6px">Vragen voor ${esc(k.type||'dit type')}</div><ol style="margin:0 0 0 18px;padding:0;color:var(--muted)">${vragen.map(q=>q.type==='kop'?`</ol><div class="label" style="margin:12px 0 4px;color:var(--accent)">${esc(q.label)}</div><ol style="margin:0 0 0 18px;padding:0;color:var(--muted)">`:`<li>${esc(q.label)} <span class="hint" style="font-size:11px">(${esc(VL_TYPES[q.type]||q.type)})</span></li>`).join('')}</ol></div></section>`;return}
   const statusTxt=v.ingevuldOp?`<span class="chip ok" style="margin-left:auto">Definitief ingevuld op ${fmt(v.ingevuldOp)}</span>`:(conceptOnly?`<span class="chip" style="background:var(--warn-light,#fef3cd);margin-left:auto">Concept bewaard op ${fmt(v.conceptOp.slice(0,10))}</span>`:'');
   const filled=beantwoordbaar.filter(q=>antVal(q)).length;
-  box.innerHTML=kop+`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${statusTxt}</div>
+  box.innerHTML=kop+secTog+`<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${statusTxt}</div>
     ${conceptOnly?'<p class="hint" style="margin-top:8px">De klant is bezig met invullen — deze antwoorden zijn nog niet definitief.</p>':''}
     <p class="hint" style="margin-top:8px">${filled} van ${beantwoordbaar.length} vragen beantwoord.</p>
     <dl style="display:grid;gap:14px;margin:16px 0 0">${vragen.map(q=>{

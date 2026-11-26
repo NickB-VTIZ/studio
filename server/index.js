@@ -277,6 +277,12 @@ function vragenlijstVoor(k) {
     let skip = false;
     vragen = vragen.filter(q => { if (q.type === 'kop' && q.label === 'Babyborrel') { skip = true; return false; } if (skip && q.type === 'kop') { skip = false; } return !skip; });
   }
+  // Per klant verborgen onderdelen (kopteksten): verberg de kop en zijn vragen.
+  const verborgen = Array.isArray(k.vlVerborgen) ? k.vlVerborgen : [];
+  if (verborgen.length) {
+    let skip = false;
+    vragen = vragen.filter(q => { if (q.type === 'kop') { skip = verborgen.includes(q.id); return !skip; } return !skip; });
+  }
   return vragen;
 }
 // Migreer antwoorden: oude label-keyed → id-keyed
