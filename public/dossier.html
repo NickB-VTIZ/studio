@@ -215,7 +215,7 @@ function render(){
     return;
   }
   const toonVragen=me.vragenlijst&&me.vragenlijst.nodig&&me.vragenlijst.vragen.length;
-  const toonContract=me.contract&&me.contract.bestandId;
+  const toonContract=me.contract&&me.contract.actief;
   const heeftFac=(me.facturen||[]).length||Number(me.projectTotaal)>0||(me.bijlages||[]).some(b=>b.soort==='factuur');
   const tabDefs=[['overzicht','Overzicht']];
   if((me.offertes||[]).length)tabDefs.push(['offerte','Offerte']);
@@ -231,7 +231,7 @@ function render(){
   $('#main').innerHTML=`<div class="hero"><h1>Hoi ${esc(me.voornaam||'daar')}</h1><p>${subs[tab]||''}</p></div><hr class="rule">
    ${tabsBar}
    ${content}`;
-  if(tab==='contract'&&toonContract&&!me.contract.getekend)setTimeout(initSig,0);
+  if(tab==='contract'&&toonContract&&!me.contract.getekend)setTimeout(initContractSign,0);
 }
 function renderOverzichtDash(){
   const taken=[];
@@ -243,9 +243,9 @@ function renderOverzichtDash(){
     if(me.vragenlijst.ingevuldOp)taken.push({done:true,t:'Vragenlijst ingevuld',sub:'Ontvangen op '+fmtShort(me.vragenlijst.ingevuldOp)});
     else taken.push({done:false,t:'Vragenlijst invullen',sub:me.vragenlijst.conceptOp?'Je concept is bewaard — vul verder aan en stuur definitief in.':'Zo kan ik je ontwerp helemaal op maat maken.',tab:'vragenlijst',cta:me.vragenlijst.conceptOp?'Verder invullen':'Vul in'});
   }
-  if(me.contract&&me.contract.bestandId){
+  if(me.contract&&me.contract.actief){
     if(me.contract.getekend)taken.push({done:true,t:'Contract getekend',sub:'Getekend op '+fmtShort(me.contract.getekend.op.slice(0,10))});
-    else taken.push({done:false,t:'Contract tekenen',sub:'Lees het contract na en onderteken online.',tab:'contract',cta:'Teken contract'});
+    else taken.push({done:false,t:'Contract lezen & tekenen',sub:'Lees de samenwerkingsvoorwaarden na en onderteken online.',tab:'contract',cta:'Naar het contract'});
   }
   const ows=me.ontwerpen||[];const laatsteOw=ows[ows.length-1];const owGoedgekeurd=ows.find(o=>o.goedgekeurd);
   if(owGoedgekeurd)taken.push({done:true,t:'Ontwerp goedgekeurd',sub:'Definitief goedgekeurd op '+fmtShort(owGoedgekeurd.goedgekeurd.op.slice(0,10))});
@@ -567,30 +567,92 @@ function renderVragenlijst(){
    </form></section>`;
 }
 /* ---- contract ---- */
+/* ---- contract: gedeelde renderer (zelfde als in de beheerstool) ---- */
+function ctInline(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}
+function ctTekstHtml(t){const blocks=String(t||'').split(/\n{2,}/);let out='';for(const b of blocks){const lines=b.split('\n');if(lines.length&&lines.every(l=>/^\s*-\s+/.test(l)))out+='<ul>'+lines.map(l=>'<li>'+ctInline(l.replace(/^\s*-\s+/,''))+'</li>').join('')+'</ul>';else out+='<p>'+lines.map(ctInline).join('<br>')+'</p>';}return out}
+function ctStyles(){return `<style>
+.ctdoc{background:#f7f2ed;color:#555;font-family:Arial,Helvetica,sans-serif;font-size:13.5px;line-height:1.55;max-width:820px;margin:16px auto 0;border:1px solid #e0d6ca;border-radius:8px;overflow:hidden}
+.ctdoc .ct-band{height:16px;background:#d2c5b8}
+.ctdoc .ct-head{display:flex;justify-content:space-between;gap:24px;padding:26px 36px 0;flex-wrap:wrap}
+.ctdoc .ct-logo{max-width:150px;height:auto;display:block;margin-bottom:10px}
+.ctdoc .ct-wordmark{font-size:22px;font-weight:700;color:#7d5d44;margin-bottom:10px;letter-spacing:.02em}
+.ctdoc .ct-comp{font-size:12.5px;color:#6b5b4d}.ctdoc .ct-comp b{color:#7d5d44}
+.ctdoc .ct-title{font-size:28px;letter-spacing:.12em;color:#8b7767;align-self:flex-end}
+.ctdoc .ct-fields{padding:18px 36px 0;display:grid;gap:7px;max-width:460px}
+.ctdoc .ct-ln{display:flex;gap:8px;align-items:baseline}
+.ctdoc .ct-lbl{color:#7d5d44;white-space:nowrap}
+.ctdoc .ct-val{flex:1;border-bottom:1px solid #b9a898;min-height:18px;color:#3f3a35;white-space:pre-line}
+.ctdoc .ct-body{padding:22px 36px 28px;display:flex;flex-direction:column;gap:18px}
+.ctdoc .ct-introbar{background:#d2c5b8;padding:7px 14px;font-weight:700;color:#7d5d44;text-align:center}
+.ctdoc .ct-introbox{background:#ede4db;padding:14px 16px}
+.ctdoc .ct-introbox p{margin:0 0 8px}.ctdoc .ct-introbox p:last-child{margin:0}
+.ctdoc h3.ct-h{margin:0 0 6px;font-size:14px;font-weight:700;color:#7d5d44;text-transform:uppercase;letter-spacing:.03em}
+.ctdoc .ct-sec p{margin:0 0 6px}.ctdoc .ct-sec ul{margin:0;padding-left:18px}.ctdoc .ct-sec li{margin:0 0 4px}.ctdoc .ct-sec b{color:#7d5d44}
+.ctdoc .ct-sign{border-top:1px solid #d2c5b8;padding:22px 36px 26px;display:flex;flex-direction:column;gap:18px}
+.ctdoc .ct-sigbox{background:#ede4db;height:96px;border-radius:4px;padding:6px;box-sizing:border-box;display:flex;align-items:center;justify-content:center}
+.ctdoc .ct-sigimg{max-height:84px;max-width:100%}
+.ctdoc .ct-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.ctdoc .ct-foot{background:#7d5d44;color:#fff;font-size:11.5px;padding:12px 36px;text-align:center}
+@media(max-width:560px){.ctdoc .ct-head,.ctdoc .ct-fields,.ctdoc .ct-body,.ctdoc .ct-sign,.ctdoc .ct-foot{padding-left:18px;padding-right:18px}.ctdoc .ct-grid2{grid-template-columns:1fr}.ctdoc .ct-title{font-size:22px}}
+</style>`}
+function ctFieldRow(label,val){return `<div class="ct-ln"><span class="ct-lbl">${esc(label)}</span><span class="ct-val">${esc(val||'')}</span></div>`}
+function ctDocBody(t,v){
+  const logo=t.logoUrl?`<img src="${esc(t.logoUrl)}" alt="${esc(t.bedrijfNaam)}" class="ct-logo">`:`<div class="ct-wordmark">justPIXIT</div>`;
+  return `<div class="ct-band"></div>
+   <div class="ct-head"><div>${logo}<div class="ct-comp"><b>${esc(t.bedrijfNaam)}</b><br>${esc(t.bedrijfAdres).replace(/\n/g,'<br>')}<br>${esc(t.bedrijfBtw)}</div></div><div class="ct-title">${esc(t.titel||'VOORWAARDEN')}</div></div>
+   <div class="ct-fields">${ctFieldRow('Naam klant:',v.naamKlant)}${ctFieldRow('Adres:',v.adres)}${ctFieldRow('Offertenummer:',v.offertenummer)}${ctFieldRow('Offertedatum:',v.offertedatum)}</div>
+   <div class="ct-body"><div><div class="ct-introbar">${esc(t.introTitel||'')}</div><div class="ct-introbox">${ctTekstHtml(t.introTekst)}</div></div>${(t.secties||[]).map(s=>`<div class="ct-sec"><h3 class="ct-h">${esc(s.titel)}</h3>${ctTekstHtml(s.tekst)}</div>`).join('')}</div>`;
+}
+function ctSignDisplay(t,g){
+  const sig=url=>url?`<img src="${esc(url)}" alt="handtekening" class="ct-sigimg">`:'';
+  const onder=(g&&g.ondertekenaars&&g.ondertekenaars.length?g.ondertekenaars:[{}]).slice(0,2);
+  const foto=g?!!g.fotoAkkoord:false;
+  return `<div class="ct-sign"><div><div class="ct-introbar">Ondertekening</div><div class="ct-introbox" style="text-align:center">${esc(t.ondertekenTekst||'')}</div></div>
+    <div class="ct-grid2"><div class="ct-ln"><span class="ct-lbl">Opgemaakt te:</span><span class="ct-val">${esc((g&&g.plaats)||'')}</span></div><div class="ct-ln"><span class="ct-lbl">Op:</span><span class="ct-val">${esc((g&&g.datum)||'')}</span></div></div>
+    <div style="display:flex;gap:10px;align-items:center"><span style="display:inline-block;width:15px;height:15px;border:1.5px solid #7d5d44;border-radius:3px;background:#fff;text-align:center;line-height:13px;color:#7d5d44;font-weight:700">${foto?'✓':''}</span><span>${esc(t.fotoVinkje||'')}</span></div>
+    <div><h3 class="ct-h">Verantwoordelijke ${esc(t.bedrijfNaam||'')}</h3><div class="ct-grid2" style="align-items:start"><div>Voornaam: ${esc(t.verVoornaam||'')}<br>Naam: ${esc(t.verNaam||'')}</div><div class="ct-sigbox">${sig(t.handtekeningUrl)||'<span style="color:#b9a898">Handtekening</span>'}</div></div></div>
+    <div><h3 class="ct-h">De klant</h3><div class="ct-grid2">${onder.map(o=>`<div><div class="ct-ln"><span class="ct-lbl">Voornaam:</span><span class="ct-val">${esc(o.voornaam||'')}</span></div><div class="ct-ln"><span class="ct-lbl">Naam:</span><span class="ct-val">${esc(o.naam||'')}</span></div><div class="ct-sigbox" style="margin-top:8px">${sig(o.handtekeningUrl)||'<span style="color:#b9a898">Handtekening</span>'}</div></div>`).join('')}</div></div></div>`;
+}
+function ctFoot(t){return `<div class="ct-foot">${esc(t.voettekst||'')}</div>`}
+function ctVolledig(t,v,g){return `<div class="ctdoc">${ctStyles()}${ctDocBody(t,v)}${ctSignDisplay(t,g)}${ctFoot(t)}</div>`}
 function renderContract(){
-  const c=me.contract;const m=msg.contract;const url=`/api/dossier/${encodeURIComponent(code)}/bestand/${esc(c.bestandId)}`;
-  if(c.getekend){const getekendBest=(me.bijlages||[]).find(b=>b.soort==='contract_getekend');return `<section class="blok" id="contract"><div class="bhead"><h2>Contract</h2><span class="pill ok">Getekend door ${esc(c.getekend.naam)} op ${esc(fmtShort(c.getekend.op.slice(0,10)))}</span></div><div class="card"><p class="note">Bedankt! Hieronder vind je het contract${getekendBest?' en jullie ondertekende versie':''} terug.</p><div class="files"><a class="btn small" href="${url}" target="_blank" rel="noopener">Contract (PDF)</a>${getekendBest?`<a class="btn small" href="/api/dossier/${encodeURIComponent(code)}/bestand/${esc(getekendBest.id)}" target="_blank" rel="noopener">Ondertekend (PDF)</a>`:''}</div></div></section>`;}
-  return `<section class="blok" id="contract"><div class="bhead"><h2>Contract tekenen</h2><span class="pill warn">Nog te tekenen</span></div>
-   <form id="cform" class="card" style="display:grid;gap:14px">
-    <p class="note">Lees het contract rustig na. Teken daarna hieronder met je vinger of muis, vul je naam in en bevestig.</p>
-    <div class="files" style="margin-top:0"><a class="btn small" href="${url}" target="_blank" rel="noopener">Open het contract (PDF)</a></div>
-    <label class="fld"><span>Volledige naam</span><input id="c-naam" maxlength="120" placeholder="bv. Lotte Peeters" required></label>
-    <div class="fld"><span>Handtekening</span><canvas id="sig" class="sig" width="520" height="160"></canvas><div><button type="button" class="btn ghost small" id="sigWis">Wis handtekening</button></div></div>
-    <label class="chk"><input type="checkbox" id="c-akkoord"><span>Ik heb het contract gelezen en ga akkoord met de inhoud. Mijn elektronische handtekening geldt als ondertekening.</span></label>
+  const c=me.contract;const t=c.template;const v=c.velden;const g=c.getekend;
+  if(g){
+    return `<section class="blok" id="contract"><div class="bhead"><h2>Contract</h2><span class="pill ok">Getekend op ${esc(fmtShort((g.op||'').slice(0,10)))}</span></div>
+      <div class="card"><p class="note">Bedankt! Jullie ondertekende contract staat hieronder. Je kan deze pagina bewaren of afdrukken via je browser (Afdrukken → Opslaan als pdf).</p></div>
+      ${ctVolledig(t,v,g)}</section>`;
+  }
+  return `<section class="blok" id="contract"><div class="bhead"><h2>Contract</h2><span class="pill warn">Nog te tekenen</span></div>
+    <div class="card"><p class="note">Lees de samenwerkingsvoorwaarden hieronder rustig na. Onderaan vul je jullie gegevens in en teken je online met je vinger of muis.</p></div>
+    <div class="ctdoc">${ctStyles()}${ctDocBody(t,v)}${ctFoot(t)}</div>
+    ${contractSignForm(t,v)}</section>`;
+}
+function contractSignForm(t,v){
+  const m=msg.contract;const vandaag=new Date().toISOString().slice(0,10);
+  const sigBlok=(i,opt)=>`<div class="card" style="display:grid;gap:10px;background:var(--surface,#fff)">
+     <b>Ondertekenaar ${i+1}${opt?' — optioneel':''}</b>
+     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label class="fld"><span>Voornaam</span><input id="cv-vn${i}" maxlength="80"></label><label class="fld"><span>Naam</span><input id="cv-nm${i}" maxlength="80"></label></div>
+     <div class="fld"><span>Handtekening</span><canvas id="csig${i}" class="sig" width="520" height="150" style="touch-action:none;border:1px solid var(--line);border-radius:6px;background:#fff;max-width:100%;cursor:crosshair"></canvas><div><button type="button" class="btn ghost small" data-sigwis="${i}">Wis handtekening</button></div></div></div>`;
+  return `<form id="cform" class="card" style="display:grid;gap:16px;margin-top:16px">
+    <h3 style="margin:0">Ondertekenen</h3>
+    <div class="card" style="display:grid;gap:8px;background:#f7f2ed;border-color:#e0d6ca"><b style="color:#7d5d44">Verantwoordelijke ${esc(t.bedrijfNaam||'')}</b><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div>${esc(t.verVoornaam||'')} ${esc(t.verNaam||'')}</div>${t.handtekeningUrl?`<img src="${esc(t.handtekeningUrl)}" alt="handtekening" style="max-height:70px;max-width:220px">`:''}</div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label class="fld"><span>Opgemaakt te</span><input id="c-plaats" maxlength="120" value="${esc(v.opgemaaktTe||'')}"></label><label class="fld"><span>Datum</span><input id="c-datum" type="date" value="${esc(vandaag)}"></label></div>
+    ${sigBlok(0,false)}
+    ${sigBlok(1,true)}
+    <label class="chk" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" id="c-foto"><span>${esc(t.fotoVinkje||'')}</span></label>
+    <label class="chk" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" id="c-akkoord"><span>Ik heb het contract gelezen en ga akkoord met de inhoud. Mijn elektronische handtekening geldt als ondertekening.</span></label>
     <div id="cmsg">${m?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}</div>
-    <div class="actions" style="margin-top:0"><button class="btn primary" type="submit" ${busy?'disabled':''}>${busy?'Even geduld…':'Teken het contract'}</button></div></form></section>`;
+    <div class="actions" style="margin-top:0"><button class="btn primary" type="submit" ${busy?'disabled':''}>${busy?'Even geduld…':'Onderteken het contract'}</button></div></form>`;
 }
-let sigDirty=false;
-function initSig(){
-  const cv=$('#sig');if(!cv)return;const ctx=cv.getContext('2d');ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#474747';
-  const scale=()=>{const r=cv.getBoundingClientRect();return {x:cv.width/r.width,y:cv.height/r.height,r}};
-  let tekenen=false;sigDirty=false;
-  const pos=e=>{const s=scale();return {x:(e.clientX-s.r.left)*s.x,y:(e.clientY-s.r.top)*s.y}};
-  cv.addEventListener('pointerdown',e=>{tekenen=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);cv.setPointerCapture(e.pointerId);e.preventDefault()});
-  cv.addEventListener('pointermove',e=>{if(!tekenen)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();sigDirty=true;e.preventDefault()});
-  cv.addEventListener('pointerup',()=>{tekenen=false});cv.addEventListener('pointercancel',()=>{tekenen=false});
-  $('#sigWis').onclick=()=>{ctx.clearRect(0,0,cv.width,cv.height);sigDirty=false};
+function initContractSign(){document.querySelectorAll('#cform canvas.sig').forEach(initOneSig)}
+function initOneSig(cv){const ctx=cv.getContext('2d');ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#474747';cv._dirty=false;let d=false;
+  const sc=()=>{const r=cv.getBoundingClientRect();return{x:cv.width/r.width,y:cv.height/r.height,r}};
+  const pos=e=>{const s=sc();return{x:(e.clientX-s.r.left)*s.x,y:(e.clientY-s.r.top)*s.y}};
+  cv.onpointerdown=e=>{d=true;const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);cv.setPointerCapture(e.pointerId);e.preventDefault()};
+  cv.onpointermove=e=>{if(!d)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();cv._dirty=true;e.preventDefault()};
+  cv.onpointerup=()=>{d=false};cv.onpointercancel=()=>{d=false};
 }
+document.addEventListener('click',e=>{const w=e.target.closest('[data-sigwis]');if(!w)return;const cv=document.getElementById('csig'+w.dataset.sigwis);if(cv){cv.getContext('2d').clearRect(0,0,cv.width,cv.height);cv._dirty=false}});
 /* ---- bijlages & traject ---- */
 function renderBijlages(){
   // Offerte staat bij de offerte, factuur onder Facturatie, contract bij het contract.
@@ -631,13 +693,16 @@ document.addEventListener('submit',async e=>{
     busy=true;render();try{await api('/offerte/'+encodeURIComponent(id)+'/afwijzen',{bericht});ofOpen={};await herlaad();msg['of:'+id]={ok:true,t:'Bedankt voor jullie feedback — ik bekijk het en kom met een aangepast voorstel.'}}catch(err){msg['of:'+id]={ok:false,t:err.message}}finally{busy=false}render();return}
   if(f.id==='vform'){e.preventDefault();if(busy)return;
     const antw=vlAntwoorden();busy=true;render();try{await api('/vragenlijst',{antwoorden:antw,concept:false});await herlaad();msg.vragen={ok:true,t:'Bedankt! Jullie antwoorden zijn definitief doorgestuurd. Ik ga ermee aan de slag.'}}catch(err){msg.vragen={ok:false,t:err.message}}finally{busy=false}render();const el=$('#vragenlijst');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return}
-  if(f.id==='cform'){e.preventDefault();if(busy)return;const naam=$('#c-naam').value.trim();const akkoord=$('#c-akkoord').checked;const cv=$('#sig');
+  if(f.id==='cform'){e.preventDefault();if(busy)return;
     const fout=t=>{const el=$('#cmsg');if(el)el.innerHTML=`<p class="err">${esc(t)}</p>`};
-    if(naam.length<3){fout('Vul je volledige naam in.');return}
-    if(!sigDirty){fout('Zet je handtekening in het vak.');return}
-    if(!akkoord){fout('Vink aan dat je akkoord gaat met het contract.');return}
-    const handtekening=cv.toDataURL('image/png');busy=true;render();
-    try{await api('/contract/teken',{naam,akkoord,handtekening});await herlaad();msg.contract={ok:true,t:'Het contract is getekend. Bedankt!'}}catch(err){msg.contract={ok:false,t:err.message}}finally{busy=false}render();const el=$('#contract');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
+    const onders=[];
+    for(let i=0;i<2;i++){const vn=(($('#cv-vn'+i)||{}).value||'').trim();const nm=(($('#cv-nm'+i)||{}).value||'').trim();const cv=document.getElementById('csig'+i);const sig=cv&&cv._dirty?cv.toDataURL('image/png'):'';if(!vn&&!nm&&!sig)continue;onders.push({voornaam:vn,naam:nm,handtekening:sig})}
+    if(!onders.length||(!onders[0].voornaam&&!onders[0].naam)){fout('Vul minstens je naam in.');return}
+    if(!onders.some(o=>o.handtekening)){fout('Zet minstens één handtekening in het vak.');return}
+    if(!$('#c-akkoord').checked){fout('Vink aan dat je akkoord gaat met het contract.');return}
+    const plaats=($('#c-plaats')||{}).value||'';const datum=($('#c-datum')||{}).value||'';const fotoAkkoord=$('#c-foto').checked;
+    busy=true;render();
+    try{await api('/contract/teken',{ondertekenaars:onders,plaats,datum,fotoAkkoord,akkoord:true});await herlaad();msg.contract={ok:true,t:'Het contract is getekend. Bedankt!'}}catch(err){msg.contract={ok:false,t:err.message}}finally{busy=false}render();const el=$('#contract');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
 });
 init();
 /* ---- vragenlijst: concept-knop + auto-save + progress ---- */

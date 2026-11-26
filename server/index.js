@@ -16,6 +16,7 @@ const { resendConfig, sendViaResend, testResend } = require('./resend');
 const { twilioConfig, sendWhatsApp, testTwilio } = require('./twilio');
 const { maakUBL } = require('./ubl');
 const { STANDAARD_MAILS, vul, bouwMail, escHtml, wrapMail } = require('./mails');
+const { CONTRACT_DEFAULTS, contractTemplate, contractBestandIds } = require('./contract');
 // Vrije mailtekst (door de beheerder bewerkt in de modal) → eenvoudige HTML-mail: escape, URLs klikbaar, regeleindes behouden.
 function tekstNaarHtmlMail(body) {
   const urlRe = /(https?:\/\/[^\s]+)/g; let out = '', last = 0, m;
@@ -290,7 +291,34 @@ function migreerAntwoorden(ant, vragen) {
   }
   return uit;
 }
-function contractInfo(k) { const c = k.contract || {}; const b = c.bestandId ? bestandOpSchijf(c.bestandId) : null; return { bestandId: c.bestandId || '', naam: b ? b.naam : '', verstuurdOp: c.verstuurdOp || '', getekend: c.getekend ? { naam: c.getekend.naam, op: c.getekend.op } : null }; }
+function contractAdresVan(k) { return [k.straat, [k.postcode, k.gemeente].filter(Boolean).join(' ')].filter(Boolean).join('\n'); }
+function contractInfo(k, code) {
+  const c = k.contract || {};
+  if (!c.actief) return null; // geen contractstap in dit dossier
+  const t = contractTemplate(instellingen());
+  const sig = id => id ? `/api/dossier/${encodeURIComponent(code)}/bestand/${id}` : '';
+  const v = c.velden || {};
+  const g = c.getekend || null;
+  return {
+    actief: true,
+    template: {
+      titel: t.titel, bedrijfNaam: t.bedrijfNaam, bedrijfAdres: t.bedrijfAdres, bedrijfBtw: t.bedrijfBtw,
+      verVoornaam: t.verVoornaam, verNaam: t.verNaam, voettekst: t.voettekst,
+      introTitel: t.introTitel, introTekst: t.introTekst, ondertekenTekst: t.ondertekenTekst,
+      fotoVinkje: t.fotoVinkje, secties: t.secties,
+      handtekeningUrl: sig(t.handtekeningId), logoUrl: sig(t.logoId),
+    },
+    velden: {
+      naamKlant: v.naamKlant || k.naam || '',
+      adres: v.adres || contractAdresVan(k),
+      offertenummer: v.offertenummer || '',
+      offertedatum: v.offertedatum || '',
+      opgemaaktTe: v.opgemaaktTe || k.gemeente || '',
+    },
+    getekend: g ? { op: g.op, plaats: g.plaats || '', datum: g.datum || '', fotoAkkoord: !!g.fotoAkkoord,
+      ondertekenaars: (g.ondertekenaars || []).map(o => ({ voornaam: o.voornaam || '', naam: o.naam || '', handtekeningUrl: sig(o.handtekeningId) })) } : null,
+  };
+}
 // Schrijfactie vanuit de app samenvoegen met wat er intussen server-side veranderde (klant via dossier/portaal):
 // - PATCH: enkel de meegestuurde velden; PUT: hele fiche, maar server-velden blijven staan
 // - logboek: unie op tijdstempel; faseDatums: samengevoegd
@@ -723,7 +751,7 @@ async function api(req, res, url) {
         fase: k.fase, fasen: fasenVoor(k), gestopt: GESTOPT.has(k.fase), verplaatsbaar: !GESTOPT.has(k.fase) && !!k.kennismaking && k.kennismaking >= nuBrussel(), nu: nuBrussel(), actief: !!cfg.actief,
         offertes: zichtbaar.map(o => ({ id: o.id, titel: o.titel || 'Offerte', status: o.status, datum: o.datum || '', geldigTot: o.geldigTot || '', notitie: o.notitie || '', totaal: offerteTotalen(o).tot, bestanden: (o.bestanden || []).map(f => ({ id: f.id, naam: f.naam || 'bestand', type: f.type || '' })), reactie: o.klantReactie || '', goedgekeurdOp: o.goedgekeurdOp || '', afgewezenOp: o.afgewezenOp || '' })),
         vragenlijst: { vragen: vl, antwoorden: vlAnt, ingevuldOp: (k.vragenlijst && k.vragenlijst.ingevuldOp) || '', conceptOp: (k.vragenlijst && k.vragenlijst.conceptOp) || '', nodig: FI_SERVER[k.fase] >= FI_SERVER.goedgekeurd && !GESTOPT.has(k.fase) },
-        contract: contractInfo(k), voorschot: k.voorschot || { betaald: false }, bijlages: bijlagesVan(), naGoedkeuringVerstuurdOp: k.naGoedkeuringVerstuurdOp || '',
+        contract: contractInfo(k, wzMatch[1]), voorschot: k.voorschot || { betaald: false }, bijlages: bijlagesVan(), naGoedkeuringVerstuurdOp: k.naGoedkeuringVerstuurdOp || '',
         facturen: (k.facturen || []).map(f => ({ id: f.id, omschrijving: f.omschrijving || '', bedrag: f.bedrag || '', vervaldatum: f.vervaldatum || '', betaald: !!f.betaald, betaaldOp: f.betaaldOp || '', bestandId: f.bestandId || '', verstuurdOp: f.verstuurdOp || '' })),
         projectTotaal: (num(k.factuurTotaal) > 0 ? num(k.factuurTotaal) : zichtbaar.filter(o => o.status === 'Goedgekeurd').reduce((a, o) => a + offerteTotalen(o).tot, 0)),
         ontwerpen: (k.ontwerpen || []).filter(o => owZichtbaar(o)).map((o, i) => ({ id: o.id, naam: o.naam || ('Versie ' + (o.versie || (i + 1))), versie: o.versie || (i + 1), bestanden: owBestanden(o).map(f => ({ id: f.id, naam: f.naam || 'Ontwerp', type: f.type || '' })), toegevoegd: o.toegevoegd || '', ingediendOp: o.ingediendOp || '', goedgekeurd: o.goedgekeurd ? { op: o.goedgekeurd.op || '', naam: o.goedgekeurd.naam || '' } : null, comments: (o.comments || []).map(c => ({ id: c.id, bestandId: c.bestandId || '', x: c.x, y: c.y, tekst: c.tekst || '' })) })),
@@ -746,7 +774,8 @@ async function api(req, res, url) {
       const factuurIds = (k.facturen || []).map(f => f.bestandId).filter(Boolean);
       const ontwerpIds = (k.ontwerpen || []).filter(o => owZichtbaar(o)).flatMap(o => owBestanden(o).map(f => f.id)).filter(Boolean);
       const moodIds = (k.moodboard || []).map(f => f.id).filter(Boolean);
-      if (!bijlagesVan().some(f => f.id === bm[1]) && !factuurIds.includes(bm[1]) && !ontwerpIds.includes(bm[1]) && !moodIds.includes(bm[1])) return text(res, 404, 'Niet gevonden');
+      const contractIds = (k.contract && k.contract.actief) ? contractBestandIds(instellingen(), k) : [];
+      if (!bijlagesVan().some(f => f.id === bm[1]) && !factuurIds.includes(bm[1]) && !ontwerpIds.includes(bm[1]) && !moodIds.includes(bm[1]) && !contractIds.includes(bm[1])) return text(res, 404, 'Niet gevonden');
       const b = bestandOpSchijf(bm[1]); if (!b) return text(res, 404, 'Niet gevonden');
       return serveFile(res, b.pad, { 'Cache-Control': 'private, max-age=3600', 'Content-Disposition': 'inline' });
     }
@@ -797,20 +826,30 @@ async function api(req, res, url) {
       return json(res, 200, { id: fid, naam, type, url: `/api/dossier/${wzMatch[1]}/bestand/${fid}` });
     }
     if (sub === 'contract/teken' && m === 'POST') {
-      const b = await readJson(req, 400e3).catch(() => ({}));
-      const c = k.contract || {}; if (!c.bestandId) return json(res, 400, { error: 'Er staat nog geen contract klaar om te tekenen.' });
+      const b = await readJson(req, 800e3).catch(() => ({}));
+      const c = k.contract || {}; if (!c.actief) return json(res, 400, { error: 'Er staat geen contract klaar om te tekenen.' });
       if (c.getekend) return json(res, 200, { ok: true, al: true });
-      const naam = String(b.naam || '').trim().slice(0, 120); const handtekening = String(b.handtekening || '');
-      if (naam.length < 3) return json(res, 400, { error: 'Vul je volledige naam in.' });
       if (!b.akkoord) return json(res, 400, { error: 'Vink aan dat je akkoord gaat met het contract.' });
-      if (!/^data:image\/png;base64,[A-Za-z0-9+/=]{100,}$/.test(handtekening)) return json(res, 400, { error: 'Zet je handtekening in het vak.' });
-      let hid = ''; try { const buf = Buffer.from(handtekening.split(',')[1], 'base64'); hid = crypto.randomBytes(16).toString('hex'); fs.writeFileSync(path.join(UPLOAD_DIR, hid + '.png'), buf); fs.writeFileSync(path.join(UPLOAD_DIR, hid + '.json'), JSON.stringify({ naam: 'handtekening-' + naam.replace(/[^A-Za-z0-9]+/g, '-') + '.png', type: 'image/png', size: buf.length, d: new Date().toISOString() })); } catch (e) {}
+      const bewaarSig = (dataUrl, naam) => { if (!/^data:image\/png;base64,[A-Za-z0-9+/=]{100,}$/.test(String(dataUrl || ''))) return ''; try { const buf = Buffer.from(String(dataUrl).split(',')[1], 'base64'); const id = crypto.randomBytes(16).toString('hex'); fs.writeFileSync(path.join(UPLOAD_DIR, id + '.png'), buf); fs.writeFileSync(path.join(UPLOAD_DIR, id + '.json'), JSON.stringify({ naam: 'handtekening-' + String(naam || '').replace(/[^A-Za-z0-9]+/g, '-') + '.png', type: 'image/png', size: buf.length, d: new Date().toISOString() })); return id; } catch (e) { return ''; } };
+      const inkomend = Array.isArray(b.ondertekenaars) ? b.ondertekenaars.slice(0, 2) : [];
+      const ondertekenaars = [];
+      for (const o of inkomend) {
+        const voornaam = String((o && o.voornaam) || '').trim().slice(0, 80);
+        const naam = String((o && o.naam) || '').trim().slice(0, 80);
+        const hid = bewaarSig(o && o.handtekening, voornaam + ' ' + naam);
+        if (!voornaam && !naam && !hid) continue;
+        ondertekenaars.push({ voornaam, naam, handtekeningId: hid });
+      }
+      const eerste = ondertekenaars[0];
+      if (!eerste || (!eerste.voornaam && !eerste.naam)) return json(res, 400, { error: 'Vul minstens de naam van wie tekent in.' });
+      if (!ondertekenaars.some(o => o.handtekeningId)) return json(res, 400, { error: 'Zet minstens één handtekening in het vak.' });
       const op = new Date().toISOString();
-      c.getekend = { naam, op, ip: clientIp(req), handtekeningId: hid }; k.contract = c;
-      k.bijlages = (k.bijlages || []).concat(hid ? [{ id: hid, naam: 'Handtekening ' + naam + '.png', type: 'image/png', soort: 'contract_getekend', d: vandaagBE() }] : []);
-      logboek(k, `Contract getekend door ${naam} via het dossier`, 'contract');
+      const naamLijst = ondertekenaars.map(o => (o.voornaam + ' ' + o.naam).trim()).filter(Boolean).join(' & ');
+      c.getekend = { op, ip: clientIp(req), plaats: String(b.plaats || '').trim().slice(0, 120), datum: String(b.datum || '').slice(0, 10), fotoAkkoord: !!b.fotoAkkoord, ondertekenaars };
+      k.contract = c;
+      logboek(k, `Contract getekend door ${naamLijst || 'de klant'} via het dossier`, 'contract');
       store.set('klanten', kid, k);
-      meldAdmin(req, `Contract getekend: ${k.naam}`, mailBasis(k, req, { bericht: `${naam} tekende het contract op ${op.slice(0, 16).replace('T', ' ')} (IP ${clientIp(req)}). De handtekening staat bij de bijlages.` }), 'contract getekend');
+      meldAdmin(req, `Contract getekend: ${k.naam}`, mailBasis(k, req, { bericht: `${naamLijst || 'De klant'} tekende het contract op ${op.slice(0, 16).replace('T', ' ')} (IP ${clientIp(req)}). Je vindt het ondertekende contract in de fiche onder Contract.` }), 'contract getekend');
       return json(res, 200, { ok: true });
     }
     const ogMatch = sub.match(/^ontwerp\/([A-Za-z0-9_-]{1,40})\/goedkeuren$/);
@@ -1198,6 +1237,28 @@ async function api(req, res, url) {
     k.moodboard = (k.moodboard || []).filter(x => x.id !== moodMatch[2]);
     for (const x of fs.readdirSync(UPLOAD_DIR)) if (x.startsWith(moodMatch[2])) try { fs.unlinkSync(path.join(UPLOAD_DIR, x)); } catch (e) {}
     store.set('klanten', moodMatch[1], k);
+    return json(res, 200, { ok: true });
+  }
+  // Contract per klant opslaan: aan/uit + de in te vullen velden (naam, adres, offertenummer, offertedatum, opgemaakt te).
+  const contractMatch = p.match(/^\/api\/klant\/([A-Za-z0-9_\-.~:@+]{1,200})\/contract$/);
+  if (contractMatch && m === 'POST') {
+    const k = store.get('klanten', contractMatch[1]); if (!k) return json(res, 404, { error: 'Klant niet gevonden' });
+    const b = await readJson(req, 50e3).catch(() => ({}));
+    const c = k.contract || {};
+    const wasActief = !!c.actief;
+    c.actief = !!b.actief;
+    const v = (b.velden && typeof b.velden === 'object') ? b.velden : {};
+    c.velden = {
+      naamKlant: String(v.naamKlant || '').slice(0, 200),
+      adres: String(v.adres || '').slice(0, 300),
+      offertenummer: String(v.offertenummer || '').slice(0, 60),
+      offertedatum: String(v.offertedatum || '').slice(0, 10),
+      opgemaaktTe: String(v.opgemaaktTe || '').slice(0, 120),
+    };
+    k.contract = c;
+    if (c.actief && !wasActief) logboek(k, 'Contractstap toegevoegd aan het dossier', 'contract');
+    if (!c.actief && wasActief) logboek(k, 'Contractstap verborgen in het dossier', 'contract');
+    store.set('klanten', contractMatch[1], k);
     return json(res, 200, { ok: true });
   }
   // Nieuwe ontwerp-versie aanmaken (optioneel meteen met een eerste bestand; bestanden komen binnen via /api/upload).
