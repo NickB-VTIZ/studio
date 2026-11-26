@@ -699,6 +699,7 @@ const DEFAULTS={
     bedrijfBtw:'BTW 0783257776',
     verVoornaam:'Liesbeth',
     verNaam:'Boeckx',
+    aantalOndertekenaars:2,
     handtekeningId:'',
     logoId:'',
     voettekst:'liesbeth@justpixit.be · 0456 03 77 97 · justpixit.be · @justpixit.be',
@@ -747,6 +748,7 @@ function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!store
   if(stored.vragenlijsten&&typeof stored.vragenlijsten==='object')for(const t in stored.vragenlijsten)if(Array.isArray(stored.vragenlijsten[t]))c.vragenlijsten[t]=stored.vragenlijsten[t];
   if(stored.contract&&typeof stored.contract==='object'){const sc=stored.contract;
     for(const k of ['titel','bedrijfNaam','bedrijfAdres','bedrijfBtw','verVoornaam','verNaam','handtekeningId','logoId','voettekst','introTitel','introTekst','ondertekenTekst','fotoVinkje'])if(typeof sc[k]==='string')c.contract[k]=sc[k];
+    if(sc.aantalOndertekenaars===1||sc.aantalOndertekenaars===2)c.contract.aantalOndertekenaars=sc.aantalOndertekenaars;
     if(Array.isArray(sc.secties))c.contract.secties=sc.secties.filter(s=>s&&typeof s==='object').map(s=>({titel:String(s.titel||''),tekst:String(s.tekst||'')}));}
   if(stored.boeking&&typeof stored.boeking==='object'){const b=stored.boeking;for(const k in c.boeking){if(b[k]===undefined)continue;
     if(k==='dagen'&&typeof b.dagen==='object')c.boeking.dagen=Object.assign({},c.boeking.dagen,b.dagen);
@@ -2194,8 +2196,8 @@ function ctDocBody(t,v){
 }
 function ctSignDisplay(t,g){
   const sig=url=>url?`<img src="${esc(url)}" alt="handtekening" class="ct-sigimg">`:'';
-  const onder=(g&&g.ondertekenaars&&g.ondertekenaars.length?g.ondertekenaars:[{},{}]).slice(0,2);
-  while(onder.length<1)onder.push({});
+  const n=t.aantalOndertekenaars===1?1:2;
+  const onder=(g&&g.ondertekenaars&&g.ondertekenaars.length?g.ondertekenaars:Array.from({length:n},()=>({}))).slice(0,2);
   const foto=g?!!g.fotoAkkoord:false;
   return `<div class="ct-sign">
     <div><div class="ct-introbar">Ondertekening</div><div class="ct-introbox" style="text-align:center">${esc(t.ondertekenTekst||'')}</div></div>
@@ -2254,6 +2256,7 @@ function beheerContract(){
     <button class="btn small" id="ctAddSec" type="button" style="margin-top:10px">+ Voorwaarde toevoegen</button></section>
    <section><h2>Ondertekening</h2>
     <div class="sec" style="display:grid;gap:12px;max-width:620px">
+     <label class="fld"><span>Aantal handtekeningen van de klant</span><select id="ctAantal" style="border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:8px 10px"><option value="2" ${c.aantalOndertekenaars!==1?'selected':''}>2 handtekeningen (bv. beide partners)</option><option value="1" ${c.aantalOndertekenaars===1?'selected':''}>1 handtekening</option></select></label>
      <label class="fld"><span>Tekst boven de handtekeningen</span><textarea data-ct="ondertekenTekst" rows="3">${esc(c.ondertekenTekst)}</textarea></label>
      <label class="fld"><span>Tekst bij het aankruisvakje (foto's)</span><textarea data-ct="fotoVinkje" rows="2">${esc(c.fotoVinkje)}</textarea></label>
     </div></section>
@@ -2288,6 +2291,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('#ctAddSec,[data-
   if(t.id==='ctLogoDel'){cfg.contract.logoId='';saveCfg(true);rerenderBeheer();toast('Logo verwijderd');return}
 });
 document.addEventListener('change',async e=>{const el=e.target;
+  if(el.id==='ctAantal'){cfg.contract.aantalOndertekenaars=(+el.value===1)?1:2;saveCfg(true);ctRefreshPreview();return}
   if(el.id==='ctSigFile'&&el.files&&el.files[0]){try{const r=await ctUpload(el.files[0]);cfg.contract.handtekeningId=r.id;saveCfg(true);rerenderBeheer();toast('Handtekening opgeslagen')}catch(err){toast(err.message)}return}
   if(el.id==='ctLogoFile'&&el.files&&el.files[0]){try{const r=await ctUpload(el.files[0]);cfg.contract.logoId=r.id;saveCfg(true);rerenderBeheer();toast('Logo opgeslagen')}catch(err){toast(err.message)}return}
 });

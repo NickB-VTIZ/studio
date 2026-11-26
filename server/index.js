@@ -305,7 +305,7 @@ function contractInfo(k, code) {
       titel: t.titel, bedrijfNaam: t.bedrijfNaam, bedrijfAdres: t.bedrijfAdres, bedrijfBtw: t.bedrijfBtw,
       verVoornaam: t.verVoornaam, verNaam: t.verNaam, voettekst: t.voettekst,
       introTitel: t.introTitel, introTekst: t.introTekst, ondertekenTekst: t.ondertekenTekst,
-      fotoVinkje: t.fotoVinkje, secties: t.secties,
+      fotoVinkje: t.fotoVinkje, secties: t.secties, aantalOndertekenaars: t.aantalOndertekenaars || 2,
       handtekeningUrl: sig(t.handtekeningId), logoUrl: sig(t.logoId),
     },
     velden: {

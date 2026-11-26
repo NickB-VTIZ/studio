@@ -9,6 +9,7 @@ const CONTRACT_DEFAULTS = {
   bedrijfBtw: 'BTW 0783257776',
   verVoornaam: 'Liesbeth',
   verNaam: 'Boeckx',
+  aantalOndertekenaars: 2,
   handtekeningId: '',
   logoId: '',
   voettekst: 'liesbeth@justpixit.be · 0456 03 77 97 · justpixit.be · @justpixit.be',
@@ -71,6 +72,7 @@ function contractTemplate(instellingen) {
   if (s && typeof s === 'object') {
     for (const k of ['titel', 'bedrijfNaam', 'bedrijfAdres', 'bedrijfBtw', 'verVoornaam', 'verNaam', 'handtekeningId', 'logoId', 'voettekst', 'introTitel', 'introTekst', 'ondertekenTekst', 'fotoVinkje'])
       if (typeof s[k] === 'string') c[k] = s[k];
+    if (s.aantalOndertekenaars === 1 || s.aantalOndertekenaars === 2) c.aantalOndertekenaars = s.aantalOndertekenaars;
     if (Array.isArray(s.secties)) c.secties = s.secties.filter(x => x && typeof x === 'object').map(x => ({ titel: String(x.titel || ''), tekst: String(x.tekst || '') }));
   }
   return c;

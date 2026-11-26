@@ -605,7 +605,8 @@ function ctDocBody(t,v){
 }
 function ctSignDisplay(t,g){
   const sig=url=>url?`<img src="${esc(url)}" alt="handtekening" class="ct-sigimg">`:'';
-  const onder=(g&&g.ondertekenaars&&g.ondertekenaars.length?g.ondertekenaars:[{}]).slice(0,2);
+  const n=t.aantalOndertekenaars===1?1:2;
+  const onder=(g&&g.ondertekenaars&&g.ondertekenaars.length?g.ondertekenaars:Array.from({length:n},()=>({}))).slice(0,2);
   const foto=g?!!g.fotoAkkoord:false;
   return `<div class="ct-sign"><div><div class="ct-introbar">Ondertekening</div><div class="ct-introbox" style="text-align:center">${esc(t.ondertekenTekst||'')}</div></div>
     <div class="ct-grid2"><div class="ct-ln"><span class="ct-lbl">Opgemaakt te:</span><span class="ct-val">${esc((g&&g.plaats)||'')}</span></div><div class="ct-ln"><span class="ct-lbl">Op:</span><span class="ct-val">${esc((g&&g.datum)||'')}</span></div></div>
@@ -638,7 +639,7 @@ function contractSignForm(t,v){
     <div class="card" style="display:grid;gap:8px;background:#f7f2ed;border-color:#e0d6ca"><b style="color:#7d5d44">Verantwoordelijke ${esc(t.bedrijfNaam||'')}</b><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><div>${esc(t.verVoornaam||'')} ${esc(t.verNaam||'')}</div>${t.handtekeningUrl?`<img src="${esc(t.handtekeningUrl)}" alt="handtekening" style="max-height:70px;max-width:220px">`:''}</div></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><label class="fld"><span>Opgemaakt te</span><input id="c-plaats" maxlength="120" value="${esc(v.opgemaaktTe||'')}"></label><label class="fld"><span>Datum</span><input id="c-datum" type="date" value="${esc(vandaag)}"></label></div>
     ${sigBlok(0,false)}
-    ${sigBlok(1,true)}
+    ${(t.aantalOndertekenaars===1?1:2)===2?sigBlok(1,true):''}
     <label class="chk" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" id="c-foto"><span>${esc(t.fotoVinkje||'')}</span></label>
     <label class="chk" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" id="c-akkoord"><span>Ik heb het contract gelezen en ga akkoord met de inhoud. Mijn elektronische handtekening geldt als ondertekening.</span></label>
     <div id="cmsg">${m?`<p class="${m.ok?'ok':'err'}">${esc(m.t)}</p>`:''}</div>
