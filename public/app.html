@@ -501,21 +501,28 @@ code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
 .vl-tabs button.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 .vl-builder{display:grid;gap:0}
 .vl-fields{display:grid;gap:0}
-.vl-field{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:8px;margin-bottom:8px;position:relative}
-.vl-field.dragging{opacity:.4}
-.vl-field.drag-over{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.vl-field{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:8px;margin-bottom:8px;position:relative;transition:box-shadow .12s,border-color .12s}
+.vl-field:hover{border-color:var(--muted)}
+.vl-field.dragging{opacity:.45}
+.vl-field.drag-over{border-color:var(--accent);box-shadow:0 -2px 0 0 var(--accent)}
 .vl-field-kop{background:var(--sunk);border-left:3px solid var(--accent)}
 .vl-field-head{display:flex;align-items:center;gap:8px}
-.vl-drag{cursor:grab;color:var(--muted);font-size:18px;user-select:none;line-height:1;padding:0 2px}
+.vl-drag{cursor:grab;color:var(--muted);font-size:17px;user-select:none;line-height:1;padding:3px 4px;border-radius:5px}
+.vl-drag:hover{background:var(--sunk);color:var(--ink)}
+.vl-drag:active{cursor:grabbing}
 .vl-type-sel{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:4px 8px;font-size:12px;font-family:inherit;color:var(--ink);min-width:120px}
 .vl-field-actions{margin-left:auto;display:flex;gap:2px}
 .vl-field-actions .iconbtn{font-size:14px}
 .vl-label-inp{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:14px;width:100%;box-sizing:border-box}
 .vl-field-kop .vl-label-inp{font-weight:600;font-size:15px}
 .vl-desc-inp{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 10px;font-family:inherit;font-size:12.5px;color:var(--muted);width:100%;box-sizing:border-box}
-.vl-opties{display:grid;gap:4px}
-.vl-opties label{font-size:12px}
-.vl-opties textarea{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:13px;resize:vertical;width:100%;box-sizing:border-box}
+.vl-opties{display:grid;gap:6px;background:var(--sunk);border-radius:8px;padding:10px 12px}
+.vl-opties .vl-opt-label{font-size:12px;color:var(--muted)}
+.vl-opt-list{display:grid;gap:6px}
+.vl-opt-row{display:flex;align-items:center;gap:6px}
+.vl-opt-row .vl-opt-grip{color:var(--muted);font-size:13px;user-select:none}
+.vl-opt-inp{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:7px 10px;font-family:inherit;font-size:13px;box-sizing:border-box}
+.vl-opt-add{justify-self:start;font-size:12px}
 .vl-add{padding:8px 0}
 @media(max-width:600px){.vl-field-head{flex-wrap:wrap}.vl-type-sel{min-width:100px;font-size:11px}}
 .chip.g-ok{color:#2C6A4C;background:#e7f0ea}
@@ -648,7 +655,7 @@ let _vlIdC=0;function vlId(){return 'q'+Date.now().toString(36)+(++_vlIdC).toStr
 function vlV(type,label,extra){return Object.assign({id:vlId(),type,label},extra||{})}
 // Migreer oude string-vragen naar typed objects
 function migreerVraag(q){if(typeof q==='object'&&q.id&&q.type)return q;const s=String(q);if(s.startsWith('§'))return{id:vlId(),type:'kop',label:s.slice(1)};return{id:vlId(),type:'lang',label:s}}
-const VL_TYPES={kop:'Koptekst',tekst:'Kort antwoord',lang:'Lang antwoord',keuze:'Keuze (één)',meerkeuze:'Meerdere keuzes',bestand:'Bestand uploaden',datum:'Datum'};
+const VL_TYPES={kop:'Koptekst',tekst:'Kort antwoord',lang:'Lang antwoord',janee:'Ja / nee',keuze:'Keuze (één)',meerkeuze:'Meerdere keuzes',bestand:'Bestand uploaden',datum:'Datum'};
 const DEFAULTS={
   lijsten:{
     bron:['Instagram','Website','Via via','Huwelijksbeurs','Andere'],
@@ -2078,9 +2085,9 @@ function renderVlField(q,i,total){
   const typeLabel=VL_TYPES[q.type]||q.type;
   const isKop=q.type==='kop';
   const hasOpties=q.type==='keuze'||q.type==='meerkeuze';
-  return `<div class="vl-field${isKop?' vl-field-kop':''}" data-vlid="${esc(q.id)}" draggable="true">
+  return `<div class="vl-field${isKop?' vl-field-kop':''}" data-vlid="${esc(q.id)}">
     <div class="vl-field-head">
-      <span class="vl-drag" title="Versleep">⠿</span>
+      <span class="vl-drag" title="Versleep om te herschikken" aria-label="Versleep">⠿</span>
       <select class="vl-type-sel" data-vltype-sel="${esc(q.id)}" aria-label="Type veld">
         ${Object.entries(VL_TYPES).map(([k,v])=>`<option value="${k}"${k===q.type?' selected':''}>${esc(v)}</option>`).join('')}
       </select>
@@ -2092,12 +2099,23 @@ function renderVlField(q,i,total){
     </div>
     <input class="vl-label-inp" data-vllabel="${esc(q.id)}" value="${esc(q.label)}" placeholder="${isKop?'Titel van de sectie':'Vraag of label'}" aria-label="Label">
     ${!isKop?`<input class="vl-desc-inp" data-vldesc="${esc(q.id)}" value="${esc(q.beschrijving||'')}" placeholder="Toelichting (optioneel)" aria-label="Beschrijving">`:''}
-    ${hasOpties?`<div class="vl-opties"><label class="hint">Keuzes (één per regel)</label><textarea data-vlopties="${esc(q.id)}" rows="3" placeholder="Optie 1\nOptie 2\nOptie 3">${esc((q.opties||[]).join('\n'))}</textarea></div>`:''}
+    ${hasOpties?`<div class="vl-opties"><div class="vl-opt-label">Keuzes</div><div class="vl-opt-list">${(q.opties||[]).map((o,oi)=>`<div class="vl-opt-row"><span class="vl-opt-grip">•</span><input class="vl-opt-inp" data-vlopt="${esc(q.id)}:${oi}" value="${esc(o)}" placeholder="Optie ${oi+1}"><button class="iconbtn" data-vloptdel="${esc(q.id)}:${oi}" aria-label="Optie verwijderen" title="Verwijderen">×</button></div>`).join('')||'<p class="hint" style="margin:0">Nog geen keuzes — voeg er een toe.</p>'}</div><button class="btn small ghost vl-opt-add" data-vloptadd="${esc(q.id)}">+ Optie toevoegen</button></div>`:''}
+    ${q.type==='janee'?'<p class="hint" style="margin:0">De klant kiest tussen <b>Ja</b> en <b>Nee</b>.</p>':''}
   </div>`;
 }
 function _vlBuilderDummy(){ // placeholder so the old closing brace matches
   return '';
 }
+// Vragenlijst-builder: slepen om te herschikken (start vanaf de greep ⠿)
+let vlDragId=null;
+document.addEventListener('mousedown',e=>{const g=e.target.closest('.vl-drag');if(!g)return;const f=g.closest('.vl-field');if(f)f.setAttribute('draggable','true')});
+document.addEventListener('mouseup',()=>{document.querySelectorAll('.vl-field[draggable="true"]').forEach(f=>f.removeAttribute('draggable'))});
+document.addEventListener('dragstart',e=>{const f=e.target.closest('.vl-field');if(!f||!f.closest('.vl-builder')||f.getAttribute('draggable')!=='true')return;vlDragId=f.dataset.vlid;f.classList.add('dragging');try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',vlDragId)}catch(_){}});
+document.addEventListener('dragend',e=>{const f=e.target.closest('.vl-field');if(f){f.classList.remove('dragging');f.removeAttribute('draggable')}document.querySelectorAll('.vl-field.drag-over').forEach(x=>x.classList.remove('drag-over'));vlDragId=null});
+document.addEventListener('dragover',e=>{if(!vlDragId)return;const b=e.target.closest('.vl-builder');if(!b)return;e.preventDefault();try{e.dataTransfer.dropEffect='move'}catch(_){}const f=e.target.closest('.vl-field');b.querySelectorAll('.vl-field.drag-over').forEach(x=>{if(x!==f)x.classList.remove('drag-over')});if(f&&f.dataset.vlid!==vlDragId)f.classList.add('drag-over')});
+document.addEventListener('drop',e=>{if(!vlDragId)return;const b=e.target.closest('.vl-builder');if(!b)return;e.preventDefault();const tp=b.dataset.vltype;const arr=cfg.vragenlijsten[tp]||[];const from=arr.findIndex(q=>q.id===vlDragId);const target=e.target.closest('.vl-field');let to;
+  if(target&&target.dataset.vlid!==vlDragId){const r=target.getBoundingClientRect();const after=e.clientY>r.top+r.height/2;to=arr.findIndex(q=>q.id===target.dataset.vlid)+(after?1:0)}else{to=arr.length}
+  if(from<0){vlDragId=null;return}const[item]=arr.splice(from,1);if(to>from)to--;to=Math.max(0,Math.min(arr.length,to));arr.splice(to,0,item);cfg.vragenlijsten[tp]=arr;const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(tp);saveCfg(true);vlDragId=null});
 function mailSplit(l){const m=String(l||'').match(/^(.*?)\s*\(([^)]+)\)\s*$/);return m?{naam:m[1],cat:m[2]}:{naam:l,cat:''}}
 function renderMailList(){
   const row=(k,naam,cat)=>`<button class="mail-row${mailSel===k?' on':''}" data-mailsel="${k}"><span class="mr-naam">${esc(naam)}</span>${cat?`<span class="mr-cat">${esc(cat)}</span>`:''}</button>`;
@@ -2397,11 +2415,13 @@ function saveCfg(now){clearTimeout(cfgTimer);const st=$('#cfgstate');if(st)st.te
     cfgChain=cfgChain.then(()=>db.doc('instellingen/algemeen').set(data)).then(()=>{const s2=$('#cfgstate');if(s2&&!cfgTimer)s2.textContent='Alles opgeslagen'},e=>{const s2=$('#cfgstate');if(s2)s2.textContent='Niet opgeslagen ('+(e&&e.code||'fout')+')'})};
   if(now)run();else cfgTimer=setTimeout(run,700)}
 document.addEventListener('click',e=>{
-  const vlt=e.target.closest('[data-vltab],[data-vladd],[data-vldel],[data-vlup],[data-vldown]');
+  const vlt=e.target.closest('[data-vltab],[data-vladd],[data-vldel],[data-vlup],[data-vldown],[data-vloptadd],[data-vloptdel]');
   if(vlt){
     if(vlt.dataset.vltab){document.querySelectorAll('.vl-tabs button').forEach(b=>b.classList.toggle('active',b.dataset.vltab===vlt.dataset.vltab));const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(vlt.dataset.vltab);return}
     const b=document.querySelector('.vl-builder');if(!b)return;const tp=b.dataset.vltype;const arr=cfg.vragenlijsten[tp]||[];
     if(vlt.dataset.vladd){arr.push(vlV('tekst',''));cfg.vragenlijsten[tp]=arr;const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(tp);saveCfg(true);const last=document.querySelector('.vl-field:last-of-type .vl-label-inp');if(last)last.focus();return}
+    if(vlt.dataset.vloptadd){const q=arr.find(x=>x.id===vlt.dataset.vloptadd);if(q){q.opties=(q.opties||[]).concat(['']);const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(tp);saveCfg(true);const inps=document.querySelectorAll('.vl-opt-inp');if(inps.length)inps[inps.length-1].focus()}return}
+    if(vlt.dataset.vloptdel){const parts=vlt.dataset.vloptdel.split(':');const q=arr.find(x=>x.id===parts[0]);if(q&&q.opties){q.opties.splice(+parts[1],1);const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(tp);saveCfg(true)}return}
     const idx=arr.findIndex(q=>q.id===(vlt.dataset.vldel||vlt.dataset.vlup||vlt.dataset.vldown));
     if(idx<0)return;
     if(vlt.dataset.vldel){arr.splice(idx,1);cfg.vragenlijsten[tp]=arr;const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(tp);saveCfg(true);toast('Veld verwijderd');return}
@@ -2434,7 +2454,7 @@ document.addEventListener('input',e=>{const el=e.target;
   else if(el.dataset.afzender){cfg.afzender=el.value;saveCfg()}
   else if(el.dataset.vllabel){const b=document.querySelector('.vl-builder');if(!b)return;const t=b.dataset.vltype;const arr=cfg.vragenlijsten[t]||[];const q=arr.find(x=>x.id===el.dataset.vllabel);if(q){q.label=el.value;saveCfg()}}
   else if(el.dataset.vldesc){const b=document.querySelector('.vl-builder');if(!b)return;const t=b.dataset.vltype;const arr=cfg.vragenlijsten[t]||[];const q=arr.find(x=>x.id===el.dataset.vldesc);if(q){q.beschrijving=el.value;saveCfg()}}
-  else if(el.dataset.vlopties){const b=document.querySelector('.vl-builder');if(!b)return;const t=b.dataset.vltype;const arr=cfg.vragenlijsten[t]||[];const q=arr.find(x=>x.id===el.dataset.vlopties);if(q){q.opties=el.value.split('\n').map(x=>x.trim()).filter(Boolean);saveCfg()}}
+  else if(el.dataset.vlopt){const b=document.querySelector('.vl-builder');if(!b)return;const t=b.dataset.vltype;const arr=cfg.vragenlijsten[t]||[];const parts=el.dataset.vlopt.split(':');const q=arr.find(x=>x.id===parts[0]);if(q){q.opties=q.opties||[];q.opties[+parts[1]]=el.value;saveCfg()}}
 });
 document.addEventListener('change',e=>{const el=e.target;
   if(el.dataset.vltypeSel){const b=document.querySelector('.vl-builder');if(!b)return;const tp=b.dataset.vltype;const arr=cfg.vragenlijsten[tp]||[];const q=arr.find(x=>x.id===el.dataset.vltypeSel);if(q){q.type=el.value;if(el.value==='kop'){delete q.beschrijving;delete q.opties;delete q.verplicht}if(el.value!=='keuze'&&el.value!=='meerkeuze')delete q.opties;const c=$('#vlBuilder');if(c)c.innerHTML=renderVlBuilder(tp);saveCfg(true)}}
