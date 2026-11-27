@@ -745,6 +745,10 @@ let cfg=JSON.parse(JSON.stringify(DEFAULTS));
 function jsAddDays(ymd,n){const d=new Date(ymd+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
 function eventDefaultJS(){return{id:'kennismaking',actief:true,titel:'Kennismakingsgesprek',intro:'',locatie:'Online via videocall, of bij mij thuis',duur:60,buffer:15,kantoor:true,kantoorNaam:'Kantoor justPIXIT',videoTeams:false,videoZoom:false,minUren:48,maxWeken:8,regels:[],uitzonderingen:[],types:['Huwelijk','Geboorte','Ander'],vragen:[],bevestiging:'Bedankt voor jullie aanvraag! Jullie afspraak staat vast.',afzender:'Liesbeth · justPIXIT'}}
 function migreerBoekingNaarEventJS(b){b=b||{};const regels=[];[1,2,3,4,5,6,0].forEach(d=>{if(b.dagen&&b.dagen[d])(b.blokken||[]).forEach(blk=>{if(blk&&blk.van&&blk.tot)regels.push({dag:d,interval:1,vanafDatum:'',van:blk.van,tot:blk.tot})})});const uitz=[];(b.geblokkeerd||[]).forEach(g=>{const s=String(g).trim();if(!s)return;const m=s.match(/^(\d{4}-\d{2}-\d{2})(?:\s*\.\.\s*|\s*-\s*|\s+tot\s+)(\d{4}-\d{2}-\d{2})$/);if(m){let d=m[1],gu=0;while(d<=m[2]&&gu++<400){uitz.push({datum:d,modus:'dicht'});d=jsAddDays(d,1)}}else if(/^\d{4}-\d{2}-\d{2}$/.test(s))uitz.push({datum:s,modus:'dicht'})});return Object.assign(eventDefaultJS(),{id:'kennismaking',actief:b.actief!==false,titel:b.titel||'Kennismakingsgesprek',intro:b.intro||'',locatie:b.locatie||'',duur:b.duur||60,buffer:b.buffer==null?15:b.buffer,minUren:b.minUren==null?48:b.minUren,maxWeken:b.maxWeken||8,videoTeams:!!b.videoTeams,videoZoom:!!b.videoZoom,types:Array.isArray(b.types)?b.types:['Huwelijk','Geboorte','Ander'],vragen:Array.isArray(b.vragen)?b.vragen:[],bevestiging:b.bevestiging||'',afzender:b.afzender||'Liesbeth · justPIXIT',regels,uitzonderingen:uitz})}
+function jsWeekday(ymd){return new Date(ymd+'T12:00:00Z').getUTCDay()}
+function jsDagenTussen(a,b){return Math.round((Date.parse(b+'T12:00:00Z')-Date.parse(a+'T12:00:00Z'))/86400000)}
+function jsRegelGeldt(r,d){if(jsWeekday(d)!==Number(r.dag))return false;const interval=Math.max(1,Number(r.interval)||1);if(interval===1)return true;let anker=/^\d{4}-\d{2}-\d{2}$/.test(r.vanafDatum||'')?r.vanafDatum:d;let g=0;while(jsWeekday(anker)!==Number(r.dag)&&g++<7)anker=jsAddDays(anker,1);if(d<anker)return false;const wk=Math.round(jsDagenTussen(anker,d)/7);return wk>=0&&wk%interval===0}
+function jsDagStatus(ev,d){let ranges=[];(ev.regels||[]).forEach(r=>{if(r&&r.van&&r.tot&&jsRegelGeldt(r,d))ranges.push({van:r.van,tot:r.tot})});let uitz=null,uv='',ut='';(ev.uitzonderingen||[]).forEach(u=>{if(!u||u.datum!==d)return;if(u.modus==='dicht')uitz='dicht';else if(u.modus==='open'){uitz='open';uv=u.van||'';ut=u.tot||'';if(u.van&&u.tot)ranges.push({van:u.van,tot:u.tot})}});ranges.sort((a,b)=>a.van<b.van?-1:1);return{ranges,uitz,uv,ut,open:uitz==='dicht'?false:ranges.length>0}}
 function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!stored)return c;
   if(stored.lijsten)for(const k in c.lijsten)if(Array.isArray(stored.lijsten[k]))c.lijsten[k]=stored.lijsten[k].map(String);
   if(stored.termijnen)for(const k in c.termijnen){const n=Number(stored.termijnen[k]);if(Number.isFinite(n)&&n>=0)c.termijnen[k]=n}
@@ -2344,7 +2348,10 @@ document.addEventListener('change',async e=>{const el=e.target;
   if(el.id==='ctSigFile'&&el.files&&el.files[0]){try{const r=await ctUpload(el.files[0]);cfg.contract.handtekeningId=r.id;saveCfg(true);rerenderBeheer();toast('Handtekening opgeslagen')}catch(err){toast(err.message)}return}
   if(el.id==='ctLogoFile'&&el.files&&el.files[0]){try{const r=await ctUpload(el.files[0]);cfg.contract.logoId=r.id;saveCfg(true);rerenderBeheer();toast('Logo opgeslagen')}catch(err){toast(err.message)}return}
 });
-let bkSel=0;
+let bkSel=0,bkView='lijst',bkMaand='',bkDag='';
+try{const v=localStorage.getItem('jp-bkview');if(v==='lijst'||v==='kalender')bkView=v}catch(e){}
+function maandNu(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+function maandShift(ym,delta){let [y,m]=(ym||maandNu()).split('-').map(Number);m+=delta;while(m<1){m+=12;y--}while(m>12){m-=12;y++}return y+'-'+String(m).padStart(2,'0')}
 function beheerAfspraken(){
   const evs=cfg.events;if(!evs.length)cfg.events=[eventDefaultJS()];if(bkSel>=cfg.events.length)bkSel=cfg.events.length-1;if(bkSel<0)bkSel=0;
   const ev=cfg.events[bkSel];
@@ -2366,7 +2373,67 @@ function beheerAfspraken(){
      <select data-evu="${i}" data-evk="modus"><option value="dicht" ${u.modus!=='open'?'selected':''}>dicht (niet beschikbaar)</option><option value="open" ${u.modus==='open'?'selected':''}>open (extra beschikbaar)</option></select>
      ${u.modus==='open'?`<input type="time" data-evu="${i}" data-evk="van" value="${esc(u.van||'')}"> <span class="hint">tot</span> <input type="time" data-evu="${i}" data-evk="tot" value="${esc(u.tot||'')}">`:''}
      <button class="iconbtn danger" data-evdeluitz="${i}" title="Verwijderen" style="margin-left:auto">×</button></div>`;
+  if(!bkMaand)bkMaand=maandNu();
+  const p2=n=>String(n).padStart(2,'0');
+  const bkKalender=()=>{
+    const [y,mo]=bkMaand.split('-').map(Number);const first=new Date(y,mo-1,1);const start=(first.getDay()+6)%7;const days=new Date(y,mo,0).getDate();
+    const td=new Date();const tds=td.getFullYear()+'-'+p2(td.getMonth()+1)+'-'+p2(td.getDate());
+    let cells='';for(let i=0;i<start;i++)cells+='<span class="bk-cel vul"></span>';
+    for(let d=1;d<=days;d++){const ds=y+'-'+p2(mo)+'-'+p2(d);const st=jsDagStatus(ev,ds);
+      let cls=st.uitz==='dicht'?'dicht':(st.uitz==='open'?'extra':(st.open?'open':''));
+      let pt=st.open?'<i class="pt"></i>':(st.uitz==='dicht'?'<i class="pt dx"></i>':'');
+      cells+=`<button class="bk-cel ${cls} ${ds===bkDag?'sel':''} ${ds===tds?'vandaag':''}" data-bkday="${ds}" title="${esc(st.open?st.ranges.map(r=>r.van+'–'+r.tot).join(', '):(st.uitz==='dicht'?'gesloten':'niet beschikbaar'))}">${d}${pt}</button>`;}
+    return `<div class="bk-calhead"><h3>${first.toLocaleDateString('nl-BE',{month:'long',year:'numeric'})}</h3><div class="bk-calnav"><button class="iconbtn" data-bknav="-1" title="Vorige maand">‹</button><button class="iconbtn" data-bknav="1" title="Volgende maand">›</button></div></div>
+     <div class="bk-calgrid">${['ma','di','wo','do','vr','za','zo'].map(w=>`<span class="bk-wd">${w}</span>`).join('')}${cells}</div>
+     <div class="bk-callegend"><span><i class="pt"></i> beschikbaar</span><span><i class="pt ex"></i> extra open</span><span><i class="pt dx"></i> gesloten</span></div>`;
+  };
+  const bkDagEditor=()=>{
+    if(!bkDag)return '<div class="bk-dagedit leeg"><p class="hint" style="margin:0">Klik op een datum in de kalender om die dag aan te passen — dichtzetten of net extra openen.</p></div>';
+    const st=jsDagStatus(ev,bkDag);const curMode=st.uitz==='dicht'?'dicht':(st.uitz==='open'?'open':'standaard');
+    const week=(ev.regels||[]).filter(r=>r.van&&r.tot&&jsRegelGeldt(r,bkDag)).map(r=>r.van+'–'+r.tot).join(', ')||'geen uren in het weekrooster';
+    const dlabel=new Date(bkDag+'T12:00:00Z').toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    return `<div class="bk-dagedit">
+      <div class="bk-dagedit-head"><b style="text-transform:capitalize">${esc(dlabel)}</b><button class="iconbtn" data-bkday="" title="Sluiten">×</button></div>
+      <p class="hint" style="margin:2px 0 12px">Volgens het weekrooster: ${esc(week)}.</p>
+      <div class="bk-modes">
+       <label><input type="radio" name="bkmode" data-bkmode="standaard" ${curMode==='standaard'?'checked':''}> Volg het weekrooster</label>
+       <label><input type="radio" name="bkmode" data-bkmode="dicht" ${curMode==='dicht'?'checked':''}> Gesloten die dag</label>
+       <label><input type="radio" name="bkmode" data-bkmode="open" ${curMode==='open'?'checked':''}> Extra open</label>
+      </div>
+      ${curMode==='open'?`<div class="bk-extratijd">van <input type="time" data-bkuitz="van" value="${esc(st.uv||'09:30')}"> <span class="hint">tot</span> <input type="time" data-bkuitz="tot" value="${esc(st.ut||'12:00')}"></div>`:''}
+    </div>`;
+  };
   return `<style>.bk-ev select,.bk-ev input[type=time],.bk-ev input[type=date]{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 8px;font:inherit;color:inherit}
+   .bk-viewtoggle{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+   .bk-seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+   .bk-seg button{border:0;background:var(--bg);padding:7px 14px;font:inherit;color:var(--muted);cursor:pointer}
+   .bk-seg button+button{border-left:1px solid var(--line)}
+   .bk-seg button.on{background:var(--accent,#7d5d44);color:#fff;font-weight:600}
+   .bk-calwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+   @media(max-width:720px){.bk-calwrap{grid-template-columns:1fr}}
+   .bk-calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+   .bk-calhead h3{margin:0;font-size:16px;text-transform:capitalize}
+   .bk-calnav{display:flex;gap:6px}
+   .bk-calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+   .bk-wd{text-align:center;font-size:11px;color:var(--muted);padding-bottom:4px}
+   .bk-cel{aspect-ratio:1;border:1px solid transparent;border-radius:8px;background:var(--sunk);color:var(--ink);font:inherit;font-size:14px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center}
+   .bk-cel.vul{background:none;cursor:default}
+   .bk-cel.open{background:color-mix(in srgb,var(--accent,#7d5d44) 14%,transparent);font-weight:600}
+   .bk-cel.extra{background:color-mix(in srgb,#2e7d5b 18%,transparent);font-weight:600}
+   .bk-cel.dicht{background:var(--bg);color:var(--muted);text-decoration:line-through}
+   .bk-cel.vandaag{border-color:var(--accent,#7d5d44)}
+   .bk-cel.sel{outline:2px solid var(--accent,#7d5d44);outline-offset:1px}
+   .bk-cel .pt{position:absolute;bottom:5px;width:5px;height:5px;border-radius:50%;background:var(--accent,#7d5d44)}
+   .bk-cel .pt.dx{background:var(--muted)}
+   .bk-callegend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--muted);align-items:center}
+   .bk-callegend .pt{position:static;display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent,#7d5d44);margin-right:5px;vertical-align:middle}
+   .bk-callegend .pt.ex{background:#2e7d5b}.bk-callegend .pt.dx{background:var(--muted)}
+   .bk-dagedit{border:1px solid var(--line);border-radius:10px;padding:16px}
+   .bk-dagedit.leeg{background:var(--sunk);display:flex;align-items:center;min-height:120px}
+   .bk-dagedit-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+   .bk-modes{display:grid;gap:8px}
+   .bk-modes label{display:flex;align-items:center;gap:8px;cursor:pointer}
+   .bk-extratijd{display:flex;align-items:center;gap:8px;margin-top:12px}
    .bk-week{border:1px solid var(--line);border-radius:10px;overflow:hidden}
    .bk-dag{display:grid;grid-template-columns:120px 1fr auto;gap:14px;align-items:start;padding:12px 14px;border-top:1px solid var(--line)}
    .bk-dag:first-child{border-top:0}
@@ -2401,11 +2468,19 @@ function beheerAfspraken(){
        <label><input type="checkbox" data-evbool="videoZoom" ${ev.videoZoom?'checked':''}>Zoom</label></div></div>
      ${ev.kantoor?`<label class="fld"><span>Naam van de locatie op kantoor</span><input data-ev="kantoorNaam" value="${esc(ev.kantoorNaam||'')}" style="max-width:340px"></label>`:''}
      <p class="hint" style="margin:0">Teams werkt via je Office 365-koppeling, Zoom via de Zoom-koppeling (zie Koppelingen). De klant kiest bij het boeken; bij een online keuze komt de meetinglink automatisch in de bevestigingsmail.</p>
-     <div><div class="label" style="margin-bottom:6px">Wekelijkse beschikbaarheid</div><p class="hint" style="margin:0 0 10px">Zet per dag de uren waarop klanten kunnen boeken. Met <b>+</b> voeg je een extra tijdsblok toe; per blok kies je of het elke week of bv. om de 2 weken geldt.</p>
-      <div class="bk-week">${WDlang.map(dagRij).join('')}</div></div>
-     <div><div class="label" style="margin-bottom:6px">Uitzonderingen (specifieke datums)</div><p class="hint" style="margin:0 0 8px">Zet een losse dag dicht, of open net een dag extra die normaal niet beschikbaar is.</p>
-      <div style="display:grid;gap:8px">${(ev.uitzonderingen||[]).map(uitzRij).join('')||'<p class="hint" style="margin:0">Geen uitzonderingen.</p>'}</div>
-      <button class="btn small" id="evAddUitz" style="margin-top:8px">+ Uitzondering toevoegen</button></div>
+     <div>
+      <div class="bk-viewtoggle"><span class="label" style="margin:0">Beschikbaarheid</span>
+       <div class="bk-seg"><button type="button" data-bkview="lijst" class="${bkView==='lijst'?'on':''}">Weekrooster</button><button type="button" data-bkview="kalender" class="${bkView==='kalender'?'on':''}">Kalender</button></div></div>
+      ${bkView==='kalender'?`
+       <p class="hint" style="margin:0 0 12px">Klik op een datum om die dag aan te passen: dichtzetten of net extra openen bovenop het weekrooster.</p>
+       <div class="bk-calwrap"><div>${bkKalender()}</div><div>${bkDagEditor()}</div></div>`
+      :`
+       <p class="hint" style="margin:0 0 10px">Zet per dag de uren waarop klanten kunnen boeken. Met <b>+</b> voeg je een extra tijdsblok toe; per blok kies je of het elke week of bv. om de 2 weken geldt.</p>
+       <div class="bk-week">${WDlang.map(dagRij).join('')}</div>
+       <div style="margin-top:16px"><div class="label" style="margin-bottom:6px">Uitzonderingen (specifieke datums)</div><p class="hint" style="margin:0 0 8px">Zet een losse dag dicht, of open net een dag extra die normaal niet beschikbaar is.</p>
+        <div style="display:grid;gap:8px">${(ev.uitzonderingen||[]).map(uitzRij).join('')||'<p class="hint" style="margin:0">Geen uitzonderingen.</p>'}</div>
+        <button class="btn small" id="evAddUitz" style="margin-top:8px">+ Uitzondering toevoegen</button></div>`}
+     </div>
      <div class="grid2">
       <label class="fld"><span>Keuzes "Waarvoor?" (één per regel)</span><textarea data-evlist="types" rows="3">${esc((ev.types||[]).join('\n'))}</textarea></label>
       <label class="fld"><span>Extra vragen op het formulier (één per regel)</span><textarea data-evlist="vragen" rows="3">${esc((ev.vragen||[]).join('\n'))}</textarea></label>
@@ -2419,7 +2494,10 @@ function beheerAfspraken(){
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
 }
 function evUniekId(basis){let s=String(basis||'event').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,32)||'event';let id=s,n=2;while(cfg.events.some(e=>e.id===id)){id=s+'-'+n;n++}return id}
-document.addEventListener('click',e=>{const t=e.target.closest('[data-evsel],#evNew,#evDel,#evCopy,#evAddRegel,[data-evaddday],[data-evdelregel],#evAddUitz,[data-evdeluitz]');if(!t)return;
+document.addEventListener('click',e=>{const t=e.target.closest('[data-evsel],#evNew,#evDel,#evCopy,#evAddRegel,[data-evaddday],[data-evdelregel],#evAddUitz,[data-evdeluitz],[data-bkview],[data-bknav],[data-bkday]');if(!t)return;
+  if(t.dataset.bkview!==undefined){bkView=t.dataset.bkview;try{localStorage.setItem('jp-bkview',bkView)}catch(err){}bkDag='';rerenderBeheer();return}
+  if(t.dataset.bknav!==undefined){bkMaand=maandShift(bkMaand,Number(t.dataset.bknav));rerenderBeheer();return}
+  if(t.dataset.bkday!==undefined){bkDag=t.dataset.bkday||'';rerenderBeheer();return}
   if(t.dataset.evaddday!==undefined){const ev=cfg.events[bkSel];ev.regels=ev.regels||[];const d=Number(t.dataset.evaddday);const laatste=[...ev.regels].reverse().find(r=>Number(r.dag)===d);ev.regels.push({dag:d,interval:1,vanafDatum:'',van:laatste?laatste.van:'09:30',tot:laatste?laatste.tot:'12:00'});saveCfg(true);rerenderBeheer();return}
   if(t.dataset.evsel!==undefined){bkSel=+t.dataset.evsel;rerenderBeheer();return}
   if(t.id==='evNew'){const ev=eventDefaultJS();ev.id=evUniekId('event');ev.titel='Nieuw event';ev.regels=[];cfg.events.push(ev);bkSel=cfg.events.length-1;saveCfg(true);rerenderBeheer();return}
@@ -2435,12 +2513,14 @@ document.addEventListener('input',e=>{const el=e.target;if(!el.dataset)return;co
   if(el.dataset.evlist!==undefined){ev[el.dataset.evlist]=el.value.split('\n').map(x=>x.trim()).filter(Boolean);saveCfg();return}
   if(el.dataset.evr!==undefined&&el.dataset.evk&&el.tagName!=='SELECT'){const r=ev.regels[+el.dataset.evr];if(r){r[el.dataset.evk]=el.value;saveCfg()}return}
   if(el.dataset.evu!==undefined&&el.dataset.evk&&el.tagName!=='SELECT'){const u=ev.uitzonderingen[+el.dataset.evu];if(u){u[el.dataset.evk]=el.value;saveCfg()}return}
+  if(el.dataset.bkuitz!==undefined){const d=bkDag;if(!d)return;ev.uitzonderingen=ev.uitzonderingen||[];let u=ev.uitzonderingen.find(x=>x.datum===d&&x.modus==='open');if(!u){u={datum:d,modus:'open',van:'09:30',tot:'12:00'};ev.uitzonderingen.push(u)}u[el.dataset.bkuitz]=el.value;saveCfg();return}
 });
 document.addEventListener('change',e=>{const el=e.target;if(!el.dataset)return;const ev=cfg.events&&cfg.events[bkSel];if(!ev)return;
   if(el.dataset.evid!==undefined){let s=String(el.value||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'event';if(cfg.events.some((e2,idx)=>idx!==bkSel&&e2.id===s)){let n=2;while(cfg.events.some((e2,idx)=>idx!==bkSel&&e2.id===s+'-'+n))n++;s=s+'-'+n}ev.id=s;saveCfg(true);rerenderBeheer();return}
   if(el.dataset.evbool){ev[el.dataset.evbool]=el.checked;saveCfg(true);rerenderBeheer();return}
   if(el.dataset.evr!==undefined&&el.dataset.evk&&el.tagName==='SELECT'){const r=ev.regels[+el.dataset.evr];if(r){r[el.dataset.evk]=(el.dataset.evk==='interval'||el.dataset.evk==='dag')?Number(el.value):el.value;saveCfg(true);rerenderBeheer()}return}
   if(el.dataset.evu!==undefined&&el.dataset.evk&&el.tagName==='SELECT'){const u=ev.uitzonderingen[+el.dataset.evu];if(u){u[el.dataset.evk]=el.value;saveCfg(true);rerenderBeheer()}return}
+  if(el.dataset.bkmode!==undefined){const d=bkDag;if(!d)return;const prev=jsDagStatus(ev,d);ev.uitzonderingen=(ev.uitzonderingen||[]).filter(u=>u.datum!==d);const mode=el.dataset.bkmode;if(mode==='dicht')ev.uitzonderingen.push({datum:d,modus:'dicht'});else if(mode==='open')ev.uitzonderingen.push({datum:d,modus:'open',van:prev.uv||'09:30',tot:prev.ut||'12:00'});saveCfg(true);rerenderBeheer();return}
 });
 function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailLog();if(beheerTab==='koppelingen')laadKoppelingen();if(beheerTab==='contract')initContractBeheer();window.scrollTo(0,y)}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-btab],[data-gonav],#copyPortaalLink');if(!t)return;
