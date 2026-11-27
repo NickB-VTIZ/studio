@@ -131,8 +131,9 @@ function sjablonen() { return Object.assign({}, STANDAARD_MAILS, instellingen().
 
 // Unieke wijzigcode per boeking: nieuwe leads verzetten hun afspraak via /afspraak/wijzig?c=… zonder login.
 function zorgWijzigCode(id) { const k = store.get('klanten', id); if (!k) return ''; if (!k.wijzigCode) { k.wijzigCode = crypto.randomBytes(9).toString('base64url'); store.set('klanten', id, k); } return k.wijzigCode; }
-const wijzigUrl = (req, code) => publicBase(req) + '/dossier?c=' + encodeURIComponent(code); // verzetlink = dossierlink
+const wijzigUrl = (req, code) => publicBase(req) + '/afspraak/wijzig?c=' + encodeURIComponent(code); // aparte afspraakbeheer-pagina (geen volledig dossier)
 const wijzigKnop = (req, doc) => doc.wijzigCode ? { url: wijzigUrl(req, doc.wijzigCode), label: 'Afspraak verplaatsen' } : null;
+const annuleerKnop = (req, doc) => doc.wijzigCode ? { url: wijzigUrl(req, doc.wijzigCode) + '&actie=annuleren', label: 'Afspraak annuleren' } : null;
 function klantViaWijzigCode(code) { if (!code || code.length < 8) return null; return store.list('klanten').find(k => k.wijzigCode && safeEq(k.wijzigCode, code)) || null; }
 
 // Offertetotalen (zelfde rekenwijze als in de app: "1,85" → 1.85).
@@ -788,7 +789,7 @@ async function api(req, res, url) {
       const admin = adminAdres(), sjab = sjablonen();
       const basis = mailBasis(doc, req, { locatie: doc.locatie || cfg.locatie, bericht: notitie || '(geen bericht)' });
       // Knop-plaatshouders mogen vrij in het sjabloon staan; ontbreekt {videolink} in een opgeslagen sjabloon, dan komt de knop achteraan.
-      const kMail = bouwMail(sjab.boekingKlant, basis, { videolink: videoKnop(doc), wijziglink: wijzigKnop(req, doc) });
+      const kMail = bouwMail(sjab.boekingKlant, basis, { videolink: videoKnop(doc), wijziglink: wijzigKnop(req, doc), annuleerlink: annuleerKnop(req, doc) });
       const aMail = bouwMail(sjab.boekingAdmin, basis, { videolink: videoKnop(doc) });
       const inviteBuf = admin ? afspraakICS({ uid: 'afspraak-' + id + '@justpixit.be', seq: doc.icsSeq || 0, slot, duur: cfg.duur, titel: cfg.titel + ' · justPIXIT', omschrijving: [kMail.text, doc.videolink ? 'Videocall: ' + doc.videolink : ''].filter(Boolean).join('\n\n'), locatie: doc.videolink || doc.locatie || cfg.locatie, orgNaam: cfg.afzender || 'justPIXIT', orgEmail: admin, gastNaam: naam, gastEmail: email, gasten }) : null;
       const invite = inviteBuf ? { content: inviteBuf, method: 'REQUEST' } : undefined;
