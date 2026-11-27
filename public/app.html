@@ -679,6 +679,7 @@ const DEFAULTS={
     kleuren:{paper:'#F5F2EF',card:'#FFFFFF',ink:'#2c2623','ink-soft':'#6b6460',accent:'#7d5d44','accent-ink':'#FFFFFF',sage:'#ede6df',line:'#ddd6cf'},
     font:'DM Sans',
     logo:'justPIXIT',
+    logoId:'',
     tagline:'jullie persoonlijke pagina'
   },
   mails:{
@@ -754,6 +755,7 @@ function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!store
     if(stored.stijl.kleuren&&typeof stored.stijl.kleuren==='object')for(const k in c.stijl.kleuren)if(typeof stored.stijl.kleuren[k]==='string'&&/^#[0-9a-fA-F]{6}$/.test(stored.stijl.kleuren[k]))c.stijl.kleuren[k]=stored.stijl.kleuren[k];
     if(typeof stored.stijl.font==='string')c.stijl.font=stored.stijl.font;
     if(typeof stored.stijl.logo==='string')c.stijl.logo=stored.stijl.logo;
+    if(typeof stored.stijl.logoId==='string')c.stijl.logoId=stored.stijl.logoId;
     if(typeof stored.stijl.tagline==='string')c.stijl.tagline=stored.stijl.tagline}
   if(typeof stored.afzender==='string')c.afzender=stored.afzender;
   if(stored.vragenlijsten&&typeof stored.vragenlijsten==='object')for(const t in stored.vragenlijsten)if(Array.isArray(stored.vragenlijsten[t]))c.vragenlijsten[t]=stored.vragenlijsten[t];
@@ -2187,7 +2189,12 @@ function beheerStijl(){
     </div></section>
    <section><h2>Logo & tagline</h2><p>De naam en de ondertitel die verschijnen op je publieke pagina's.</p>
     <div class="sec" style="max-width:460px;display:grid;gap:14px">
-     <label class="fld"><span>Logonaam</span><input id="stijl-logo" data-stijl="logo" value="${esc(cfg.stijl.logo)}"></label>
+     <div class="fld"><span>Logo (afbeelding)</span>
+      ${cfg.stijl.logoId?`<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><img src="/_blob/${esc(cfg.stijl.logoId)}?v=${Date.now()}" alt="logo" style="max-height:64px;max-width:200px;display:block;background:${esc(k.paper)};padding:8px 12px;border:1px solid var(--line);border-radius:8px"><button class="btn small ghost danger" id="stijlLogoDel" type="button">Verwijderen</button></div>`:'<p class="hint" style="margin:0 0 6px">Nog geen logo-afbeelding. Zonder afbeelding tonen we de logonaam hieronder.</p>'}
+      <input type="file" id="stijlLogoFile" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="margin-top:8px">
+      <p class="hint" style="margin:4px 0 0">PNG met transparante achtergrond werkt het mooist.</p>
+     </div>
+     <label class="fld"><span>Logonaam (als er geen afbeelding is)</span><input id="stijl-logo" data-stijl="logo" value="${esc(cfg.stijl.logo)}"></label>
      <label class="fld"><span>Tagline</span><input id="stijl-tagline" data-stijl="tagline" value="${esc(cfg.stijl.tagline)}"></label>
      <div class="stijl-preview" id="stijl-logo-preview" style="background:${esc(k.paper)}">
        <span style="font-family:'${esc(cfg.stijl.font)}',system-ui,sans-serif;font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:${esc(k.accent)};font-weight:600">${esc(cfg.stijl.logo)}</span>
@@ -2345,18 +2352,33 @@ function beheerAfspraken(){
   const INTS=[[1,'elke week'],[2,'om de 2 weken'],[3,'om de 3 weken'],[4,'om de 4 weken']];
   const link=serverInfo.base+'/afspraak/'+ev.id;
   const chips=cfg.events.map((e,i)=>`<button class="btn small ${i===bkSel?'primary':'ghost'}" data-evsel="${i}">${esc(e.titel||'(naamloos)')}${e.actief?'':' · uit'}</button>`).join('');
-  const regelRij=(r,i)=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--sunk);border-radius:8px;padding:8px 10px">
-     <select data-evr="${i}" data-evk="dag">${WDlang.map(([d,l])=>`<option value="${d}" ${Number(r.dag)===d?'selected':''}>${l}</option>`).join('')}</select>
+  const blokRij=(r,i)=>`<div class="bk-blok">
+     <input type="time" data-evr="${i}" data-evk="van" value="${esc(r.van||'')}"> <span class="hint">–</span> <input type="time" data-evr="${i}" data-evk="tot" value="${esc(r.tot||'')}">
      <select data-evr="${i}" data-evk="interval">${INTS.map(([v,l])=>`<option value="${v}" ${Number(r.interval||1)===v?'selected':''}>${l}</option>`).join('')}</select>
-     ${Number(r.interval||1)>1?`<label style="font-size:12px;color:var(--muted);display:flex;gap:4px;align-items:center">vanaf <input type="date" data-evr="${i}" data-evk="vanafDatum" value="${esc(r.vanafDatum||'')}"></label>`:''}
-     <input type="time" data-evr="${i}" data-evk="van" value="${esc(r.van||'')}"> <span class="hint">tot</span> <input type="time" data-evr="${i}" data-evk="tot" value="${esc(r.tot||'')}">
-     <button class="iconbtn danger" data-evdelregel="${i}" title="Regel verwijderen" style="margin-left:auto">×</button></div>`;
+     ${Number(r.interval||1)>1?`<label class="bk-vanaf">vanaf <input type="date" data-evr="${i}" data-evk="vanafDatum" value="${esc(r.vanafDatum||'')}"></label>`:''}
+     <button class="iconbtn danger" data-evdelregel="${i}" title="Tijdsblok verwijderen">×</button></div>`;
+  const dagRij=([d,l])=>{const idx=(ev.regels||[]).map((r,i)=>[r,i]).filter(x=>Number(x[0].dag)===d).map(x=>x[1]);
+     return `<div class="bk-dag ${idx.length?'':'leeg'}"><div class="bk-dagnaam">${l}</div>
+      <div class="bk-dagblok">${idx.length?idx.map(i=>blokRij(ev.regels[i],i)).join(''):'<span class="bk-nvt">Niet beschikbaar</span>'}</div>
+      <button class="iconbtn plus" data-evaddday="${d}" title="Tijdsblok op ${l} toevoegen">+</button></div>`;};
   const uitzRij=(u,i)=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--sunk);border-radius:8px;padding:8px 10px">
      <input type="date" data-evu="${i}" data-evk="datum" value="${esc(u.datum||'')}">
      <select data-evu="${i}" data-evk="modus"><option value="dicht" ${u.modus!=='open'?'selected':''}>dicht (niet beschikbaar)</option><option value="open" ${u.modus==='open'?'selected':''}>open (extra beschikbaar)</option></select>
      ${u.modus==='open'?`<input type="time" data-evu="${i}" data-evk="van" value="${esc(u.van||'')}"> <span class="hint">tot</span> <input type="time" data-evu="${i}" data-evk="tot" value="${esc(u.tot||'')}">`:''}
      <button class="iconbtn danger" data-evdeluitz="${i}" title="Verwijderen" style="margin-left:auto">×</button></div>`;
-  return `<style>.bk-ev select,.bk-ev input[type=time],.bk-ev input[type=date]{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 8px;font:inherit;color:inherit}</style>
+  return `<style>.bk-ev select,.bk-ev input[type=time],.bk-ev input[type=date]{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 8px;font:inherit;color:inherit}
+   .bk-week{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+   .bk-dag{display:grid;grid-template-columns:120px 1fr auto;gap:14px;align-items:start;padding:12px 14px;border-top:1px solid var(--line)}
+   .bk-dag:first-child{border-top:0}
+   .bk-dag.leeg{background:var(--sunk)}
+   .bk-dagnaam{font-weight:600;text-transform:capitalize;padding-top:8px}
+   .bk-dagblok{display:grid;gap:8px;min-width:0}
+   .bk-blok{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+   .bk-nvt{color:var(--muted);padding-top:8px;display:inline-block;font-size:14px}
+   .bk-vanaf{font-size:12px;color:var(--muted);display:flex;gap:4px;align-items:center}
+   .iconbtn.plus{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:18px;line-height:1;cursor:pointer;color:var(--ink)}
+   .iconbtn.plus:hover{background:var(--sunk)}
+   @media(max-width:640px){.bk-dag{grid-template-columns:1fr auto;gap:8px}.bk-dagnaam{grid-column:1/-1;padding-top:0}}</style>
    <section><h2>Online afspraken</h2><p>Maak verschillende soorten afspraken, elk met een eigen link die je zelf deelt. Enkel jij ziet deze lijst.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">${chips}<button class="btn small" id="evNew">+ Nieuw event</button></div></section>
    <section class="bk-ev"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2 style="margin:0">${esc(ev.titel||'Event')}</h2>
@@ -2379,9 +2401,8 @@ function beheerAfspraken(){
        <label><input type="checkbox" data-evbool="videoZoom" ${ev.videoZoom?'checked':''}>Zoom</label></div></div>
      ${ev.kantoor?`<label class="fld"><span>Naam van de locatie op kantoor</span><input data-ev="kantoorNaam" value="${esc(ev.kantoorNaam||'')}" style="max-width:340px"></label>`:''}
      <p class="hint" style="margin:0">Teams werkt via je Office 365-koppeling, Zoom via de Zoom-koppeling (zie Koppelingen). De klant kiest bij het boeken; bij een online keuze komt de meetinglink automatisch in de bevestigingsmail.</p>
-     <div><div class="label" style="margin-bottom:6px">Beschikbaarheid (regels)</div><p class="hint" style="margin:0 0 8px">Per regel: een dag, hoe vaak (bv. om de 2 weken) en een tijdsblok. Voeg meerdere regels toe voor meerdere dagen of blokken.</p>
-      <div style="display:grid;gap:8px">${(ev.regels||[]).map(regelRij).join('')||'<p class="hint" style="margin:0">Nog geen regels — voeg er een toe.</p>'}</div>
-      <button class="btn small" id="evAddRegel" style="margin-top:8px">+ Regel toevoegen</button></div>
+     <div><div class="label" style="margin-bottom:6px">Wekelijkse beschikbaarheid</div><p class="hint" style="margin:0 0 10px">Zet per dag de uren waarop klanten kunnen boeken. Met <b>+</b> voeg je een extra tijdsblok toe; per blok kies je of het elke week of bv. om de 2 weken geldt.</p>
+      <div class="bk-week">${WDlang.map(dagRij).join('')}</div></div>
      <div><div class="label" style="margin-bottom:6px">Uitzonderingen (specifieke datums)</div><p class="hint" style="margin:0 0 8px">Zet een losse dag dicht, of open net een dag extra die normaal niet beschikbaar is.</p>
       <div style="display:grid;gap:8px">${(ev.uitzonderingen||[]).map(uitzRij).join('')||'<p class="hint" style="margin:0">Geen uitzonderingen.</p>'}</div>
       <button class="btn small" id="evAddUitz" style="margin-top:8px">+ Uitzondering toevoegen</button></div>
@@ -2398,7 +2419,8 @@ function beheerAfspraken(){
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
 }
 function evUniekId(basis){let s=String(basis||'event').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,32)||'event';let id=s,n=2;while(cfg.events.some(e=>e.id===id)){id=s+'-'+n;n++}return id}
-document.addEventListener('click',e=>{const t=e.target.closest('[data-evsel],#evNew,#evDel,#evCopy,#evAddRegel,[data-evdelregel],#evAddUitz,[data-evdeluitz]');if(!t)return;
+document.addEventListener('click',e=>{const t=e.target.closest('[data-evsel],#evNew,#evDel,#evCopy,#evAddRegel,[data-evaddday],[data-evdelregel],#evAddUitz,[data-evdeluitz]');if(!t)return;
+  if(t.dataset.evaddday!==undefined){const ev=cfg.events[bkSel];ev.regels=ev.regels||[];const d=Number(t.dataset.evaddday);const laatste=[...ev.regels].reverse().find(r=>Number(r.dag)===d);ev.regels.push({dag:d,interval:1,vanafDatum:'',van:laatste?laatste.van:'09:30',tot:laatste?laatste.tot:'12:00'});saveCfg(true);rerenderBeheer();return}
   if(t.dataset.evsel!==undefined){bkSel=+t.dataset.evsel;rerenderBeheer();return}
   if(t.id==='evNew'){const ev=eventDefaultJS();ev.id=evUniekId('event');ev.titel='Nieuw event';ev.regels=[];cfg.events.push(ev);bkSel=cfg.events.length-1;saveCfg(true);rerenderBeheer();return}
   if(t.id==='evDel'){if(cfg.events.length<=1)return;if(!confirm('Dit event en z\'n link verwijderen?'))return;cfg.events.splice(bkSel,1);bkSel=Math.max(0,bkSel-1);saveCfg(true);rerenderBeheer();return}
@@ -2486,7 +2508,9 @@ document.addEventListener('input',e=>{const el=e.target;
   if(el.dataset.stijl==='logo'){cfg.stijl.logo=el.value;saveCfg();return}
   if(el.dataset.stijl==='tagline'){cfg.stijl.tagline=el.value;saveCfg();return}
 });
-document.addEventListener('click',e=>{if(e.target.id==='stijl-reset'){cfg.stijl=JSON.parse(JSON.stringify(DEFAULTS.stijl));rerenderBeheer();saveCfg(true);toast('Standaard stijl hersteld')}});
+document.addEventListener('click',e=>{if(e.target.id==='stijl-reset'){cfg.stijl=JSON.parse(JSON.stringify(DEFAULTS.stijl));rerenderBeheer();saveCfg(true);toast('Standaard stijl hersteld')}
+  if(e.target.id==='stijlLogoDel'){cfg.stijl.logoId='';saveCfg(true);rerenderBeheer();toast('Logo verwijderd')}});
+document.addEventListener('change',async e=>{const el=e.target;if(el.id==='stijlLogoFile'&&el.files&&el.files[0]){try{const r=await ctUpload(el.files[0]);cfg.stijl.logoId=r.id;saveCfg(true);rerenderBeheer();toast('Logo opgeslagen')}catch(err){toast(err.message||'Opladen mislukt')}}});
 function saveCfg(now){clearTimeout(cfgTimer);const st=$('#cfgstate');if(st)st.textContent='Opslaan…';
   const run=()=>{cfgTimer=null;if(!db)return;const data=JSON.parse(JSON.stringify(cfg));
     cfgChain=cfgChain.then(()=>db.doc('instellingen/algemeen').set(data)).then(()=>{const s2=$('#cfgstate');if(s2&&!cfgTimer)s2.textContent='Alles opgeslagen'},e=>{const s2=$('#cfgstate');if(s2)s2.textContent='Niet opgeslagen ('+(e&&e.code||'fout')+')'})};

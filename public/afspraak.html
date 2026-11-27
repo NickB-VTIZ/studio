@@ -40,7 +40,8 @@ button,input,textarea,select{font:inherit;color:inherit}
 .mark{text-align:center;margin-bottom:30px}
 .mark .logo{font-family:var(--f-ui);font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:#7d5d44;font-weight:600}
 .mark .logo b{font-weight:600}
-.mark .tag{display:block;margin-top:5px;font-family:var(--f-ui);font-size:14px;color:var(--ink-soft);letter-spacing:.08em;font-style:italic}
+.mark .logo-img{display:block;margin:0 auto;max-height:70px;max-width:240px;width:auto}
+.mark .tag{display:block;margin-top:8px;font-family:var(--f-ui);font-size:14px;color:var(--ink-soft);letter-spacing:.08em;font-style:italic}
 
 /* de uitnodigingskaart met dubbele haarlijn-rand */
 .sheet{
@@ -54,9 +55,10 @@ button,input,textarea,select{font:inherit;color:inherit}
 .hero{text-align:center;max-width:34rem;margin:0 auto 10px}
 .hero h1{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,5vw,38px);line-height:1.15;overflow-wrap:break-word;hyphens:auto}
 .hero p{margin:14px auto 0;color:var(--ink-soft);max-width:30rem}
-.facts{display:flex;justify-content:center;flex-wrap:wrap;gap:10px 28px;margin:22px 0 4px}
-.fact{display:flex;flex-direction:column;align-items:center;gap:1px}
-.fact .k{font-size:12px;color:var(--ink-soft)}
+.facts{display:flex;flex-direction:column;align-items:center;gap:10px;margin:22px 0 4px}
+.fact{display:flex;flex-direction:row;align-items:center;gap:10px}
+.fact .k{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-soft);min-width:84px;justify-content:flex-end}
+.fact .k svg{width:16px;height:16px;stroke:var(--ink-soft);opacity:.85}
 .fact .v{font-family:var(--f-display);font-weight:600;font-size:16px}
 .rule{border:0;border-top:1px solid var(--line);max-width:70px;margin:26px auto}
 
@@ -162,9 +164,15 @@ fetch('/api/stijl').then(r=>r.json()).then(s=>{
   if(k.sage)r.setProperty('--sage',k.sage);if(k.line){r.setProperty('--line',k.line);r.setProperty('--hair',k.line)}
   if(s.font){const f="'"+s.font+"',system-ui,sans-serif";r.setProperty('--f-display',f);r.setProperty('--f-ui',f);
     if(!document.querySelector('link[href*="'+s.font.replace(/ /g,'+')+'"]')){const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(s.font)+':ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap';document.head.appendChild(l)}}
-  if(s.logo){const el=document.querySelector('.mark .logo');if(el){const parts=s.logo.match(/^(.*?)([A-Z][A-Z]+)$/);if(parts)el.innerHTML=parts[1]+'<b>'+parts[2]+'</b>';else el.textContent=s.logo}}
+  if(s.logoId){const el=document.querySelector('.mark .logo');if(el){el.classList.add('is-img');el.innerHTML='<img class="logo-img" src="/_logo?v='+encodeURIComponent(s.logoId)+'" alt="'+(s.logo||'justPIXIT')+'">'}}
+  else if(s.logo){const el=document.querySelector('.mark .logo');if(el){const parts=s.logo.match(/^(.*?)([A-Z][A-Z]+)$/);if(parts)el.innerHTML=parts[1]+'<b>'+parts[2]+'</b>';else el.textContent=s.logo}}
   if(s.tagline!=null){const el=document.querySelector('.mark .tag');if(el)el.textContent=s.tagline}
 }).catch(()=>{});
+const IC={
+  klok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+  euro:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7.5a6 6 0 1 0 0 9M5 10.5h8M5 13.5h8"/></svg>'
+};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad=n=>String(n).padStart(2,'0');
@@ -189,9 +197,9 @@ function renderHero(){
   $('#hero').innerHTML=`<div class="hero"><h1>${esc(cfg.titel||'Kennismaking')}</h1>
     ${cfg.intro?`<p>${esc(cfg.intro)}</p>`:''}
     <div class="facts">
-      <div class="fact"><span class="k">Duur</span><span class="v">${cfg.duur} min</span></div>
-      <div class="fact"><span class="k">Waar</span><span class="v">${esc((cfg.locatie||'').split(',')[0]||'In overleg')}</span></div>
-      <div class="fact"><span class="k">Kost</span><span class="v">Gratis</span></div>
+      <div class="fact"><span class="k">${IC.klok}Duur</span><span class="v">${cfg.duur} min</span></div>
+      <div class="fact"><span class="k">${IC.pin}Waar</span><span class="v">${esc((cfg.locatie||'').split(',')[0]||'In overleg')}</span></div>
+      <div class="fact"><span class="k">${IC.euro}Kost</span><span class="v">Gratis</span></div>
     </div></div><hr class="rule">`;
 }
 function renderMain(){

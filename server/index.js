@@ -607,7 +607,7 @@ function limited(key, max, windowMs) {
 setInterval(() => { const now = Date.now(); for (const [k, arr] of hits) if (!arr.some(t => now - t < 36e5)) hits.delete(k); }, 6e5).unref();
 
 function instellingen() { return store.get('instellingen', 'algemeen') || {}; }
-function stijlConfig() { const alg = instellingen(); const s = alg.stijl || {}; return { kleuren: s.kleuren || {}, font: s.font || 'DM Sans', logo: s.logo || 'justPIXIT', tagline: s.tagline || '' }; }
+function stijlConfig() { const alg = instellingen(); const s = alg.stijl || {}; return { kleuren: s.kleuren || {}, font: s.font || 'DM Sans', logo: s.logo || 'justPIXIT', logoId: s.logoId || '', tagline: s.tagline || '' }; }
 function alleEvents() { return eventsVan(instellingen()); }
 // Zoek een event op z'n id; zonder id (of niet gevonden) → het eerste event (standaard).
 function eventById(id) { const evs = alleEvents(); if (id) { const e = evs.find(x => x.id === id); if (e) return e; } return evs[0]; }
@@ -1585,6 +1585,13 @@ nano .env        # ADMIN_PASSWORD en SESSION_SECRET invullen
     if (p === '/' || p === '/login' || p === '/login/') return serveFile(res, path.join(PUBLIC_DIR, 'login.html'), { 'Cache-Control': 'no-store' }); // één inlogpagina (admin of klant)
     if (p === '/mijn' || p === '/mijn/') return serveFile(res, path.join(PUBLIC_DIR, 'portaal.html'), { 'Cache-Control': 'no-store' });
     if (p === '/wachtwoord' || p === '/wachtwoord/') return serveFile(res, path.join(PUBLIC_DIR, 'wachtwoord.html'), { 'Cache-Control': 'no-store' }); // wachtwoord instellen via uitnodigingslink
+    if (p === '/_logo') { // publiek logo voor de publieke pagina's (geen login)
+      const id = (instellingen().stijl || {}).logoId;
+      if (!id || !/^[a-f0-9]{32}$/.test(id)) return text(res, 404, 'Geen logo');
+      const f = fs.readdirSync(UPLOAD_DIR).find(x => x.startsWith(id) && !x.endsWith('.json'));
+      if (!f) return text(res, 404, 'Niet gevonden');
+      return serveFile(res, path.join(UPLOAD_DIR, f), { 'Cache-Control': 'public, max-age=3600', 'Content-Disposition': 'inline' });
+    }
     const blob = p.match(/^\/_blob\/([a-f0-9]{32})$/);
     if (blob) {
       if (!authedAdmin(req)) return text(res, 401, 'Niet aangemeld');
