@@ -6,11 +6,13 @@ function resendConfig(env = process.env) {
   return { key: env.RESEND_API_KEY, from: env.RESEND_FROM || env.SMTP_FROM || '' };
 }
 
-// attachments: [{ filename, content: Buffer }]
-function sendViaResend({ to, subject, text, html, replyTo, attachments, cc, bcc }, cfg = resendConfig()) {
+// attachments: [{ filename, content: Buffer }] ; invite: { content: Buffer, method } -> .ics-uitnodiging als bijlage
+function sendViaResend({ to, subject, text, html, replyTo, attachments, cc, bcc, invite }, cfg = resendConfig()) {
   if (!to) return Promise.reject(new Error('geen ontvanger'));
   if (!cfg || !cfg.from) return Promise.reject(new Error('geen afzender ingesteld (vul een afzender in bij Koppelingen → E-mail)'));
-  const att = (attachments || []).map(a => ({ filename: a.filename, content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : String(a.content) }));
+  const lijstAtt = (attachments || []).slice();
+  if (invite && invite.content) lijstAtt.push({ filename: 'afspraak.ics', content: invite.content, contentType: `text/calendar; charset=UTF-8; method=${invite.method || 'REQUEST'}` });
+  const att = lijstAtt.map(a => { const o = { filename: a.filename, content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : String(a.content) }; if (a.contentType) o.content_type = a.contentType; return o; });
   const lijst = v => (Array.isArray(v) ? v : [v]).map(x => String(x || '').trim()).filter(Boolean);
   const ccA = lijst(cc), bccA = lijst(bcc);
   const body = JSON.stringify({ from: cfg.from, to: [to], cc: ccA.length ? ccA : undefined, bcc: bccA.length ? bccA : undefined, subject, text, html: html || undefined, reply_to: replyTo || undefined, attachments: att.length ? att : undefined });

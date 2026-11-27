@@ -15,8 +15,47 @@ function smtpConfig(env = process.env) {
   };
 }
 
-// attachments: [{ filename, content: Buffer, contentType }]
-function sendMail({ to, subject, text, html, replyTo, attachments, cc, bcc }, cfg = smtpConfig()) {
+const _b64 = s => Buffer.from(s, 'utf8').toString('base64');
+const _wrap = s => _b64(s).replace(/.{76}/g, '$&\r\n');
+const _wrapBuf = buf => buf.toString('base64').replace(/.{76}/g, '$&\r\n');
+const _encHeader = s => /[^\x20-\x7e]/.test(s) ? `=?UTF-8?B?${_b64(s)}?=` : s;
+const _grens = () => 'bnd_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+const _buf = c => Buffer.isBuffer(c) ? c : Buffer.from(String(c), 'utf8');
+
+// Bouwt het volledige RFC822-bericht (incl. afsluitende \r\n.). invite = { content, method } voegt een
+// inline text/calendar;method=REQUEST deel toe (vergaderuitnodiging) én de .ics als downloadbare bijlage.
+function bouwBericht(cfg, { to, subject, text, html, replyTo, cc, attachments, invite }) {
+  const ccA = (Array.isArray(cc) ? cc : [cc]).map(x => String(x || '').trim()).filter(Boolean);
+  const kop = [`From: ${cfg.from}`, `To: ${to}`, ccA.length ? `Cc: ${ccA.join(', ')}` : null, replyTo ? `Reply-To: ${replyTo}` : null, `Subject: ${_encHeader(subject || '')}`, `Date: ${new Date().toUTCString()}`, 'MIME-Version: 1.0'];
+  const heeftInvite = !!(invite && invite.content);
+  const method = (invite && invite.method) || 'REQUEST';
+  if (heeftInvite) kop.push('Content-Class: urn:content-classes:calendarmessage');
+  // alternative-groep: text/plain (+ text/html) (+ text/calendar;method)
+  const heeftAlt = !!(html || heeftInvite);
+  let altType, altBody;
+  if (heeftAlt) {
+    const g = _grens(); altType = `multipart/alternative; boundary="${g}"`;
+    const d = [`--${g}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', _wrap(text || ''), ''];
+    if (html) d.push(`--${g}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', _wrap(html), '');
+    if (heeftInvite) d.push(`--${g}`, `Content-Type: text/calendar; charset=UTF-8; method=${method}`, 'Content-Transfer-Encoding: base64', '', _wrapBuf(_buf(invite.content)), '');
+    d.push(`--${g}--`); altBody = d.join('\r\n');
+  } else { altType = 'text/plain; charset=UTF-8'; altBody = _wrap(text || ''); }
+  // bijlagen (de uitnodiging ook als downloadbare .ics)
+  const att = (attachments || []).filter(a => a && a.content).slice();
+  if (heeftInvite) att.push({ filename: 'afspraak.ics', content: _buf(invite.content), contentType: `text/calendar; charset=UTF-8; method=${method}` });
+  let body;
+  if (att.length) {
+    const g = _grens(); kop.push(`Content-Type: multipart/mixed; boundary="${g}"`);
+    const delen = [`--${g}`, `Content-Type: ${altType}`].concat(heeftAlt ? [] : ['Content-Transfer-Encoding: base64']).concat(['', altBody, '']);
+    for (const a of att) delen.push(`--${g}`, `Content-Type: ${a.contentType || 'application/octet-stream'}; name="${String(a.filename || 'bijlage').replace(/"/g, '')}"`, 'Content-Transfer-Encoding: base64', `Content-Disposition: attachment; filename="${String(a.filename || 'bijlage').replace(/"/g, '')}"`, '', _wrapBuf(Buffer.isBuffer(a.content) ? a.content : Buffer.from(String(a.content), 'base64')), '');
+    delen.push(`--${g}--`); body = delen.join('\r\n');
+  } else if (heeftAlt) { kop.push(`Content-Type: ${altType}`); body = 'Dit is een bericht in meerdere formaten.\r\n\r\n' + altBody; }
+  else { kop.push('Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64'); body = altBody; }
+  return kop.filter(l => l !== null).join('\r\n') + '\r\n\r\n' + body + '\r\n.';
+}
+
+// attachments: [{ filename, content: Buffer, contentType }] ; invite: { content: Buffer, method }
+function sendMail({ to, subject, text, html, replyTo, attachments, cc, bcc, invite }, cfg = smtpConfig()) {
   if (!cfg || !cfg.from || !to) return Promise.resolve(false);
   const _lijst = v => (Array.isArray(v) ? v : [v]).map(x => String(x || '').trim()).filter(Boolean);
   const _adres = a => String(a || '').replace(/.*<|>.*/g, '').trim();
@@ -28,27 +67,7 @@ function sendMail({ to, subject, text, html, replyTo, attachments, cc, bcc }, cf
     const fail = e => { clearTimeout(timeout); try { socket.destroy(); } catch (_) {} reject(e); };
     const write = s => socket.write(s + '\r\n');
     const b64 = s => Buffer.from(s, 'utf8').toString('base64');
-    const wrap = s => b64(s).replace(/.{76}/g, '$&\r\n');
-    const wrapBuf = buf => buf.toString('base64').replace(/.{76}/g, '$&\r\n');
-    const encHeader = s => /[^\x20-\x7e]/.test(s) ? `=?UTF-8?B?${b64(s)}?=` : s;
-    const kop = [`From: ${cfg.from}`, `To: ${to}`, ccA.length ? `Cc: ${ccA.join(', ')}` : null, replyTo ? `Reply-To: ${replyTo}` : null, `Subject: ${encHeader(subject)}`, `Date: ${new Date().toUTCString()}`, 'MIME-Version: 1.0'];
-    const grensId = () => 'bnd_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-    // tekstdeel (plain of plain+html)
-    let inhoudType, inhoud;
-    if (html) {
-      const g = grensId(); inhoudType = `multipart/alternative; boundary="${g}"`;
-      inhoud = [`--${g}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(text), '', `--${g}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(html), '', `--${g}--`].join('\r\n');
-    } else { inhoudType = 'text/plain; charset=UTF-8'; inhoud = wrap(text); }
-    let body;
-    const att = (attachments || []).filter(a => a && a.content);
-    if (att.length) {
-      const g = grensId(); kop.push(`Content-Type: multipart/mixed; boundary="${g}"`);
-      const delen = [`--${g}`, `Content-Type: ${inhoudType}`].concat(html ? [] : ['Content-Transfer-Encoding: base64']).concat(['', inhoud, '']);
-      for (const a of att) delen.push(`--${g}`, `Content-Type: ${a.contentType || 'application/octet-stream'}; name="${String(a.filename || 'bijlage').replace(/"/g, '')}"`, 'Content-Transfer-Encoding: base64', `Content-Disposition: attachment; filename="${String(a.filename || 'bijlage').replace(/"/g, '')}"`, '', wrapBuf(Buffer.isBuffer(a.content) ? a.content : Buffer.from(String(a.content), 'base64')), '');
-      delen.push(`--${g}--`); body = delen.join('\r\n');
-    } else if (html) { kop.push(`Content-Type: ${inhoudType}`); body = 'Dit is een bericht in meerdere formaten.\r\n\r\n' + inhoud; }
-    else { kop.push('Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64'); body = inhoud; }
-    const message = kop.filter(l => l !== null).join('\r\n') + '\r\n\r\n' + body + '\r\n.';
+    const message = bouwBericht(cfg, { to, subject, text, html, replyTo, cc, attachments, invite });
 
     const steps = [
       () => write('EHLO studio'),
@@ -101,4 +120,4 @@ function sendMail({ to, subject, text, html, replyTo, attachments, cc, bcc }, cf
   });
 }
 
-module.exports = { sendMail, smtpConfig };
+module.exports = { sendMail, smtpConfig, bouwBericht };
