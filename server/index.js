@@ -352,6 +352,7 @@ function contractInfo(k, code) {
       offertenummer: v.offertenummer || '',
       offertedatum: v.offertedatum || '',
       opgemaaktTe: v.opgemaaktTe || k.gemeente || '',
+      opgemaaktOp: v.opgemaaktOp || '',
     },
     getekend: g ? { op: g.op, plaats: g.plaats || '', datum: g.datum || '', fotoAkkoord: !!g.fotoAkkoord,
       ondertekenaars: (g.ondertekenaars || []).map(o => ({ voornaam: o.voornaam || '', naam: o.naam || '', handtekeningUrl: sig(o.handtekeningId) })) } : null,
@@ -1302,8 +1303,9 @@ async function api(req, res, url) {
       naamKlant: String(v.naamKlant || '').slice(0, 200),
       adres: String(v.adres || '').slice(0, 300),
       offertenummer: String(v.offertenummer || '').slice(0, 60),
-      offertedatum: String(v.offertedatum || '').slice(0, 10),
+      offertedatum: String(v.offertedatum || '').slice(0, 40),
       opgemaaktTe: String(v.opgemaaktTe || '').slice(0, 120),
+      opgemaaktOp: String(v.opgemaaktOp || '').slice(0, 40),
     };
     k.contract = c;
     if (c.actief && !wasActief) logboek(k, 'Contractstap toegevoegd aan het dossier', 'contract');

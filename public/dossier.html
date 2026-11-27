@@ -603,13 +603,14 @@ function ctDocBody(t,v){
    <div class="ct-fields">${ctFieldRow('Naam klant:',v.naamKlant)}${ctFieldRow('Adres:',v.adres)}${ctFieldRow('Offertenummer:',v.offertenummer)}${ctFieldRow('Offertedatum:',v.offertedatum)}</div>
    <div class="ct-body"><div><div class="ct-introbar">${esc(t.introTitel||'')}</div><div class="ct-introbox">${ctTekstHtml(t.introTekst)}</div></div>${(t.secties||[]).map(s=>`<div class="ct-sec"><h3 class="ct-h">${esc(s.titel)}</h3>${ctTekstHtml(s.tekst)}</div>`).join('')}</div>`;
 }
-function ctSignDisplay(t,g){
+function ctSignDisplay(t,g,v){
   const sig=url=>url?`<img src="${esc(url)}" alt="handtekening" class="ct-sigimg">`:'';
   const n=t.aantalOndertekenaars===1?1:2;
   const onder=(g&&g.ondertekenaars&&g.ondertekenaars.length?g.ondertekenaars:Array.from({length:n},()=>({}))).slice(0,2);
   const foto=g?!!g.fotoAkkoord:false;
+  const plaats=(g&&g.plaats)||(v&&v.opgemaaktTe)||'';const datum=(g&&g.datum)||(v&&v.opgemaaktOp)||'';
   return `<div class="ct-sign"><div><div class="ct-introbar">Ondertekening</div><div class="ct-introbox" style="text-align:center">${esc(t.ondertekenTekst||'')}</div></div>
-    <div class="ct-grid2"><div class="ct-ln"><span class="ct-lbl">Opgemaakt te:</span><span class="ct-val">${esc((g&&g.plaats)||'')}</span></div><div class="ct-ln"><span class="ct-lbl">Op:</span><span class="ct-val">${esc((g&&g.datum)||'')}</span></div></div>
+    <div class="ct-grid2"><div class="ct-ln"><span class="ct-lbl">Opgemaakt te:</span><span class="ct-val">${esc(plaats)}</span></div><div class="ct-ln"><span class="ct-lbl">Op:</span><span class="ct-val">${esc(datum)}</span></div></div>
     <div style="display:flex;gap:10px;align-items:center"><span style="display:inline-block;width:15px;height:15px;border:1.5px solid #7d5d44;border-radius:3px;background:#fff;text-align:center;line-height:13px;color:#7d5d44;font-weight:700">${foto?'✓':''}</span><span>${esc(t.fotoVinkje||'')}</span></div>
     <div><h3 class="ct-h">Verantwoordelijke ${esc(t.bedrijfNaam||'')}</h3><div class="ct-grid2" style="align-items:start"><div>Voornaam: ${esc(t.verVoornaam||'')}<br>Naam: ${esc(t.verNaam||'')}</div><div class="ct-sigbox">${sig(t.handtekeningUrl)||'<span style="color:#b9a898">Handtekening</span>'}</div></div></div>
     <div><h3 class="ct-h">De klant</h3><div class="ct-grid2">${onder.map(o=>`<div><div class="ct-ln"><span class="ct-lbl">Voornaam:</span><span class="ct-val">${esc(o.voornaam||'')}</span></div><div class="ct-ln"><span class="ct-lbl">Naam:</span><span class="ct-val">${esc(o.naam||'')}</span></div><div class="ct-sigbox" style="margin-top:8px">${sig(o.handtekeningUrl)||'<span style="color:#b9a898">Handtekening</span>'}</div></div>`).join('')}</div></div></div>`;

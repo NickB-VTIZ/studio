@@ -1271,7 +1271,7 @@ function mbLightbox(url,naam){let o=document.getElementById('mbLightbox');
 document.addEventListener('click',e=>{const a=e.target.closest('[data-mblb]');if(!a)return;if(e.metaKey||e.ctrlKey||e.shiftKey||e.button===1)return;e.preventDefault();mbLightbox(a.dataset.mblb,a.dataset.mbnaam||'')});
 /* ---------- contract tab (admin, per klant) ---------- */
 function ctAutoAdres(k){return [k.straat,[k.postcode,k.gemeente].filter(Boolean).join(' ')].filter(Boolean).join('\n')}
-function ctVelden(k){const c=k.contract||{},v=c.velden||{};return {naamKlant:v.naamKlant||k.naam||'',adres:v.adres||ctAutoAdres(k),offertenummer:v.offertenummer||'',offertedatum:v.offertedatum||'',opgemaaktTe:v.opgemaaktTe||k.gemeente||''}}
+function ctVelden(k){const c=k.contract||{},v=c.velden||{};return {naamKlant:v.naamKlant||k.naam||'',adres:v.adres||ctAutoAdres(k),offertenummer:v.offertenummer||'',offertedatum:v.offertedatum||'',opgemaaktTe:v.opgemaaktTe||k.gemeente||'',opgemaaktOp:v.opgemaaktOp||''}}
 function renderContractTab(){
   const box=$('#tab-contract');if(!box||!work)return;const k=work;const c=k.contract||{};const val=ctVelden(k);const g=c.getekend;
   const gDisp=g?{op:g.op,plaats:g.plaats,datum:g.datum,fotoAkkoord:g.fotoAkkoord,ondertekenaars:(g.ondertekenaars||[]).map(o=>({voornaam:o.voornaam,naam:o.naam,handtekeningUrl:o.handtekeningId?'/_blob/'+o.handtekeningId:''}))}:null;
@@ -1287,6 +1287,7 @@ function renderContractTab(){
        <label class="fld full"><span>Adres</span><textarea data-ctv="adres" rows="2">${esc(val.adres)}</textarea></label>
        <label class="fld"><span>Offertedatum</span><input data-ctv="offertedatum" value="${esc(val.offertedatum)}" placeholder="bv. 15 nov 2026"></label>
        <label class="fld"><span>Opgemaakt te</span><input data-ctv="opgemaaktTe" value="${esc(val.opgemaaktTe)}" placeholder="bv. Geel"></label>
+       <label class="fld"><span>Opgemaakt op</span><input data-ctv="opgemaaktOp" value="${esc(val.opgemaaktOp)}" placeholder="bv. 27 nov 2026"></label>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:4px"><button class="btn small" id="ctKlantLink" type="button">Bekijk als klant ↗</button><span class="hint" id="ctSaveMsg"></span></div>
       ${g?`<div class="banner" style="margin-top:12px">✓ Getekend op ${esc((g.op||'').slice(0,10))}${g.plaats?' te '+esc(g.plaats):''} door ${esc(getekendNamen)}. Foto's delen: ${g.fotoAkkoord?'ja':'nee'}.</div>`:'<p class="hint" style="margin-top:12px">Nog niet getekend door de klant.</p>'}
@@ -2247,21 +2248,22 @@ function ctDocBody(t,v){
      ${(t.secties||[]).map(s=>`<div class="ct-sec"><h3 class="ct-h">${esc(s.titel)}</h3>${ctTekstHtml(s.tekst)}</div>`).join('')}
    </div>`;
 }
-function ctSignDisplay(t,g){
+function ctSignDisplay(t,g,v){
   const sig=url=>url?`<img src="${esc(url)}" alt="handtekening" class="ct-sigimg">`:'';
   const n=t.aantalOndertekenaars===1?1:2;
   const onder=(g&&g.ondertekenaars&&g.ondertekenaars.length?g.ondertekenaars:Array.from({length:n},()=>({}))).slice(0,2);
   const foto=g?!!g.fotoAkkoord:false;
+  const plaats=(g&&g.plaats)||(v&&v.opgemaaktTe)||'';const datum=(g&&g.datum)||(v&&v.opgemaaktOp)||'';
   return `<div class="ct-sign">
     <div><div class="ct-introbar">Ondertekening</div><div class="ct-introbox" style="text-align:center">${esc(t.ondertekenTekst||'')}</div></div>
-    <div class="ct-grid2"><div class="ct-ln"><span class="ct-lbl">Opgemaakt te:</span><span class="ct-val">${esc((g&&g.plaats)||'')}</span></div><div class="ct-ln"><span class="ct-lbl">Op:</span><span class="ct-val">${esc((g&&g.datum)||'')}</span></div></div>
+    <div class="ct-grid2"><div class="ct-ln"><span class="ct-lbl">Opgemaakt te:</span><span class="ct-val">${esc(plaats)}</span></div><div class="ct-ln"><span class="ct-lbl">Op:</span><span class="ct-val">${esc(datum)}</span></div></div>
     <div style="display:flex;gap:10px;align-items:center"><span style="display:inline-block;width:15px;height:15px;border:1.5px solid #7d5d44;border-radius:3px;background:#fff;text-align:center;line-height:13px;color:#7d5d44;font-weight:700">${foto?'✓':''}</span><span>${esc(t.fotoVinkje||'')}</span></div>
     <div><h3 class="ct-h">Verantwoordelijke ${esc(t.bedrijfNaam||'')}</h3><div class="ct-grid2" style="align-items:start"><div>Voornaam: ${esc(t.verVoornaam||'')}<br>Naam: ${esc(t.verNaam||'')}</div><div class="ct-sigbox">${sig(t.handtekeningUrl)||'<span style="color:#b9a898">Handtekening</span>'}</div></div></div>
     <div><h3 class="ct-h">De klant</h3><div class="ct-grid2">${onder.map(o=>`<div><div class="ct-ln"><span class="ct-lbl">Voornaam:</span><span class="ct-val">${esc(o.voornaam||'')}</span></div><div class="ct-ln"><span class="ct-lbl">Naam:</span><span class="ct-val">${esc(o.naam||'')}</span></div><div class="ct-sigbox" style="margin-top:8px">${sig(o.handtekeningUrl)||'<span style="color:#b9a898">Handtekening</span>'}</div></div>`).join('')}</div></div>
    </div>`;
 }
 function ctFoot(t){return `<div class="ct-foot">${esc(t.voettekst||'')}</div>`}
-function ctVolledig(t,v,g){return `<div class="ctdoc">${ctStyles()}${ctDocBody(t,v)}${ctSignDisplay(t,g)}${ctFoot(t)}</div>`}
+function ctVolledig(t,v,g){return `<div class="ctdoc">${ctStyles()}${ctDocBody(t,v)}${ctSignDisplay(t,g,v)}${ctFoot(t)}</div>`}
 // Sjabloon-object uit cfg (met /_blob/-urls voor admin-kant)
 function ctTplCfg(){const c=cfg.contract||{};return Object.assign({},c,{handtekeningUrl:c.handtekeningId?'/_blob/'+c.handtekeningId:'',logoUrl:c.logoId?'/_blob/'+c.logoId:''})}
 
