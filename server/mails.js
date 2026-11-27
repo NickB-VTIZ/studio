@@ -26,8 +26,9 @@ function escHtml(s) {
 }
 
 function knopHtml(url, label) {
-  return '<a href="' + escHtml(url) + '" style="display:inline-block;background:#2C6A4C;color:#ffffff;text-decoration:none;'
-    + 'padding:13px 24px;border-radius:10px;font-weight:600;font-size:15px;line-height:1;margin:4px 0">' + escHtml(label || 'Openen') + '</a>';
+  return '<table role="presentation" cellspacing="0" cellpadding="0" style="margin:14px 0"><tr><td style="border-radius:10px;background:#7d5d44">'
+    + '<a href="' + escHtml(url) + '" style="display:inline-block;background:#7d5d44;color:#ffffff;text-decoration:none;'
+    + 'padding:13px 26px;border-radius:10px;font-weight:600;font-size:15px;line-height:1">' + escHtml(label || 'Openen') + '</a></td></tr></table>';
 }
 
 // Bouwt een HTML-mail uit hetzelfde tekstsjabloon. knoppen = { plaatshouder: {url,label} }; een plaatshouder zonder knop valt weg.
@@ -44,9 +45,12 @@ function vulHtml(tekst, waarden, knoppen = {}) {
 
 function wrapMail(inner) {
   return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
-    + '<body style="margin:0;background:#F7FAF6;padding:24px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1C2A24;line-height:1.55">'
-    + '<div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #DDE7E0;border-radius:14px;padding:28px 30px">'
-    + '<div style="font-size:15px">' + inner + '</div></div></body></html>';
+    + '<body style="margin:0;background:#F5F2EF;padding:28px 16px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#2c2623;line-height:1.6">'
+    + '<div style="max-width:560px;margin:0 auto">'
+    + '<div style="text-align:center;padding:2px 0 18px;font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:#7d5d44"><span style="font-weight:500">just</span><span style="font-weight:700">PIXIT</span></div>'
+    + '<div style="background:#ffffff;border:1px solid #E7DFD6;border-radius:16px;padding:30px 32px;font-size:15px">' + inner + '</div>'
+    + '<div style="text-align:center;color:#a89a8c;font-size:12px;padding:16px 10px 4px">justPIXIT · trouwuitnodigingen en geboortekaartjes</div>'
+    + '</div></body></html>';
 }
 
 // Maakt tekst + HTML uit een sjabloon. Knoppen zonder plaatshouder in het sjabloon worden achteraan toegevoegd (behalve als `optioneel`).

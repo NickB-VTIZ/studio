@@ -482,6 +482,7 @@ async function laadSlots(){
 }
 /* ---- offertes ---- */
 function renderOffertes(){
+  if(!(me.offertes||[]).length)return '';
   const open=me.offertes.filter(o=>o.status==='Verstuurd').length;
   return `<section class="blok" id="offertes"><div class="bhead"><h2>${open?'Jullie offerte':'Offertes'}</h2>${open>1?`<span class="meta">${open} opties — kies er één</span>`:''}</div><div style="display:grid;gap:16px">${me.offertes.map(offerteKaart).join('')}</div></section>`;
 }
