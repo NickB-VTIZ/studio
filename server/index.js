@@ -191,7 +191,15 @@ async function verplaatsAfspraak(id, slot, door, req, opts = {}) {
     const sjab = sjablonen(); const admin = adminAdres();
     const basis = mailBasis(doc, req, { vorig: vorig ? fmtWanneer(vorig) : '—', door: door === 'klant' ? 'de klant' : 'jou' });
     const knoppen = { videolink: videoKnop(doc), wijziglink: wijzigKnop(req, doc) };
-    if (doc.email) { const k = bouwMail(sjab.verplaatstKlant, basis, knoppen, ['wijziglink']); const ib = admin ? afspraakICS({ uid: 'afspraak-' + id + '@justpixit.be', seq: doc.icsSeq || 1, slot, duur, titel: cfg.titel + ' · justPIXIT', omschrijving: [k.text, doc.videolink ? 'Videocall: ' + doc.videolink : ''].filter(Boolean).join('\n\n'), locatie: doc.videolink || doc.locatie || cfg.locatie, orgNaam: cfg.afzender || 'justPIXIT', orgEmail: admin, gastNaam: doc.naam, gastEmail: doc.email }) : null; verstuurMail({ to: doc.email, subject: `Afspraak verplaatst: ${cfg.titel} op ${fmtWanneer(slot)}`, text: k.text, html: k.html, invite: ib ? { content: ib, method: 'REQUEST' } : undefined }, { soort: 'afspraak verplaatst (klant)' }); gemaild = true; }
+    const gastenV = Array.isArray(doc.afspraakGasten) ? doc.afspraakGasten : [];
+    const ccGastenV = gastenV.length ? gastenV : undefined;
+    if (doc.email) {
+      const k = bouwMail(sjab.verplaatstKlant, basis, knoppen, ['wijziglink']);
+      const ib = admin ? afspraakICS({ uid: 'afspraak-' + id + '@justpixit.be', seq: doc.icsSeq || 1, slot, duur, titel: cfg.titel + ' · justPIXIT', omschrijving: [k.text, doc.videolink ? 'Videocall: ' + doc.videolink : ''].filter(Boolean).join('\n\n'), locatie: doc.videolink || doc.locatie || cfg.locatie, orgNaam: cfg.afzender || 'justPIXIT', orgEmail: admin, gastNaam: doc.naam, gastEmail: doc.email, gasten: gastenV }) : null;
+      verstuurMail({ to: doc.email, cc: ccGastenV, subject: `Afspraak verplaatst: ${cfg.titel} op ${fmtWanneer(slot)}`, text: k.text, html: k.html }, { soort: 'afspraak verplaatst (klant)' });
+      if (ib) verstuurMail({ to: doc.email, cc: ccGastenV, subject: `Agenda-uitnodiging (gewijzigd): ${cfg.titel} op ${fmtWanneer(slot)}`, text: `Je afspraak is verplaatst naar ${fmtWanneer(slot)}. Accepteer de bijgewerkte uitnodiging om je agenda aan te passen.`, invite: { content: ib, method: 'REQUEST' } }, { soort: 'agenda-uitnodiging verplaatst' });
+      gemaild = true;
+    }
     if (admin && door === 'klant') { const a = bouwMail(sjab.verplaatstAdmin, basis, { videolink: videoKnop(doc) }, ['videolink']); verstuurMail({ to: admin, replyTo: doc.email || undefined, subject: `Afspraak verplaatst: ${doc.naam} – ${fmtWanneer(slot)}`, text: a.text, html: a.html }, { soort: 'afspraak verplaatst (melding)' }); }
   }
   return { ok: true, slot, vorig, problemen, gemaild };
@@ -784,9 +792,13 @@ async function api(req, res, url) {
       const aMail = bouwMail(sjab.boekingAdmin, basis, { videolink: videoKnop(doc) });
       const inviteBuf = admin ? afspraakICS({ uid: 'afspraak-' + id + '@justpixit.be', seq: doc.icsSeq || 0, slot, duur: cfg.duur, titel: cfg.titel + ' · justPIXIT', omschrijving: [kMail.text, doc.videolink ? 'Videocall: ' + doc.videolink : ''].filter(Boolean).join('\n\n'), locatie: doc.videolink || doc.locatie || cfg.locatie, orgNaam: cfg.afzender || 'justPIXIT', orgEmail: admin, gastNaam: naam, gastEmail: email, gasten }) : null;
       const invite = inviteBuf ? { content: inviteBuf, method: 'REQUEST' } : undefined;
+      const ccGasten = gasten.length ? gasten : undefined;
       // De uitnodiging gaat enkel naar de klant (+ eventuele gasten in cc); jouw agenda wordt al gevuld via de Outlook-sync/agenda-feed (anders dubbel).
       if (admin) verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}${gasten.length ? ' (+' + gasten.length + ' gast' + (gasten.length === 1 ? '' : 'en') + ')' : ''}`, text: aMail.text + (gasten.length ? '\n\nGasten: ' + gasten.join(', ') : ''), html: aMail.html }, { soort: 'melding nieuwe afspraak' });
-      verstuurMail({ to: email, cc: gasten.length ? gasten : undefined, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: kMail.text, html: kMail.html, invite }, { soort: 'bevestiging afspraak' });
+      // 1) Nette bevestigingsmail (zonder agenda-deel, zodat de mail altijd mooi toont).
+      verstuurMail({ to: email, cc: ccGasten, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: kMail.text, html: kMail.html }, { soort: 'bevestiging afspraak' });
+      // 2) Aparte agenda-uitnodiging (meeting request) zodat de afspraak met accepteren/weigeren in de agenda belandt.
+      if (invite) verstuurMail({ to: email, cc: ccGasten, subject: `Agenda-uitnodiging: ${cfg.titel} op ${when}`, text: `Hierbij de uitnodiging voor je ${cfg.titel.toLowerCase()} op ${when}. Accepteer ze om de afspraak aan je agenda toe te voegen.`, invite }, { soort: 'agenda-uitnodiging afspraak' });
     }
     return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: doc.locatie || cfg.locatie, bevestiging: cfg.bevestiging, videolink: doc.videolink || '', videoprovider: doc.videoprovider || '', mail: mailActief() });
   }
