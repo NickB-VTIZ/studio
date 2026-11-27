@@ -57,7 +57,7 @@ function msVerbonden() { const mm = msDoc(); return !!(mm.clientId && mm.clientS
 function msRedirect(req) { return publicBase(req) + '/api/ms/callback'; }
 function zoomDoc() { return store.get('instellingen', 'zoom') || {}; }
 function zoomActief() { return !!zoom.zoomConfig(zoomDoc()); }
-function videoBeschikbaar() { const c = boekingConfig(); const out = []; if (c.videoTeams && msVerbonden()) out.push({ id: 'teams', label: 'Microsoft Teams' }); if (c.videoZoom && zoomActief()) out.push({ id: 'zoom', label: 'Zoom' }); return out; }
+function videoBeschikbaar(c) { c = c || boekingConfig(); const out = []; if (c.videoTeams && msVerbonden()) out.push({ id: 'teams', label: 'Microsoft Teams' }); if (c.videoZoom && zoomActief()) out.push({ id: 'zoom', label: 'Zoom' }); return out; }
 async function msZet(klant) { if (!msVerbonden()) return; try { const dur = boekingConfig().duur || 60; const id = (await graph.zetAfspraak(msDoc(), klant, dur)).id; const nw = graph.nieuwRefreshToken(); const mm = msDoc(); if (nw) mm.refreshToken = nw; store.set('instellingen', 'ms', mm); const k = store.get('klanten', klant.id); if (k) { k.msEventId = id; store.set('klanten', klant.id, k); } } catch (e) { console.error('[ms]', e.message); } }
 function verkoperKlaar() { const v = verkoperDoc(); return !!(v.btw && v.bedrijfsnaam); }
 
@@ -81,7 +81,7 @@ async function verstuurMail(opts, meta = {}) {
   if (!ok) console.error('[mail]', meta.soort || '', fout);
   return { ok, error: fout };
 }
-const { slotsVoorPeriode, boekingDefaults, nuBrussel } = require('./boeking');
+const { slotsVoorPeriode, boekingDefaults, eventDefaults, eventsVan, nuBrussel } = require('./boeking');
 
 const fmtWanneer = slot => `${slot.slice(8, 10)}/${slot.slice(5, 7)}/${slot.slice(0, 4)} om ${slot.slice(11, 16)}`;
 const bezetteSlots = (behalveId) => store.list('klanten').filter(k => k.kennismaking && !GESTOPT.has(k.fase) && k.id !== behalveId).map(k => k.kennismaking);
@@ -136,7 +136,7 @@ async function verplaatsAfspraak(id, slot, door, req, opts = {}) {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(slot)) throw Object.assign(new Error('Kies een geldig tijdstip.'), { status: 400 });
   if (GESTOPT.has(doc.fase)) throw Object.assign(new Error('Dit traject is gestopt; de afspraak kan niet verplaatst worden.'), { status: 400 });
   if (slot === doc.kennismaking) throw Object.assign(new Error('Dat is al het huidige moment.'), { status: 400 });
-  const cfg = boekingConfig(), duur = cfg.duur || 60;
+  const cfg = eventById(doc.eventId || ''), duur = cfg.duur || 60;
   const bezet = bezetteSlots(id);
   if (opts.vrijKiezen) {
     if (slot < nuBrussel()) throw Object.assign(new Error('Dat moment ligt in het verleden.'), { status: 400 });
@@ -608,7 +608,11 @@ setInterval(() => { const now = Date.now(); for (const [k, arr] of hits) if (!ar
 
 function instellingen() { return store.get('instellingen', 'algemeen') || {}; }
 function stijlConfig() { const alg = instellingen(); const s = alg.stijl || {}; return { kleuren: s.kleuren || {}, font: s.font || 'DM Sans', logo: s.logo || 'justPIXIT', tagline: s.tagline || '' }; }
-function boekingConfig() { return Object.assign({}, boekingDefaults(), instellingen().boeking || {}); }
+function alleEvents() { return eventsVan(instellingen()); }
+// Zoek een event op z'n id; zonder id (of niet gevonden) → het eerste event (standaard).
+function eventById(id) { const evs = alleEvents(); if (id) { const e = evs.find(x => x.id === id); if (e) return e; } return evs[0]; }
+// Terugvalconfig voor code die 'het' gesprek nodig heeft (duur, video): het eerste event.
+function boekingConfig() { return eventById(''); }
 function publicBase(req) { return BASE_URL || `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`; }
 
 /* ---------- static ---------- */
@@ -670,17 +674,18 @@ async function api(req, res, url) {
   if (p === '/api/stijl' && m === 'GET') { return json(res, 200, stijlConfig()); }
 
   if (p === '/api/boeking/slots' && m === 'GET') {
-    const cfg = boekingConfig();
-    if (!cfg.actief) return json(res, 200, { actief: false });
+    const cfg = eventById(url.searchParams.get('e') || '');
+    if (!cfg || !cfg.actief) return json(res, 200, { actief: false });
     const bezet = bezetteSlots('');
     const slots = slotsVoorPeriode(cfg, bezet);
-    return json(res, 200, { actief: true, titel: cfg.titel, intro: cfg.intro, locatie: cfg.locatie, duur: cfg.duur, bevestiging: cfg.bevestiging, types: cfg.types, vragen: cfg.vragen, video: videoBeschikbaar(), dagen: slots });
+    return json(res, 200, { actief: true, id: cfg.id, titel: cfg.titel, intro: cfg.intro, locatie: cfg.locatie, duur: cfg.duur, bevestiging: cfg.bevestiging, types: cfg.types, vragen: cfg.vragen, kantoor: !!cfg.kantoor, kantoorNaam: cfg.kantoorNaam || 'Kantoor', video: videoBeschikbaar(cfg), dagen: slots });
   }
   if (p === '/api/boeking' && m === 'POST') {
     const ip = clientIp(req);
     if (limited('boek:' + ip, 8, 60 * 60e3)) return json(res, 429, { error: 'Te veel aanvragen vanaf dit adres. Probeer later opnieuw.' });
-    const cfg = boekingConfig();
-    if (!cfg.actief) return json(res, 400, { error: 'Online boeken staat momenteel uit.' });
+    const b0 = { e: url.searchParams.get('e') || '' };
+    const cfg = eventById(b0.e);
+    if (!cfg || !cfg.actief) return json(res, 400, { error: 'Online boeken staat momenteel uit.' });
     const b = await readJson(req, 50e3).catch(() => null);
     if (!b) return json(res, 400, { error: 'Ongeldige aanvraag' });
     const naam = String(b.naam || '').trim().slice(0, 120), email = String(b.email || '').trim().slice(0, 160), telefoon = String(b.telefoon || '').trim().slice(0, 40);
@@ -697,7 +702,7 @@ async function api(req, res, url) {
     const extra = Object.entries(b.antwoorden && typeof b.antwoorden === 'object' ? b.antwoorden : {}).map(([q, a]) => `${String(q).slice(0, 120)}: ${String(a).slice(0, 500)}`).join('\n');
     const notitie = [bericht, extra].filter(Boolean).join('\n\n');
     const doc = {
-      naam, type: cfg.types.includes(type) ? type : (cfg.types[0] || ''), bron: 'Online afspraak', email, telefoon, straat: '', postcode: '', gemeente: '', gasten: '', budget: '',
+      naam, type: cfg.types.includes(type) ? type : (cfg.types[0] || ''), bron: 'Online afspraak', eventId: cfg.id, email, telefoon, straat: '', postcode: '', gemeente: '', gasten: '', budget: '',
       kennismaking: slot, datumEvent: /^\d{4}-\d{2}-\d{2}$/.test(datumEvent) ? datumEvent : '', deadline: '', ontwerpDatum: '',
       fase: 'ingepland', faseDatums: { ingepland: vandaag }, nieuw: true,
       fiche: { producten: {}, stijl: {}, uitnodiging: {}, bedankjes: { opties: [{ notities: '', aantal: '', verpakking: '', afwerking: '' }] }, offerte: {}, extras: '', notities: notitie },
@@ -705,8 +710,8 @@ async function api(req, res, url) {
       aangemaakt: new Date().toISOString(), bijgewerkt: new Date().toISOString(),
     };
     // Videocall aanmaken indien gekozen en beschikbaar.
-    const videoKeuze = String(b.video || '');
-    const videoOpties = videoBeschikbaar().map(v => v.id);
+    const videoKeuze = String(b.locatie || b.video || '');
+    const videoOpties = videoBeschikbaar(cfg).map(v => v.id);
     let videolink = '', videoprovider = '', teamsEvent = null;
     if (videoKeuze && videoOpties.includes(videoKeuze)) {
       try {
@@ -722,6 +727,7 @@ async function api(req, res, url) {
       } catch (e) { console.error('[video]', e.message); doc.logboek.push({ d: vandaag, t: 'Videocall (' + videoKeuze + ') aanmaken mislukt: ' + e.message, s: 'afspraak', ts: new Date().toISOString() }); }
     }
     if (videolink) { doc.videolink = videolink; doc.videoprovider = videoprovider; doc.locatie = videoprovider; if (teamsEvent) doc.msEventId = teamsEvent; doc.logboek.push({ d: vandaag, t: videoprovider + '-link aangemaakt: ' + videolink, s: 'afspraak', ts: new Date().toISOString() }); }
+    else { doc.locatie = (videoKeuze === 'kantoor' && cfg.kantoor) ? (cfg.kantoorNaam || cfg.locatie) : cfg.locatie; }
     doc.wijzigCode = crypto.randomBytes(9).toString('base64url'); // persoonlijke verzetlink voor deze lead
     store.set('klanten', id, doc);
     if (!teamsEvent) msZet(Object.assign({ id }, doc));  // Teams maakte het agenda-item al
@@ -1574,7 +1580,7 @@ nano .env        # ADMIN_PASSWORD en SESSION_SECRET invullen
     }
     if (p.startsWith('/api/')) return await api(req, res, url);
     if (p === '/app' || p === '/app/') return serveFile(res, path.join(PUBLIC_DIR, 'app.html'), { 'Cache-Control': 'no-store' });
-    if (p === '/afspraak' || p === '/afspraak/' || p === '/boek') return serveFile(res, path.join(PUBLIC_DIR, 'afspraak.html'), { 'Cache-Control': 'no-store' });
+    if (p === '/afspraak' || p === '/afspraak/' || p === '/boek' || /^\/afspraak\/(?!wijzig(?:\/|$))[a-z0-9][a-z0-9-]*\/?$/.test(p)) return serveFile(res, path.join(PUBLIC_DIR, 'afspraak.html'), { 'Cache-Control': 'no-store' });
     if (p === '/dossier' || p === '/dossier/' || p === '/afspraak/wijzig' || p === '/afspraak/wijzig/') return serveFile(res, path.join(PUBLIC_DIR, 'dossier.html'), { 'Cache-Control': 'no-store' }); // klantflow met persoonlijke code (zonder login)
     if (p === '/' || p === '/login' || p === '/login/') return serveFile(res, path.join(PUBLIC_DIR, 'login.html'), { 'Cache-Control': 'no-store' }); // één inlogpagina (admin of klant)
     if (p === '/mijn' || p === '/mijn/') return serveFile(res, path.join(PUBLIC_DIR, 'portaal.html'), { 'Cache-Control': 'no-store' });

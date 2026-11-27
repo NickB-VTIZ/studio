@@ -674,6 +674,7 @@ const DEFAULTS={
   afzender:'Liesbeth\njustPIXIT',
   vragenlijsten:{Huwelijk:[vlV('kop','Gegevens drukwerk'),vlV('tekst','Naam bruid (zoals je deze op de uitnodiging wilt hebben vermeld)'),vlV('tekst','Naam bruidegom (zoals je deze op de uitnodiging wilt hebben vermeld)'),vlV('datum','Huwelijksdatum'),vlV('tekst','Trouwlocatie — Naam'),vlV('tekst','Trouwlocatie — Adres'),vlV('tekst','Ceremonie — Tijdstip (indien van toepassing)'),vlV('tekst','Ceremonie — Locatie (indien van toepassing)'),vlV('tekst','Receptie — Tijdstip (indien van toepassing)'),vlV('tekst','Receptie — Locatie (indien van toepassing)'),vlV('datum','RSVP — Datum waarvoor men aan- of afwezigheid dient te bevestigen'),vlV('lang','RSVP — Manier + gegevens waarop zij dit dienen te bevestigen (vb website, mail, telefoon, …)'),vlV('tekst','Dresscode (indien van toepassing)'),vlV('tekst','Cadeautips (vb cadeaulijst, envelop, …)'),vlV('lang','Zijn er nog andere gegevens die jullie graag op de uitnodiging hadden?'),vlV('datum','Datum wanneer jullie graag de uitnodigingen klaar willen hebben',{beschrijving:'De aangewezen verzenddatum is 6-8 weken voor het huwelijk.'}),vlV('kop','Ontwerp'),vlV('lang','Zijn er elementen dat jij mooi vindt dat je zeker terug wilt zien komen in je uitnodiging?',{beschrijving:'Denk aan: lettertype, kleuren, symbolen, tekeningen, …'}),vlV('lang','Heb jij enkele voorbeelden of stijlen van uitnodigingen die je mooi vindt?',{beschrijving:'Pinterest is hier de place to be voor.'}),vlV('bestand','Upload eventuele inspiratiebeelden of bestanden')],Geboorte:[vlV('kop','Geboortekaartje'),vlV('tekst','Naam van de baby (en eventueel tweede naam)'),vlV('tekst','Geboortedatum en -uur, gewicht en lengte'),vlV('tekst','Namen van de ouders'),vlV('tekst','Namen van broers/zussen, meter en peter'),vlV('tekst','Hoeveel kaartjes hebben jullie nodig?'),vlV('lang','Welke stijl spreekt jullie aan?',{beschrijving:'Kleuren, illustraties, voorbeelden…'}),vlV('keuze','Komt er een foto op het kaartje?',{opties:['Ja','Nee','Weet ik nog niet']}),vlV('lang','Welke tekst of quote willen jullie erbij?'),vlV('lang','Gegevens voor kraambezoek of een geboortelijst?'),vlV('lang','Nog iets dat ik zeker moet weten?'),vlV('bestand','Upload eventuele foto of inspiratie'),vlV('kop','Babyborrel'),vlV('datum','Datum babyborrel'),vlV('tekst','Tijdstip'),vlV('tekst','Locatie + adres'),vlV('tekst','Hoeveel kaartjes hebben jullie nodig?'),vlV('lang','Welke tekst of boodschap komt erop?'),vlV('lang','Nog iets dat ik zeker moet weten voor het babyborrelkaartje?')],Ander:[vlV('lang','Wat wil je laten ontwerpen?'),vlV('datum','Voor wanneer heb je het nodig?'),vlV('tekst','Hoeveel exemplaren?'),vlV('lang','Welke stijl of sfeer spreekt je aan?'),vlV('bestand','Upload eventuele bestanden of voorbeelden'),vlV('lang','Nog iets dat ik zeker moet weten?')]},
   boeking:{actief:true,titel:'Kennismakingsgesprek',intro:'In een vrijblijvend gesprek van een uurtje bekijken we jullie wensen voor de uitnodigingen of het geboortekaartje, en hoe ik daar iets unieks van maak.',locatie:'Online via videocall, of bij mij thuis',duur:60,buffer:15,dagen:{1:true,2:true,3:true,4:true,5:false,6:false,0:false},blokken:[{van:'09:30',tot:'12:00'},{van:'19:00',tot:'21:30'}],minUren:48,maxWeken:8,geblokkeerd:[],types:['Huwelijk','Geboorte','Ander'],vragen:['Hoe hebben jullie justPIXIT gevonden?'],bevestiging:'Bedankt voor jullie aanvraag! Jullie afspraak staat vast. Ik kijk ernaar uit om jullie te leren kennen.',afzender:'Liesbeth · justPIXIT'},
+  events:[],
   stijl:{
     kleuren:{paper:'#F5F2EF',card:'#FFFFFF',ink:'#2c2623','ink-soft':'#6b6460',accent:'#7d5d44','accent-ink':'#FFFFFF',sage:'#ede6df',line:'#ddd6cf'},
     font:'DM Sans',
@@ -740,6 +741,9 @@ const MAIL_PLACEHOLDERS={boekingKlant:'{voornaam} {naam} {wanneer} {duur} {locat
   offerteVerstuurd:'{voornaam} {naam} {offerte} {totaal} {geldigTot} {bericht} {dossierlink} {afzender}',naGoedkeuringKlant:'{voornaam} {naam} {bericht} {dossierlink} {afzender}',ontwerpKlaar:'{voornaam} {naam} {dossierlink} {afzender}',annulatieKlant:'{voornaam} {naam} {wanneer} {reden} {boeklink} {afzender}',dossierMelding:'{onderwerp} {naam} {email} {bericht} {app}'};
 const KNOP_UITLEG={videolink:'knop “Deelnemen aan Teams/Zoom” (valt weg zonder videocall)',wijziglink:'knop naar het persoonlijke dossier van de klant (verzetten/annuleren)',dossierlink:'knop naar het persoonlijke dossier (offerte bevestigen, vragenlijst, contract)',boeklink:'knop naar de afsprakenpagina',portaallink:'knop “Mijn pagina” (klantenportaal)',loginlink:'knop “Inloggen” met de persoonlijke inloglink'};
 let cfg=JSON.parse(JSON.stringify(DEFAULTS));
+function jsAddDays(ymd,n){const d=new Date(ymd+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
+function eventDefaultJS(){return{id:'kennismaking',actief:true,titel:'Kennismakingsgesprek',intro:'',locatie:'Online via videocall, of bij mij thuis',duur:60,buffer:15,kantoor:true,kantoorNaam:'Kantoor justPIXIT',videoTeams:false,videoZoom:false,minUren:48,maxWeken:8,regels:[],uitzonderingen:[],types:['Huwelijk','Geboorte','Ander'],vragen:[],bevestiging:'Bedankt voor jullie aanvraag! Jullie afspraak staat vast.',afzender:'Liesbeth · justPIXIT'}}
+function migreerBoekingNaarEventJS(b){b=b||{};const regels=[];[1,2,3,4,5,6,0].forEach(d=>{if(b.dagen&&b.dagen[d])(b.blokken||[]).forEach(blk=>{if(blk&&blk.van&&blk.tot)regels.push({dag:d,interval:1,vanafDatum:'',van:blk.van,tot:blk.tot})})});const uitz=[];(b.geblokkeerd||[]).forEach(g=>{const s=String(g).trim();if(!s)return;const m=s.match(/^(\d{4}-\d{2}-\d{2})(?:\s*\.\.\s*|\s*-\s*|\s+tot\s+)(\d{4}-\d{2}-\d{2})$/);if(m){let d=m[1],gu=0;while(d<=m[2]&&gu++<400){uitz.push({datum:d,modus:'dicht'});d=jsAddDays(d,1)}}else if(/^\d{4}-\d{2}-\d{2}$/.test(s))uitz.push({datum:s,modus:'dicht'})});return Object.assign(eventDefaultJS(),{id:'kennismaking',actief:b.actief!==false,titel:b.titel||'Kennismakingsgesprek',intro:b.intro||'',locatie:b.locatie||'',duur:b.duur||60,buffer:b.buffer==null?15:b.buffer,minUren:b.minUren==null?48:b.minUren,maxWeken:b.maxWeken||8,videoTeams:!!b.videoTeams,videoZoom:!!b.videoZoom,types:Array.isArray(b.types)?b.types:['Huwelijk','Geboorte','Ander'],vragen:Array.isArray(b.vragen)?b.vragen:[],bevestiging:b.bevestiging||'',afzender:b.afzender||'Liesbeth · justPIXIT',regels,uitzonderingen:uitz})}
 function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!stored)return c;
   if(stored.lijsten)for(const k in c.lijsten)if(Array.isArray(stored.lijsten[k]))c.lijsten[k]=stored.lijsten[k].map(String);
   if(stored.termijnen)for(const k in c.termijnen){const n=Number(stored.termijnen[k]);if(Number.isFinite(n)&&n>=0)c.termijnen[k]=n}
@@ -763,6 +767,9 @@ function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!store
     else if(typeof c.boeking[k]==='number'){const n=Number(b[k]);if(Number.isFinite(n))c.boeking[k]=n}
     else if(typeof c.boeking[k]==='boolean')c.boeking[k]=!!b[k];
     else if(typeof b[k]==='string')c.boeking[k]=b[k]}}
+  if(Array.isArray(stored.events))c.events=JSON.parse(JSON.stringify(stored.events));
+  if(!c.events||!c.events.length)c.events=[migreerBoekingNaarEventJS(c.boeking)];
+  c.events=c.events.map(e=>Object.assign(eventDefaultJS(),e));
   return c}
 
 /* ---------- helpers ---------- */
@@ -2330,35 +2337,89 @@ document.addEventListener('change',async e=>{const el=e.target;
   if(el.id==='ctSigFile'&&el.files&&el.files[0]){try{const r=await ctUpload(el.files[0]);cfg.contract.handtekeningId=r.id;saveCfg(true);rerenderBeheer();toast('Handtekening opgeslagen')}catch(err){toast(err.message)}return}
   if(el.id==='ctLogoFile'&&el.files&&el.files[0]){try{const r=await ctUpload(el.files[0]);cfg.contract.logoId=r.id;saveCfg(true);rerenderBeheer();toast('Logo opgeslagen')}catch(err){toast(err.message)}return}
 });
+let bkSel=0;
 function beheerAfspraken(){
-  return `<section><h2>Online afspraken</h2><p>Zo ziet je afsprakenpagina eruit en wanneer klanten een gesprek kunnen boeken. Link: <code>${esc(serverInfo.base)}/afspraak</code> <button class="btn small ghost" id="copyBoekLink">Kopieer</button></p>
+  const evs=cfg.events;if(!evs.length)cfg.events=[eventDefaultJS()];if(bkSel>=cfg.events.length)bkSel=cfg.events.length-1;if(bkSel<0)bkSel=0;
+  const ev=cfg.events[bkSel];
+  const WDlang=[[1,'maandag'],[2,'dinsdag'],[3,'woensdag'],[4,'donderdag'],[5,'vrijdag'],[6,'zaterdag'],[0,'zondag']];
+  const INTS=[[1,'elke week'],[2,'om de 2 weken'],[3,'om de 3 weken'],[4,'om de 4 weken']];
+  const link=serverInfo.base+'/afspraak/'+ev.id;
+  const chips=cfg.events.map((e,i)=>`<button class="btn small ${i===bkSel?'primary':'ghost'}" data-evsel="${i}">${esc(e.titel||'(naamloos)')}${e.actief?'':' · uit'}</button>`).join('');
+  const regelRij=(r,i)=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--sunk);border-radius:8px;padding:8px 10px">
+     <select data-evr="${i}" data-evk="dag">${WDlang.map(([d,l])=>`<option value="${d}" ${Number(r.dag)===d?'selected':''}>${l}</option>`).join('')}</select>
+     <select data-evr="${i}" data-evk="interval">${INTS.map(([v,l])=>`<option value="${v}" ${Number(r.interval||1)===v?'selected':''}>${l}</option>`).join('')}</select>
+     ${Number(r.interval||1)>1?`<label style="font-size:12px;color:var(--muted);display:flex;gap:4px;align-items:center">vanaf <input type="date" data-evr="${i}" data-evk="vanafDatum" value="${esc(r.vanafDatum||'')}"></label>`:''}
+     <input type="time" data-evr="${i}" data-evk="van" value="${esc(r.van||'')}"> <span class="hint">tot</span> <input type="time" data-evr="${i}" data-evk="tot" value="${esc(r.tot||'')}">
+     <button class="iconbtn danger" data-evdelregel="${i}" title="Regel verwijderen" style="margin-left:auto">×</button></div>`;
+  const uitzRij=(u,i)=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--sunk);border-radius:8px;padding:8px 10px">
+     <input type="date" data-evu="${i}" data-evk="datum" value="${esc(u.datum||'')}">
+     <select data-evu="${i}" data-evk="modus"><option value="dicht" ${u.modus!=='open'?'selected':''}>dicht (niet beschikbaar)</option><option value="open" ${u.modus==='open'?'selected':''}>open (extra beschikbaar)</option></select>
+     ${u.modus==='open'?`<input type="time" data-evu="${i}" data-evk="van" value="${esc(u.van||'')}"> <span class="hint">tot</span> <input type="time" data-evu="${i}" data-evk="tot" value="${esc(u.tot||'')}">`:''}
+     <button class="iconbtn danger" data-evdeluitz="${i}" title="Verwijderen" style="margin-left:auto">×</button></div>`;
+  return `<style>.bk-ev select,.bk-ev input[type=time],.bk-ev input[type=date]{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:6px 8px;font:inherit;color:inherit}</style>
+   <section><h2>Online afspraken</h2><p>Maak verschillende soorten afspraken, elk met een eigen link die je zelf deelt. Enkel jij ziet deze lijst.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">${chips}<button class="btn small" id="evNew">+ Nieuw event</button></div></section>
+   <section class="bk-ev"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2 style="margin:0">${esc(ev.titel||'Event')}</h2>
+     <label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:600"><input type="checkbox" data-evbool="actief" ${ev.actief?'checked':''}><span>Actief</span></label></div>
+    <p>Link om te delen: <code>${esc(link)}</code> <button class="btn small ghost" id="evCopy" data-link="${esc(link)}">Kopieer</button></p>
     <div class="sec" style="display:grid;gap:14px">
-     <div class="opts"><label><input type="checkbox" id="bk-actief" data-bk="actief" ${cfg.boeking.actief?'checked':''}>Online boeken staat aan</label></div>
-     <div class="radiorow full"><span>Videocall aanbieden</span><div class="opts"><label><input type="checkbox" id="bk-videoTeams" data-bk="videoTeams" ${cfg.boeking.videoTeams?'checked':''}>Microsoft Teams</label><label><input type="checkbox" id="bk-videoZoom" data-bk="videoZoom" ${cfg.boeking.videoZoom?'checked':''}>Zoom</label></div></div>
-     <p class="hint" style="margin:0">Teams werkt via je Office 365-koppeling, Zoom via de Zoom-koppeling (zie Koppelingen). De klant kiest bij het boeken; de meetinglink komt automatisch in de bevestigingsmail.</p>
      <div class="grid2">
-      <label class="fld"><span>Titel</span><input id="bk-titel" data-bk="titel" value="${esc(cfg.boeking.titel)}"></label>
-      <label class="fld"><span>Locatie</span><input id="bk-locatie" data-bk="locatie" value="${esc(cfg.boeking.locatie)}"></label>
-      <label class="fld full"><span>Intro op de pagina</span><textarea id="bk-intro" data-bk="intro" rows="2">${esc(cfg.boeking.intro)}</textarea></label>
-      <label class="fld"><span>Duur gesprek (min)</span><input type="number" min="15" max="240" step="5" id="bk-duur" data-bk="duur" value="${cfg.boeking.duur}"></label>
-      <label class="fld"><span>Pauze tussen gesprekken (min)</span><input type="number" min="0" max="120" step="5" id="bk-buffer" data-bk="buffer" value="${cfg.boeking.buffer}"></label>
-      <label class="fld"><span>Minimaal op voorhand (uren)</span><input type="number" min="0" max="720" id="bk-minUren" data-bk="minUren" value="${cfg.boeking.minUren}"></label>
-      <label class="fld"><span>Hoe ver vooruit (weken)</span><input type="number" min="1" max="52" id="bk-maxWeken" data-bk="maxWeken" value="${cfg.boeking.maxWeken}"></label>
+      <label class="fld"><span>Titel</span><input data-ev="titel" value="${esc(ev.titel)}"></label>
+      <label class="fld"><span>Link-id (in de URL, bv. kennismaking)</span><input data-evid value="${esc(ev.id)}"></label>
+      <label class="fld"><span>Duur gesprek (min)</span><input type="number" min="15" max="240" step="5" data-ev="duur" value="${ev.duur}"></label>
+      <label class="fld full"><span>Intro op de pagina</span><textarea data-ev="intro" rows="2">${esc(ev.intro)}</textarea></label>
+      <label class="fld"><span>Pauze tussen gesprekken (min)</span><input type="number" min="0" max="120" step="5" data-ev="buffer" value="${ev.buffer}"></label>
+      <label class="fld"><span>Locatie-omschrijving (op de pagina)</span><input data-ev="locatie" value="${esc(ev.locatie)}"></label>
+      <label class="fld"><span>Minimaal op voorhand (uren)</span><input type="number" min="0" max="720" data-ev="minUren" value="${ev.minUren}"></label>
+      <label class="fld"><span>Hoe ver vooruit (weken)</span><input type="number" min="1" max="52" data-ev="maxWeken" value="${ev.maxWeken}"></label>
      </div>
-     <div class="radiorow full"><span>Dagen</span><div class="opts">${[[1,'Ma'],[2,'Di'],[3,'Wo'],[4,'Do'],[5,'Vr'],[6,'Za'],[0,'Zo']].map(([d,l])=>`<label><input type="checkbox" id="bk-dag-${d}" data-bkdag="${d}" ${cfg.boeking.dagen[d]?'checked':''}>${l}</label>`).join('')}</div></div>
-     <div><div class="label" style="margin-bottom:6px">Tijdsblokken (op elke gekozen dag)</div><div id="bk-blokken" style="display:grid;gap:6px">${cfg.boeking.blokken.map((b,i)=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="time" id="bk-van-${i}" data-bkblok="${i}" data-bkk="van" value="${esc(b.van)}" style="border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:5px 8px"> tot <input type="time" id="bk-tot-${i}" data-bkblok="${i}" data-bkk="tot" value="${esc(b.tot)}" style="border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:5px 8px"><button class="iconbtn" data-bkdelblok="${i}" aria-label="Blok verwijderen">×</button></div>`).join('')}</div><button class="btn small" id="bk-addblok" style="margin-top:8px">+ Tijdsblok</button></div>
-     <label class="fld"><span>Geblokkeerde dagen (één per regel, bv. 2026-12-24 of 2026-07-01..2026-07-21)</span><textarea id="bk-geblokkeerd" data-bklist="geblokkeerd" rows="3">${esc(cfg.boeking.geblokkeerd.join('\n'))}</textarea></label>
+     <div class="radiorow full"><span>Locaties die de klant kan kiezen</span><div class="opts">
+       <label><input type="checkbox" data-evbool="kantoor" ${ev.kantoor?'checked':''}>Op kantoor / in persoon</label>
+       <label><input type="checkbox" data-evbool="videoTeams" ${ev.videoTeams?'checked':''}>Microsoft Teams</label>
+       <label><input type="checkbox" data-evbool="videoZoom" ${ev.videoZoom?'checked':''}>Zoom</label></div></div>
+     ${ev.kantoor?`<label class="fld"><span>Naam van de locatie op kantoor</span><input data-ev="kantoorNaam" value="${esc(ev.kantoorNaam||'')}" style="max-width:340px"></label>`:''}
+     <p class="hint" style="margin:0">Teams werkt via je Office 365-koppeling, Zoom via de Zoom-koppeling (zie Koppelingen). De klant kiest bij het boeken; bij een online keuze komt de meetinglink automatisch in de bevestigingsmail.</p>
+     <div><div class="label" style="margin-bottom:6px">Beschikbaarheid (regels)</div><p class="hint" style="margin:0 0 8px">Per regel: een dag, hoe vaak (bv. om de 2 weken) en een tijdsblok. Voeg meerdere regels toe voor meerdere dagen of blokken.</p>
+      <div style="display:grid;gap:8px">${(ev.regels||[]).map(regelRij).join('')||'<p class="hint" style="margin:0">Nog geen regels — voeg er een toe.</p>'}</div>
+      <button class="btn small" id="evAddRegel" style="margin-top:8px">+ Regel toevoegen</button></div>
+     <div><div class="label" style="margin-bottom:6px">Uitzonderingen (specifieke datums)</div><p class="hint" style="margin:0 0 8px">Zet een losse dag dicht, of open net een dag extra die normaal niet beschikbaar is.</p>
+      <div style="display:grid;gap:8px">${(ev.uitzonderingen||[]).map(uitzRij).join('')||'<p class="hint" style="margin:0">Geen uitzonderingen.</p>'}</div>
+      <button class="btn small" id="evAddUitz" style="margin-top:8px">+ Uitzondering toevoegen</button></div>
      <div class="grid2">
-      <label class="fld"><span>Keuzes "Waarvoor?" (één per regel)</span><textarea id="bk-types" data-bklist="types" rows="3">${esc(cfg.boeking.types.join('\n'))}</textarea></label>
-      <label class="fld"><span>Extra vragen op het formulier (één per regel)</span><textarea id="bk-vragen" data-bklist="vragen" rows="3">${esc(cfg.boeking.vragen.join('\n'))}</textarea></label>
-      <label class="fld full"><span>Bevestigingstekst (op de pagina en in de mail)</span><textarea id="bk-bevestiging" data-bk="bevestiging" rows="2">${esc(cfg.boeking.bevestiging)}</textarea></label>
-      <label class="fld"><span>Afzender in bevestigingsmail</span><input id="bk-afzender" data-bk="afzender" value="${esc(cfg.boeking.afzender)}"></label>
+      <label class="fld"><span>Keuzes "Waarvoor?" (één per regel)</span><textarea data-evlist="types" rows="3">${esc((ev.types||[]).join('\n'))}</textarea></label>
+      <label class="fld"><span>Extra vragen op het formulier (één per regel)</span><textarea data-evlist="vragen" rows="3">${esc((ev.vragen||[]).join('\n'))}</textarea></label>
+      <label class="fld full"><span>Bevestigingstekst (op de pagina en in de mail)</span><textarea data-ev="bevestiging" rows="2">${esc(ev.bevestiging)}</textarea></label>
+      <label class="fld"><span>Afzender in bevestigingsmail</span><input data-ev="afzender" value="${esc(ev.afzender)}"></label>
      </div>
+     ${cfg.events.length>1?`<div><button class="btn small ghost danger" id="evDel">Dit event verwijderen</button></div>`:''}
      <p class="hint" style="margin:0">${serverInfo.mail?'Bevestigingsmails staan aan: de klant en jij krijgen een mail bij elke boeking.':'Bevestigingsmails staan uit. Stel Resend in bij Koppelingen om ze aan te zetten.'}</p>
     </div></section>
-   <section><h2>Agenda (Office 365 / Outlook)</h2><p>Zet je kennismakingsgesprekken automatisch in je Outlook-agenda. Voeg de onderstaande link toe in Outlook via <b>Agenda toevoegen → Abonneren vanaf internet</b>. Outlook ververst die daarna zelf (meestal elke paar uur). Heb je Office 365 gekoppeld (zie Koppelingen), dan komen afspraken ook rechtstreeks in je agenda.</p>
+   <section><h2>Agenda (Office 365 / Outlook)</h2><p>Zet je afspraken automatisch in je Outlook-agenda via <b>Agenda toevoegen → Abonneren vanaf internet</b>, of koppel Office 365 (zie Koppelingen) zodat afspraken rechtstreeks in je agenda komen.</p>
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
 }
+function evUniekId(basis){let s=String(basis||'event').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,32)||'event';let id=s,n=2;while(cfg.events.some(e=>e.id===id)){id=s+'-'+n;n++}return id}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-evsel],#evNew,#evDel,#evCopy,#evAddRegel,[data-evdelregel],#evAddUitz,[data-evdeluitz]');if(!t)return;
+  if(t.dataset.evsel!==undefined){bkSel=+t.dataset.evsel;rerenderBeheer();return}
+  if(t.id==='evNew'){const ev=eventDefaultJS();ev.id=evUniekId('event');ev.titel='Nieuw event';ev.regels=[];cfg.events.push(ev);bkSel=cfg.events.length-1;saveCfg(true);rerenderBeheer();return}
+  if(t.id==='evDel'){if(cfg.events.length<=1)return;if(!confirm('Dit event en z\'n link verwijderen?'))return;cfg.events.splice(bkSel,1);bkSel=Math.max(0,bkSel-1);saveCfg(true);rerenderBeheer();return}
+  if(t.id==='evCopy'){copy(t.dataset.link);return}
+  if(t.id==='evAddRegel'){const ev=cfg.events[bkSel];ev.regels=ev.regels||[];ev.regels.push({dag:3,interval:1,vanafDatum:'',van:'09:30',tot:'12:00'});saveCfg(true);rerenderBeheer();return}
+  if(t.dataset.evdelregel!==undefined){cfg.events[bkSel].regels.splice(+t.dataset.evdelregel,1);saveCfg(true);rerenderBeheer();return}
+  if(t.id==='evAddUitz'){const ev=cfg.events[bkSel];ev.uitzonderingen=ev.uitzonderingen||[];ev.uitzonderingen.push({datum:'',modus:'dicht'});saveCfg(true);rerenderBeheer();return}
+  if(t.dataset.evdeluitz!==undefined){cfg.events[bkSel].uitzonderingen.splice(+t.dataset.evdeluitz,1);saveCfg(true);rerenderBeheer();return}
+});
+document.addEventListener('input',e=>{const el=e.target;if(!el.dataset)return;const ev=cfg.events&&cfg.events[bkSel];if(!ev)return;
+  if(el.dataset.ev!==undefined&&el.tagName!=='SELECT'){const k=el.dataset.ev;ev[k]=(el.type==='number')?(Number(el.value)||0):el.value;saveCfg();return}
+  if(el.dataset.evlist!==undefined){ev[el.dataset.evlist]=el.value.split('\n').map(x=>x.trim()).filter(Boolean);saveCfg();return}
+  if(el.dataset.evr!==undefined&&el.dataset.evk&&el.tagName!=='SELECT'){const r=ev.regels[+el.dataset.evr];if(r){r[el.dataset.evk]=el.value;saveCfg()}return}
+  if(el.dataset.evu!==undefined&&el.dataset.evk&&el.tagName!=='SELECT'){const u=ev.uitzonderingen[+el.dataset.evu];if(u){u[el.dataset.evk]=el.value;saveCfg()}return}
+});
+document.addEventListener('change',e=>{const el=e.target;if(!el.dataset)return;const ev=cfg.events&&cfg.events[bkSel];if(!ev)return;
+  if(el.dataset.evid!==undefined){let s=String(el.value||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'event';if(cfg.events.some((e2,idx)=>idx!==bkSel&&e2.id===s)){let n=2;while(cfg.events.some((e2,idx)=>idx!==bkSel&&e2.id===s+'-'+n))n++;s=s+'-'+n}ev.id=s;saveCfg(true);rerenderBeheer();return}
+  if(el.dataset.evbool){ev[el.dataset.evbool]=el.checked;saveCfg(true);rerenderBeheer();return}
+  if(el.dataset.evr!==undefined&&el.dataset.evk&&el.tagName==='SELECT'){const r=ev.regels[+el.dataset.evr];if(r){r[el.dataset.evk]=(el.dataset.evk==='interval'||el.dataset.evk==='dag')?Number(el.value):el.value;saveCfg(true);rerenderBeheer()}return}
+  if(el.dataset.evu!==undefined&&el.dataset.evk&&el.tagName==='SELECT'){const u=ev.uitzonderingen[+el.dataset.evu];if(u){u[el.dataset.evk]=el.value;saveCfg(true);rerenderBeheer()}return}
+});
 function rerenderBeheer(){const y=window.scrollY;$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailLog();if(beheerTab==='koppelingen')laadKoppelingen();if(beheerTab==='contract')initContractBeheer();window.scrollTo(0,y)}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-btab],[data-gonav],#copyPortaalLink');if(!t)return;
   if(t.dataset.btab){beheerTab=t.dataset.btab;try{localStorage.setItem('jp-beheer',beheerTab)}catch(err){}$('#app').innerHTML=vBeheer();laadVersiePaneel();laadAgenda();laadMailLog();if(beheerTab==='koppelingen')laadKoppelingen();if(beheerTab==='contract')initContractBeheer();window.scrollTo(0,0);return}
