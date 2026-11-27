@@ -114,7 +114,7 @@ function brusselNaarUTC(slot) { // slot = 'YYYY-MM-DDTHH:MM' lokale Brusselse ti
 const icsStamp = d => d.getUTCFullYear() + String(d.getUTCMonth() + 1).padStart(2, '0') + String(d.getUTCDate()).padStart(2, '0') + 'T' + String(d.getUTCHours()).padStart(2, '0') + String(d.getUTCMinutes()).padStart(2, '0') + String(d.getUTCSeconds()).padStart(2, '0') + 'Z';
 const icsEsc = s => String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 const icsFold = l => { if (Buffer.byteLength(l) <= 73) return l; let out = '', cur = ''; for (const ch of l) { if (Buffer.byteLength(cur + ch) > 73) { out += (out ? '\r\n ' : '') + cur; cur = ch; } else cur += ch; } return out + (out ? '\r\n ' : '') + cur; };
-function afspraakICS({ uid, seq = 0, slot, duur, titel, omschrijving, locatie, orgNaam, orgEmail, gastNaam, gastEmail, methode = 'REQUEST', status = 'CONFIRMED' }) {
+function afspraakICS({ uid, seq = 0, slot, duur, titel, omschrijving, locatie, orgNaam, orgEmail, gastNaam, gastEmail, gasten = [], methode = 'REQUEST', status = 'CONFIRMED' }) {
   const start = brusselNaarUTC(slot), eind = new Date(start.getTime() + (Number(duur) || 60) * 60000);
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//justPIXIT//Studio//NL', 'CALSCALE:GREGORIAN', 'METHOD:' + methode, 'BEGIN:VEVENT',
     'UID:' + uid, 'SEQUENCE:' + seq, 'DTSTAMP:' + icsStamp(new Date()), 'DTSTART:' + icsStamp(start), 'DTEND:' + icsStamp(eind), 'SUMMARY:' + icsEsc(titel)];
@@ -122,6 +122,7 @@ function afspraakICS({ uid, seq = 0, slot, duur, titel, omschrijving, locatie, o
   if (locatie) lines.push('LOCATION:' + icsEsc(locatie));
   if (orgEmail) lines.push('ORGANIZER;CN=' + icsEsc(orgNaam || orgEmail) + ':mailto:' + orgEmail);
   if (gastEmail) lines.push('ATTENDEE;CN=' + icsEsc(gastNaam || gastEmail) + ';ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:' + gastEmail);
+  for (const g of (gasten || [])) if (g) lines.push('ATTENDEE;CN=' + icsEsc(g) + ';ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:' + g);
   lines.push('STATUS:' + status, 'TRANSP:OPAQUE', 'END:VEVENT', 'END:VCALENDAR');
   return Buffer.from(lines.map(icsFold).join('\r\n') + '\r\n', 'utf8');
 }
@@ -734,6 +735,7 @@ async function api(req, res, url) {
     if (naam.length < 2) return json(res, 400, { error: 'Vul je naam in.' });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(res, 400, { error: 'Vul een geldig e-mailadres in.' });
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(slot)) return json(res, 400, { error: 'Kies een tijdstip.' });
+    const gasten = Array.isArray(b.gasten) ? [...new Set(b.gasten.map(x => String(x || '').trim().toLowerCase()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)))].filter(e => e !== String(email).toLowerCase()).slice(0, 10) : [];
     const bezet = bezetteSlots('');
     const vrij = slotsVoorPeriode(cfg, bezet).some(d => d.slots.includes(slot));
     if (!vrij) return json(res, 409, { error: 'Dit tijdstip is net ingenomen of niet meer beschikbaar. Kies een ander moment.' });
@@ -743,7 +745,7 @@ async function api(req, res, url) {
     const extra = Object.entries(b.antwoorden && typeof b.antwoorden === 'object' ? b.antwoorden : {}).map(([q, a]) => `${String(q).slice(0, 120)}: ${String(a).slice(0, 500)}`).join('\n');
     const notitie = [bericht, extra].filter(Boolean).join('\n\n');
     const doc = {
-      naam, type: cfg.types.includes(type) ? type : (cfg.types[0] || ''), bron: 'Online afspraak', eventId: cfg.id, email, telefoon, straat: '', postcode: '', gemeente: '', gasten: '', budget: '',
+      naam, type: cfg.types.includes(type) ? type : (cfg.types[0] || ''), bron: 'Online afspraak', eventId: cfg.id, email, telefoon, straat: '', postcode: '', gemeente: '', gasten: '', budget: '', afspraakGasten: gasten,
       kennismaking: slot, datumEvent: /^\d{4}-\d{2}-\d{2}$/.test(datumEvent) ? datumEvent : '', deadline: '', ontwerpDatum: '',
       fase: 'ingepland', faseDatums: { ingepland: vandaag }, nieuw: true,
       fiche: { producten: {}, stijl: {}, uitnodiging: {}, bedankjes: { opties: [{ notities: '', aantal: '', verpakking: '', afwerking: '' }] }, offerte: {}, extras: '', notities: notitie },
@@ -780,11 +782,11 @@ async function api(req, res, url) {
       // Knop-plaatshouders mogen vrij in het sjabloon staan; ontbreekt {videolink} in een opgeslagen sjabloon, dan komt de knop achteraan.
       const kMail = bouwMail(sjab.boekingKlant, basis, { videolink: videoKnop(doc), wijziglink: wijzigKnop(req, doc) });
       const aMail = bouwMail(sjab.boekingAdmin, basis, { videolink: videoKnop(doc) });
-      const inviteBuf = admin ? afspraakICS({ uid: 'afspraak-' + id + '@justpixit.be', seq: doc.icsSeq || 0, slot, duur: cfg.duur, titel: cfg.titel + ' · justPIXIT', omschrijving: [kMail.text, doc.videolink ? 'Videocall: ' + doc.videolink : ''].filter(Boolean).join('\n\n'), locatie: doc.videolink || doc.locatie || cfg.locatie, orgNaam: cfg.afzender || 'justPIXIT', orgEmail: admin, gastNaam: naam, gastEmail: email }) : null;
+      const inviteBuf = admin ? afspraakICS({ uid: 'afspraak-' + id + '@justpixit.be', seq: doc.icsSeq || 0, slot, duur: cfg.duur, titel: cfg.titel + ' · justPIXIT', omschrijving: [kMail.text, doc.videolink ? 'Videocall: ' + doc.videolink : ''].filter(Boolean).join('\n\n'), locatie: doc.videolink || doc.locatie || cfg.locatie, orgNaam: cfg.afzender || 'justPIXIT', orgEmail: admin, gastNaam: naam, gastEmail: email, gasten }) : null;
       const invite = inviteBuf ? { content: inviteBuf, method: 'REQUEST' } : undefined;
-      // De uitnodiging gaat enkel naar de klant; jouw agenda wordt al gevuld via de Outlook-sync/agenda-feed (anders dubbel).
-      if (admin) verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: aMail.text, html: aMail.html }, { soort: 'melding nieuwe afspraak' });
-      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: kMail.text, html: kMail.html, invite }, { soort: 'bevestiging afspraak' });
+      // De uitnodiging gaat enkel naar de klant (+ eventuele gasten in cc); jouw agenda wordt al gevuld via de Outlook-sync/agenda-feed (anders dubbel).
+      if (admin) verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}${gasten.length ? ' (+' + gasten.length + ' gast' + (gasten.length === 1 ? '' : 'en') + ')' : ''}`, text: aMail.text + (gasten.length ? '\n\nGasten: ' + gasten.join(', ') : ''), html: aMail.html }, { soort: 'melding nieuwe afspraak' });
+      verstuurMail({ to: email, cc: gasten.length ? gasten : undefined, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: kMail.text, html: kMail.html, invite }, { soort: 'bevestiging afspraak' });
     }
     return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: doc.locatie || cfg.locatie, bevestiging: cfg.bevestiging, videolink: doc.videolink || '', videoprovider: doc.videoprovider || '', mail: mailActief() });
   }

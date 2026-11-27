@@ -107,6 +107,14 @@ button,input,textarea,select{font:inherit;color:inherit}
 .picks .vidopt{display:flex;width:100%}
 .vidopt .otherbox{width:auto;flex:1;min-width:110px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;background:var(--paper)}
 .vidopt:has(input:checked) .otherbox{background:var(--card)}
+#gastlijst{display:grid;gap:8px}
+#gastlijst:not(:empty){margin-bottom:8px}
+.gastrow{display:flex;gap:8px;align-items:center}
+.gastrow input{flex:1}
+.gastrow .gast-del{flex:none;width:38px;height:38px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink-soft);font-size:18px;line-height:1;cursor:pointer}
+.gastrow .gast-del:hover{border-color:var(--green);color:var(--green)}
+.gastadd{background:none;border:0;color:var(--green);font-weight:600;cursor:pointer;padding:4px 0;font-size:14.5px}
+.gastadd:hover{text-decoration:underline}
 .slot-empty{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:16px;text-align:center}
 .pick-first{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:20px 16px;text-align:center}
 
@@ -250,6 +258,10 @@ function renderForm(){
     <label class="fld full"><span>Naam of namen <b class="req">*</b></span><input id="f-naam" required maxlength="120" placeholder="bv. Lotte &amp; Bram"></label>
     <label class="fld"><span>E-mail <b class="req">*</b></span><input id="f-email" type="email" required maxlength="160" placeholder="naam@voorbeeld.be"></label>
     <label class="fld"><span>Telefoon <b class="req">*</b></span><input id="f-tel" type="tel" required maxlength="40" placeholder="bv. 0470 12 34 56"></label>
+    <div class="fld full" id="gastveld"><span>Gasten <span class="hint" style="font-weight:400">(optioneel)</span></span>
+     <div id="gastlijst"></div>
+     <button type="button" class="gastadd" id="gastAdd">+ Gast toevoegen</button>
+     <p class="hint" style="margin:6px 0 0">Extra mensen die ook een uitnodiging in hun agenda krijgen.</p></div>
     ${types.length?`<div class="fld full"><span>Waarvoor?</span>${pick('f-type',types.map(t=>({value:t,label:t})),{other:true})}</div>`:''}
     ${(()=>{const opts=[];if(cfg.kantoor)opts.push({value:'kantoor',label:cfg.kantoorNaam||'Op kantoor',icon:IC.pin});(cfg.video||[]).forEach(v=>opts.push({value:v.id,label:v.label,icon:locIcon(v.id)}));if(!opts.length)return '';return `<div class="fld full"><span>Locatie <b class="req">*</b></span>${pick('f-locatie',opts,{checkFirst:true})}</div>`;})()}
     <label class="fld"><span>Datum van het feest (als die al vastligt)</span><input id="f-event" type="date"></label>
@@ -301,7 +313,8 @@ document.addEventListener('submit',async e=>{
   const antwoorden={};document.querySelectorAll('[data-vraag]').forEach(i=>{if(i.value.trim())antwoorden[i.dataset.vraag]=i.value.trim()});
   const bron=pickVal('f-bron');if(bron)antwoorden['Waar ken je justPIXIT?']=bron;
   const locatie=(document.querySelector('input[name="f-locatie"]:checked')||{}).value||'';
-  const body={naam,email,telefoon,type:pickVal('f-type'),locatie,datumEvent:$('#f-event').value,bericht:$('#f-bericht').value.trim(),slot:selSlot,antwoorden};
+  const gasten=[...document.querySelectorAll('.gast-email')].map(i=>i.value.trim()).filter(x=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
+  const body={naam,email,telefoon,type:pickVal('f-type'),locatie,datumEvent:$('#f-event').value,bericht:$('#f-bericht').value.trim(),slot:selSlot,antwoorden,gasten};
   busy=true;$('#submit').disabled=true;$('#submit').textContent='Even geduld…';
   try{const r=await fetch(evQ('/api/boeking'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();
     if(!r.ok){err.innerHTML=`<p class="err">${esc(j.error||'Er liep iets mis.')}</p>`;if(r.status===409){selSlot=null;await init()}return}
@@ -310,6 +323,11 @@ document.addEventListener('submit',async e=>{
   finally{busy=false;const b=$('#submit');if(b){b.disabled=false;b.textContent='Bevestig onze afspraak'}}
 });
 document.addEventListener('input',e=>{if(e.target.classList&&e.target.classList.contains('otherbox')){const lab=e.target.closest('.vidopt');const r=lab&&lab.querySelector('input[type=radio]');if(r&&!r.checked)r.checked=true}});
+function gastRij(){const d=document.createElement('div');d.className='gastrow';d.innerHTML='<input type="email" class="gast-email" placeholder="gast@email.be" maxlength="160"><button type="button" class="gast-del" aria-label="Verwijderen">×</button>';return d}
+document.addEventListener('click',e=>{
+  if(e.target.id==='gastAdd'){const l=document.getElementById('gastlijst');if(l){const r=gastRij();l.appendChild(r);const i=r.querySelector('input');if(i)i.focus()}return}
+  if(e.target.classList&&e.target.classList.contains('gast-del')){const row=e.target.closest('.gastrow');if(row)row.remove();return}
+});
 init();
 </script>
 </body>
