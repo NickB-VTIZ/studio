@@ -743,7 +743,7 @@ const MAIL_PLACEHOLDERS={boekingKlant:'{voornaam} {naam} {wanneer} {duur} {locat
 const KNOP_UITLEG={videolink:'knop “Deelnemen aan Teams/Zoom” (valt weg zonder videocall)',wijziglink:'knop naar het persoonlijke dossier van de klant (verzetten/annuleren)',dossierlink:'knop naar het persoonlijke dossier (offerte bevestigen, vragenlijst, contract)',boeklink:'knop naar de afsprakenpagina',portaallink:'knop “Mijn pagina” (klantenportaal)',loginlink:'knop “Inloggen” met de persoonlijke inloglink'};
 let cfg=JSON.parse(JSON.stringify(DEFAULTS));
 function jsAddDays(ymd,n){const d=new Date(ymd+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
-function eventDefaultJS(){return{id:'kennismaking',actief:true,titel:'Kennismakingsgesprek',intro:'',locatie:'Online via videocall, of bij mij thuis',duur:60,buffer:15,kantoor:true,kantoorNaam:'Kantoor justPIXIT',videoTeams:false,videoZoom:false,minUren:48,maxWeken:8,regels:[],uitzonderingen:[],types:['Huwelijk','Geboorte','Ander'],vragen:[],bevestiging:'Bedankt voor jullie aanvraag! Jullie afspraak staat vast.',afzender:'Liesbeth · justPIXIT'}}
+function eventDefaultJS(){return{id:'kennismaking',actief:true,opOverzicht:false,titel:'Kennismakingsgesprek',intro:'',locatie:'Online via videocall, of bij mij thuis',duur:60,buffer:15,kantoor:true,kantoorNaam:'Kantoor justPIXIT',videoTeams:false,videoZoom:false,minUren:48,maxWeken:8,regels:[],uitzonderingen:[],types:['Huwelijk','Geboorte','Ander'],vragen:[],bevestiging:'Bedankt voor jullie aanvraag! Jullie afspraak staat vast.',afzender:'Liesbeth · justPIXIT'}}
 function migreerBoekingNaarEventJS(b){b=b||{};const regels=[];[1,2,3,4,5,6,0].forEach(d=>{if(b.dagen&&b.dagen[d])(b.blokken||[]).forEach(blk=>{if(blk&&blk.van&&blk.tot)regels.push({dag:d,interval:1,vanafDatum:'',van:blk.van,tot:blk.tot})})});const uitz=[];(b.geblokkeerd||[]).forEach(g=>{const s=String(g).trim();if(!s)return;const m=s.match(/^(\d{4}-\d{2}-\d{2})(?:\s*\.\.\s*|\s*-\s*|\s+tot\s+)(\d{4}-\d{2}-\d{2})$/);if(m){let d=m[1],gu=0;while(d<=m[2]&&gu++<400){uitz.push({datum:d,modus:'dicht'});d=jsAddDays(d,1)}}else if(/^\d{4}-\d{2}-\d{2}$/.test(s))uitz.push({datum:s,modus:'dicht'})});return Object.assign(eventDefaultJS(),{id:'kennismaking',actief:b.actief!==false,titel:b.titel||'Kennismakingsgesprek',intro:b.intro||'',locatie:b.locatie||'',duur:b.duur||60,buffer:b.buffer==null?15:b.buffer,minUren:b.minUren==null?48:b.minUren,maxWeken:b.maxWeken||8,videoTeams:!!b.videoTeams,videoZoom:!!b.videoZoom,types:Array.isArray(b.types)?b.types:['Huwelijk','Geboorte','Ander'],vragen:Array.isArray(b.vragen)?b.vragen:[],bevestiging:b.bevestiging||'',afzender:b.afzender||'Liesbeth · justPIXIT',regels,uitzonderingen:uitz})}
 function jsWeekday(ymd){return new Date(ymd+'T12:00:00Z').getUTCDay()}
 function jsDagenTussen(a,b){return Math.round((Date.parse(b+'T12:00:00Z')-Date.parse(a+'T12:00:00Z'))/86400000)}
@@ -2447,10 +2447,14 @@ function beheerAfspraken(){
    .iconbtn.plus:hover{background:var(--sunk)}
    @media(max-width:640px){.bk-dag{grid-template-columns:1fr auto;gap:8px}.bk-dagnaam{grid-column:1/-1;padding-top:0}}</style>
    <section><h2>Online afspraken</h2><p>Maak verschillende soorten afspraken, elk met een eigen link die je zelf deelt. Enkel jij ziet deze lijst.</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px">${chips}<button class="btn small" id="evNew">+ Nieuw event</button></div></section>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">${chips}<button class="btn small" id="evNew">+ Nieuw event</button></div>
+    <div class="sec" style="background:var(--sunk);border-radius:8px;padding:12px 14px"><div class="label" style="margin-bottom:4px">Overzichtspagina</div><p class="hint" style="margin:0 0 8px">Eén algemene link waarop de klant zelf kiest uit alle events die je hieronder op het overzicht zet.</p>
+     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><code>${esc(serverInfo.base)}/afspraken</code><button class="btn small ghost" id="evCopyOverzicht" data-link="${esc(serverInfo.base)}/afspraken">Kopieer</button><a class="btn small ghost" href="${esc(serverInfo.base)}/afspraken" target="_blank" rel="noopener">Openen ↗</a></div></div></section>
    <section class="bk-ev"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2 style="margin:0">${esc(ev.titel||'Event')}</h2>
-     <label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:600"><input type="checkbox" data-evbool="actief" ${ev.actief?'checked':''}><span>Actief</span></label></div>
-    <p>Link om te delen: <code>${esc(link)}</code> <button class="btn small ghost" id="evCopy" data-link="${esc(link)}">Kopieer</button></p>
+     <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+      <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-evbool="opOverzicht" ${ev.opOverzicht?'checked':''}><span>Op overzichtspagina</span></label>
+      <label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:600"><input type="checkbox" data-evbool="actief" ${ev.actief?'checked':''}><span>Actief</span></label></div></div>
+    <p>Eigen link om te delen: <code>${esc(link)}</code> <button class="btn small ghost" id="evCopy" data-link="${esc(link)}">Kopieer</button></p>
     <div class="sec" style="display:grid;gap:14px">
      <div class="grid2">
       <label class="fld"><span>Titel</span><input data-ev="titel" value="${esc(ev.titel)}"></label>
@@ -2494,7 +2498,8 @@ function beheerAfspraken(){
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
 }
 function evUniekId(basis){let s=String(basis||'event').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,32)||'event';let id=s,n=2;while(cfg.events.some(e=>e.id===id)){id=s+'-'+n;n++}return id}
-document.addEventListener('click',e=>{const t=e.target.closest('[data-evsel],#evNew,#evDel,#evCopy,#evAddRegel,[data-evaddday],[data-evdelregel],#evAddUitz,[data-evdeluitz],[data-bkview],[data-bknav],[data-bkday]');if(!t)return;
+document.addEventListener('click',e=>{const t=e.target.closest('[data-evsel],#evNew,#evDel,#evCopy,#evCopyOverzicht,#evAddRegel,[data-evaddday],[data-evdelregel],#evAddUitz,[data-evdeluitz],[data-bkview],[data-bknav],[data-bkday]');if(!t)return;
+  if(t.id==='evCopyOverzicht'){copy(t.dataset.link);return}
   if(t.dataset.bkview!==undefined){bkView=t.dataset.bkview;try{localStorage.setItem('jp-bkview',bkView)}catch(err){}bkDag='';rerenderBeheer();return}
   if(t.dataset.bknav!==undefined){bkMaand=maandShift(bkMaand,Number(t.dataset.bknav));rerenderBeheer();return}
   if(t.dataset.bkday!==undefined){bkDag=t.dataset.bkday||'';rerenderBeheer();return}

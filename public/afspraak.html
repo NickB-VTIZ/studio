@@ -225,15 +225,17 @@ function renderSlots(){
    ${slots.length?`<div class="slots">${slots.map(s=>`<button class="slot" data-slot="${s}">${s.slice(11,16)}</button>`).join('')}</div>`:'<p class="slot-empty">Geen vrije momenten meer op deze dag.</p>'}`;
 }
 function renderForm(){
-  const types=cfg.types||[];const vragen=cfg.vragen||[];
+  const types=cfg.types||[];const vragen=(cfg.vragen||[]).filter(v=>!/gevonden|leren kennen|ken je|ken jij|hoe ken/i.test(v));
+  const bronOpties=['Via Google','(Huwelijks)beurs','Social media','Mond-aan-mond reclame','Andere'];
   return `<form id="bform" novalidate>
    <div class="chosen"><div><div class="lab">Jullie moment</div><div class="when">${esc(fmtLong(selSlot.slice(0,10)))} om ${selSlot.slice(11,16)}</div></div><button type="button" class="btn ghost" id="back">Ander moment kiezen</button></div>
    <div class="stephead"><span class="no">3</span><h2>Jullie gegevens</h2></div>
    <div class="form">
     <label class="fld full"><span>Naam of namen</span><input id="f-naam" required maxlength="120" placeholder="bv. Lotte &amp; Bram"></label>
     <label class="fld"><span>E-mail</span><input id="f-email" type="email" required maxlength="160" placeholder="naam@voorbeeld.be"></label>
-    <label class="fld"><span>Telefoon</span><input id="f-tel" type="tel" maxlength="40"></label>
+    <label class="fld"><span>Telefoon</span><input id="f-tel" type="tel" required maxlength="40" placeholder="bv. 0470 12 34 56"></label>
     ${types.length?`<label class="fld"><span>Waarvoor?</span><select id="f-type">${types.map(t=>`<option>${esc(t)}</option>`).join('')}</select></label>`:''}
+    <label class="fld"><span>Waar ken je justPIXIT?</span><select id="f-bron" data-vraag="Waar ken je justPIXIT?"><option value="">Maak een keuze…</option>${bronOpties.map(o=>`<option>${esc(o)}</option>`).join('')}</select></label>
     ${(()=>{const opts=[];if(cfg.kantoor)opts.push({id:'kantoor',label:cfg.kantoorNaam||'Op kantoor'});(cfg.video||[]).forEach(v=>opts.push(v));if(!opts.length)return '';return `<div class="fld full"><span>Locatie</span><div class="vidopts">${opts.map((o,i)=>`<label class="vidopt"><input type="radio" name="f-locatie" value="${esc(o.id)}" ${i===0?'checked':''}>${esc(o.label)}</label>`).join('')}</div></div>`;})()}
     <label class="fld"><span>Datum van het feest (als die al vastligt)</span><input id="f-event" type="date"></label>
     ${vragen.map((v,i)=>`<label class="fld full"><span>${esc(v)}</span><input data-vraag="${esc(v)}" id="f-v${i}" maxlength="500"></label>`).join('')}
@@ -257,8 +259,7 @@ function renderDone(r){
    <p class="intro">${esc(r.bevestiging)}</p>
    <div class="recap">
      <div class="row"><span class="k">Wanneer</span><span class="v">${esc(fmtLongY(r.slot.slice(0,10)))}<br>${r.slot.slice(11,16)} – ${eindUur(r.slot,r.duur)} (${r.duur} min)</span></div>
-     <div class="row"><span class="k">Waar</span><span class="v">${esc(r.locatie)}</span></div>
-     ${r.videolink?`<div class="row"><span class="k">Videocall</span><span class="v"><a href="${esc(r.videolink)}" target="_blank" rel="noopener">${esc(r.videoprovider||'Deelnemen')}</a></span></div>`:''}
+     ${r.videolink?`<div class="row"><span class="k">Videocall</span><span class="v"><a href="${esc(r.videolink)}" target="_blank" rel="noopener">${esc(r.videoprovider||'Deelnemen')}</a></span></div>`:`<div class="row"><span class="k">Waar</span><span class="v">${esc(r.locatie)}</span></div>`}
    </div>
    <p class="after">${r.mail?'Er is een bevestiging naar je mailbox onderweg.':'Noteer dit moment gerust in je agenda.'}</p>
    <a class="btn primary" href="${icsLink(r.slot)}" download="afspraak-justpixit.ics">Zet in mijn agenda</a></div>`;
@@ -273,9 +274,12 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('submit',async e=>{
   if(e.target.id!=='bform')return;e.preventDefault();if(busy)return;
-  const naam=$('#f-naam').value.trim(),email=$('#f-email').value.trim();const err=$('#ferr');err.innerHTML='';
+  const naam=$('#f-naam').value.trim(),email=$('#f-email').value.trim(),telefoon=$('#f-tel').value.trim();const err=$('#ferr');err.innerHTML='';
+  const bronEl=$('#f-bron');
   if(naam.length<2){err.innerHTML='<p class="err">Vul jullie naam in.</p>';$('#f-naam').focus();return}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){err.innerHTML='<p class="err">Vul een geldig e-mailadres in.</p>';$('#f-email').focus();return}
+  if(telefoon.replace(/[^0-9]/g,'').length<6){err.innerHTML='<p class="err">Vul een telefoonnummer in.</p>';$('#f-tel').focus();return}
+  if(bronEl&&!bronEl.value){err.innerHTML='<p class="err">Laat even weten waar je justPIXIT kent.</p>';bronEl.focus();return}
   const antwoorden={};document.querySelectorAll('[data-vraag]').forEach(i=>{if(i.value.trim())antwoorden[i.dataset.vraag]=i.value.trim()});
   const locatie=(document.querySelector('input[name="f-locatie"]:checked')||{}).value||'';
   const body={naam,email,telefoon:$('#f-tel').value.trim(),type:$('#f-type')?$('#f-type').value:'',locatie,datumEvent:$('#f-event').value,bericht:$('#f-bericht').value.trim(),slot:selSlot,antwoorden};

@@ -11,6 +11,7 @@ function eventDefaults() {
   return {
     id: 'kennismaking',
     actief: true,
+    opOverzicht: false, // tonen op de publieke overzichtspagina (/afspraken)
     titel: 'Kennismakingsgesprek',
     intro: 'In een vrijblijvend gesprek van een uurtje bekijken we jullie wensen voor de uitnodigingen of het geboortekaartje, en hoe ik daar iets unieks van maak.',
     locatie: 'Online via videocall, of bij mij thuis',
@@ -31,7 +32,7 @@ function eventDefaults() {
     ],
     uitzonderingen: [], // [{datum, modus:'dicht'} | {datum, modus:'open', van, tot}]
     types: ['Huwelijk', 'Geboorte', 'Ander'],
-    vragen: ['Hoe hebben jullie justPIXIT gevonden?'],
+    vragen: [],
     bevestiging: 'Bedankt voor jullie aanvraag! Jullie afspraak staat vast. Ik kijk ernaar uit om jullie te leren kennen.',
     afzender: 'Liesbeth · justPIXIT',
   };

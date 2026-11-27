@@ -704,6 +704,10 @@ async function api(req, res, url) {
 
   if (p === '/api/stijl' && m === 'GET') { return json(res, 200, stijlConfig()); }
 
+  if (p === '/api/boeking/overzicht' && m === 'GET') {
+    const evs = alleEvents().filter(e => e && e.actief !== false && e.opOverzicht);
+    return json(res, 200, { events: evs.map(e => ({ id: e.id, titel: e.titel, intro: e.intro, duur: e.duur, locatie: (e.kantoor && e.kantoorNaam) ? e.kantoorNaam : e.locatie })) });
+  }
   if (p === '/api/boeking/slots' && m === 'GET') {
     const cfg = eventById(url.searchParams.get('e') || '');
     if (!cfg || !cfg.actief) return json(res, 200, { actief: false });
@@ -1612,6 +1616,7 @@ nano .env        # ADMIN_PASSWORD en SESSION_SECRET invullen
     }
     if (p.startsWith('/api/')) return await api(req, res, url);
     if (p === '/app' || p === '/app/') return serveFile(res, path.join(PUBLIC_DIR, 'app.html'), { 'Cache-Control': 'no-store' });
+    if (p === '/afspraken' || p === '/afspraken/' || p === '/overzicht' || p === '/overzicht/') return serveFile(res, path.join(PUBLIC_DIR, 'overzicht.html'), { 'Cache-Control': 'no-store' });
     if (p === '/afspraak' || p === '/afspraak/' || p === '/boek' || /^\/afspraak\/(?!wijzig(?:\/|$))[a-z0-9][a-z0-9-]*\/?$/.test(p)) return serveFile(res, path.join(PUBLIC_DIR, 'afspraak.html'), { 'Cache-Control': 'no-store' });
     if (p === '/dossier' || p === '/dossier/' || p === '/afspraak/wijzig' || p === '/afspraak/wijzig/') return serveFile(res, path.join(PUBLIC_DIR, 'dossier.html'), { 'Cache-Control': 'no-store' }); // klantflow met persoonlijke code (zonder login)
     if (p === '/' || p === '/login' || p === '/login/') return serveFile(res, path.join(PUBLIC_DIR, 'login.html'), { 'Cache-Control': 'no-store' }); // één inlogpagina (admin of klant)

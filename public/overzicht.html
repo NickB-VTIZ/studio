@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="nl-BE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Maak een afspraak · justPIXIT</title>
+<meta name="description" content="Kies het soort afspraak dat bij jullie past en plan meteen een moment met justPIXIT.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap">
+<style>
+:root{
+  --paper:#F5F2EF;--card:#FFFFFF;--ink:#2c2623;--ink-soft:#6b6460;
+  --green:#7d5d44;--green-ink:#FFFFFF;
+  --sage:#ede6df;--sage-deep:#ddd5cc;
+  --line:#ddd6cf;--hair:#d5cec7;
+  --f-display:"DM Sans",system-ui,sans-serif;
+  --f-ui:"DM Sans",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.55;padding-inline:18px;-webkit-font-smoothing:antialiased}
+::selection{background:var(--sage-deep)}
+h1,h2,h3{margin:0;font-weight:500}
+button,input,textarea,select{font:inherit;color:inherit}
+a{color:inherit}
+.wrap{max-width:720px;margin:0 auto;padding-block:40px 72px}
+@media (max-width:560px){.wrap{padding-block:26px 48px}}
+.mark{text-align:center;margin-bottom:30px}
+.mark .logo{font-family:var(--f-ui);font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:#7d5d44;font-weight:600}
+.mark .logo b{font-weight:600}
+.mark .logo-img{display:block;margin:0 auto;max-height:70px;max-width:240px;width:auto}
+.mark .tag{display:block;margin-top:8px;font-family:var(--f-ui);font-size:14px;color:var(--ink-soft);letter-spacing:.08em;font-style:italic}
+.hero{text-align:center;max-width:34rem;margin:0 auto 28px}
+.hero h1{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,5vw,36px);line-height:1.15}
+.hero p{margin:12px auto 0;color:var(--ink-soft);max-width:30rem}
+.events{display:grid;gap:16px}
+.ev{display:flex;align-items:center;gap:20px;background:var(--card);border:1px solid var(--hair);border-radius:10px;padding:22px 24px;text-decoration:none;color:inherit;box-shadow:0 1px 0 var(--hair),0 18px 40px -30px rgba(125,93,68,.25);transition:border-color .15s,transform .15s,box-shadow .15s}
+.ev:hover{border-color:var(--green);transform:translateY(-2px);box-shadow:0 1px 0 var(--hair),0 20px 44px -26px rgba(125,93,68,.35)}
+.ev-body{flex:1;min-width:0}
+.ev-body h2{font-family:var(--f-display);font-weight:700;font-size:20px;line-height:1.2}
+.ev-body p{margin:6px 0 0;color:var(--ink-soft);font-size:15px}
+.ev-meta{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:13px;color:var(--ink-soft)}
+.ev-meta span{display:inline-flex;align-items:center;gap:7px}
+.ev-meta svg{width:15px;height:15px;stroke:var(--ink-soft);opacity:.85}
+.ev-go{flex:none;display:inline-flex;align-items:center;gap:8px;background:var(--green);color:var(--green-ink);font-weight:600;padding:11px 18px;border-radius:8px;white-space:nowrap}
+.ev-go svg{width:16px;height:16px;stroke:currentColor}
+@media (max-width:540px){.ev{flex-direction:column;align-items:stretch;gap:16px}.ev-go{justify-content:center}}
+.center-msg{text-align:center;color:var(--ink-soft);background:var(--card);border:1px solid var(--hair);border-radius:10px;padding:40px 24px}
+.foot{text-align:center;color:var(--ink-soft);font-size:13px;margin-top:40px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="mark"><div class="logo">just<b>PIXIT</b></div><div class="tag">jullie persoonlijke pagina</div></div>
+  <div class="hero">
+    <h1>Waarvoor wil je een afspraak?</h1>
+    <p>Kies het soort afspraak dat bij jullie past. Daarna kies je meteen een moment dat jou uitkomt.</p>
+  </div>
+  <div id="list"><p class="center-msg">Even laden…</p></div>
+  <p class="foot">justPIXIT · trouwuitnodigingen en geboortekaartjes</p>
+</div>
+<script>
+const IC={
+  klok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+  pijl:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'
+};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* Dynamische stijl uit Beheer */
+fetch('/api/stijl').then(r=>r.json()).then(s=>{
+  const r=document.documentElement.style;const k=s.kleuren||{};
+  if(k.paper)r.setProperty('--paper',k.paper);if(k.card)r.setProperty('--card',k.card);
+  if(k.ink)r.setProperty('--ink',k.ink);if(k['ink-soft'])r.setProperty('--ink-soft',k['ink-soft']);
+  if(k.accent){r.setProperty('--green',k.accent);document.querySelectorAll('.mark .logo').forEach(el=>el.style.color=k.accent)}
+  if(k['accent-ink'])r.setProperty('--green-ink',k['accent-ink']);
+  if(k.sage)r.setProperty('--sage',k.sage);if(k.line){r.setProperty('--line',k.line);r.setProperty('--hair',k.line)}
+  if(s.font){const f="'"+s.font+"',system-ui,sans-serif";r.setProperty('--f-display',f);r.setProperty('--f-ui',f);
+    if(!document.querySelector('link[href*="'+s.font.replace(/ /g,'+')+'"]')){const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(s.font)+':ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap';document.head.appendChild(l)}}
+  if(s.logoId){const el=document.querySelector('.mark .logo');if(el){el.innerHTML='<img class="logo-img" src="/_logo?v='+encodeURIComponent(s.logoId)+'" alt="'+(s.logo||'justPIXIT')+'">'}}
+  else if(s.logo){const el=document.querySelector('.mark .logo');if(el){const parts=s.logo.match(/^(.*?)([A-Z][A-Z]+)$/);if(parts)el.innerHTML=parts[1]+'<b>'+parts[2]+'</b>';else el.textContent=s.logo}}
+  if(s.tagline!=null){const el=document.querySelector('.mark .tag');if(el)el.textContent=s.tagline}
+}).catch(()=>{});
+/* Evenementen ophalen */
+fetch('/api/boeking/overzicht').then(r=>r.json()).then(d=>{
+  const list=document.getElementById('list');const evs=(d&&d.events)||[];
+  if(!evs.length){list.innerHTML='<p class="center-msg">Er staan op dit moment geen afspraken open. Neem gerust contact op, dan plannen we samen iets in.</p>';return;}
+  list.innerHTML='<div class="events">'+evs.map(e=>`
+    <a class="ev" href="/afspraak/${encodeURIComponent(e.id)}">
+      <div class="ev-body">
+        <h2>${esc(e.titel)}</h2>
+        ${e.intro?`<p>${esc(e.intro)}</p>`:''}
+        <div class="ev-meta">${e.duur?`<span>${IC.klok} ${esc(e.duur)} min</span>`:''}${e.locatie?`<span>${IC.pin} ${esc(String(e.locatie).split(',')[0])}</span>`:''}</div>
+      </div>
+      <span class="ev-go">Kies ${IC.pijl}</span>
+    </a>`).join('')+'</div>';
+}).catch(()=>{document.getElementById('list').innerHTML='<p class="center-msg">Er ging iets mis bij het laden. Probeer het later opnieuw.</p>';});
+</script>
+</body>
+</html>
