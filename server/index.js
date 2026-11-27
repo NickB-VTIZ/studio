@@ -95,6 +95,35 @@ function mailBasis(doc, req, extra = {}) {
     wanneer: doc.kennismaking ? fmtWanneer(doc.kennismaking) : '-', app: publicBase(req) + '/app', videoprovider: doc.videoprovider || '' }, extra);
 }
 const videoKnop = doc => doc.videolink ? { url: doc.videolink, label: 'Deelnemen aan ' + (doc.videoprovider || 'videocall') } : null;
+// ---- Agenda-uitnodiging (.ics, METHOD:REQUEST): de afspraak komt als uitnodiging in de agenda van de klant (en van jou) ----
+function tzOffsetMin(date, tz) {
+  const dtf = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const pt = dtf.formatToParts(date).reduce((a, p) => (a[p.type] = p.value, a), {});
+  const asUTC = Date.UTC(+pt.year, +pt.month - 1, +pt.day, (+pt.hour) % 24, +pt.minute, +pt.second);
+  return (asUTC - date.getTime()) / 60000;
+}
+function brusselNaarUTC(slot) { // slot = 'YYYY-MM-DDTHH:MM' lokale Brusselse tijd -> UTC Date
+  const [Y, M, D] = slot.slice(0, 10).split('-').map(Number), [h, mi] = slot.slice(11, 16).split(':').map(Number);
+  const guess = Date.UTC(Y, M - 1, D, h, mi);
+  let off = tzOffsetMin(new Date(guess), 'Europe/Brussels');
+  off = tzOffsetMin(new Date(guess - off * 60000), 'Europe/Brussels');
+  return new Date(guess - off * 60000);
+}
+const icsStamp = d => d.getUTCFullYear() + String(d.getUTCMonth() + 1).padStart(2, '0') + String(d.getUTCDate()).padStart(2, '0') + 'T' + String(d.getUTCHours()).padStart(2, '0') + String(d.getUTCMinutes()).padStart(2, '0') + String(d.getUTCSeconds()).padStart(2, '0') + 'Z';
+const icsEsc = s => String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const icsFold = l => { if (Buffer.byteLength(l) <= 73) return l; let out = '', cur = ''; for (const ch of l) { if (Buffer.byteLength(cur + ch) > 73) { out += (out ? '\r\n ' : '') + cur; cur = ch; } else cur += ch; } return out + (out ? '\r\n ' : '') + cur; };
+function afspraakICS({ uid, seq = 0, slot, duur, titel, omschrijving, locatie, orgNaam, orgEmail, gastNaam, gastEmail, methode = 'REQUEST', status = 'CONFIRMED' }) {
+  const start = brusselNaarUTC(slot), eind = new Date(start.getTime() + (Number(duur) || 60) * 60000);
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//justPIXIT//Studio//NL', 'CALSCALE:GREGORIAN', 'METHOD:' + methode, 'BEGIN:VEVENT',
+    'UID:' + uid, 'SEQUENCE:' + seq, 'DTSTAMP:' + icsStamp(new Date()), 'DTSTART:' + icsStamp(start), 'DTEND:' + icsStamp(eind), 'SUMMARY:' + icsEsc(titel)];
+  if (omschrijving) lines.push('DESCRIPTION:' + icsEsc(omschrijving));
+  if (locatie) lines.push('LOCATION:' + icsEsc(locatie));
+  if (orgEmail) lines.push('ORGANIZER;CN=' + icsEsc(orgNaam || orgEmail) + ':mailto:' + orgEmail);
+  if (gastEmail) lines.push('ATTENDEE;CN=' + icsEsc(gastNaam || gastEmail) + ';ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:' + gastEmail);
+  lines.push('STATUS:' + status, 'TRANSP:OPAQUE', 'END:VEVENT', 'END:VCALENDAR');
+  return Buffer.from(lines.map(icsFold).join('\r\n') + '\r\n', 'utf8');
+}
+function afspraakICSBijlage(opts) { return { filename: 'afspraak.ics', content: afspraakICS(opts), contentType: 'text/calendar; charset=UTF-8; method=' + (opts.methode || 'REQUEST') }; }
 function sjablonen() { return Object.assign({}, STANDAARD_MAILS, instellingen().mails || {}); }
 
 // Unieke wijzigcode per boeking: nieuwe leads verzetten hun afspraak via /afspraak/wijzig?c=… zonder login.
@@ -149,6 +178,7 @@ async function verplaatsAfspraak(id, slot, door, req, opts = {}) {
   doc.kennismaking = slot; doc.bijgewerkt = ts;
   doc.logboek = (doc.logboek || []).concat([{ d: vandaag, t: `Afspraak verplaatst door ${door}: ${vorig ? fmtWanneer(vorig) : '—'} → ${fmtWanneer(slot)}`, s: 'afspraak', ts }]);
   if (!doc.wijzigCode) doc.wijzigCode = crypto.randomBytes(9).toString('base64url');
+  doc.icsSeq = (doc.icsSeq || 0) + 1; // nieuwe versie van de agenda-uitnodiging
   store.set('klanten', id, doc);
   const problemen = await syncAgenda(id);
   if (problemen.length) { const k2 = store.get('klanten', id); for (const p of problemen) k2.logboek.push({ d: vandaag, t: p, s: 'afspraak', ts }); store.set('klanten', id, k2); }
@@ -158,8 +188,9 @@ async function verplaatsAfspraak(id, slot, door, req, opts = {}) {
     const sjab = sjablonen(); const admin = adminAdres();
     const basis = mailBasis(doc, req, { vorig: vorig ? fmtWanneer(vorig) : '—', door: door === 'klant' ? 'de klant' : 'jou' });
     const knoppen = { videolink: videoKnop(doc), wijziglink: wijzigKnop(req, doc) };
-    if (doc.email) { const k = bouwMail(sjab.verplaatstKlant, basis, knoppen, ['wijziglink']); verstuurMail({ to: doc.email, subject: `Afspraak verplaatst: ${cfg.titel} op ${fmtWanneer(slot)}`, text: k.text, html: k.html }, { soort: 'afspraak verplaatst (klant)' }); gemaild = true; }
-    if (admin && door === 'klant') { const a = bouwMail(sjab.verplaatstAdmin, basis, { videolink: videoKnop(doc) }, ['videolink']); verstuurMail({ to: admin, replyTo: doc.email || undefined, subject: `Afspraak verplaatst: ${doc.naam} – ${fmtWanneer(slot)}`, text: a.text, html: a.html }, { soort: 'afspraak verplaatst (melding)' }); }
+    const ics = admin ? [afspraakICSBijlage({ uid: 'afspraak-' + id + '@justpixit.be', seq: doc.icsSeq || 1, slot, duur, titel: cfg.titel + ' · justPIXIT', omschrijving: [cfg.bevestiging || cfg.intro || '', doc.videolink ? 'Videocall: ' + doc.videolink : ''].filter(Boolean).join('\n\n'), locatie: doc.videolink || doc.locatie || cfg.locatie, orgNaam: cfg.afzender || 'justPIXIT', orgEmail: admin, gastNaam: doc.naam, gastEmail: doc.email })] : [];
+    if (doc.email) { const k = bouwMail(sjab.verplaatstKlant, basis, knoppen, ['wijziglink']); verstuurMail({ to: doc.email, subject: `Afspraak verplaatst: ${cfg.titel} op ${fmtWanneer(slot)}`, text: k.text, html: k.html, attachments: ics }, { soort: 'afspraak verplaatst (klant)' }); gemaild = true; }
+    if (admin && door === 'klant') { const a = bouwMail(sjab.verplaatstAdmin, basis, { videolink: videoKnop(doc) }, ['videolink']); verstuurMail({ to: admin, replyTo: doc.email || undefined, subject: `Afspraak verplaatst: ${doc.naam} – ${fmtWanneer(slot)}`, text: a.text, html: a.html, attachments: ics }, { soort: 'afspraak verplaatst (melding)' }); }
   }
   return { ok: true, slot, vorig, problemen, gemaild };
 }
@@ -739,8 +770,9 @@ async function api(req, res, url) {
       // Knop-plaatshouders mogen vrij in het sjabloon staan; ontbreekt {videolink} in een opgeslagen sjabloon, dan komt de knop achteraan.
       const kMail = bouwMail(sjab.boekingKlant, basis, { videolink: videoKnop(doc), wijziglink: wijzigKnop(req, doc) });
       const aMail = bouwMail(sjab.boekingAdmin, basis, { videolink: videoKnop(doc) });
-      if (admin) verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: aMail.text, html: aMail.html }, { soort: 'melding nieuwe afspraak' });
-      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: kMail.text, html: kMail.html }, { soort: 'bevestiging afspraak' });
+      const ics = admin ? [afspraakICSBijlage({ uid: 'afspraak-' + id + '@justpixit.be', seq: doc.icsSeq || 0, slot, duur: cfg.duur, titel: cfg.titel + ' · justPIXIT', omschrijving: [cfg.bevestiging || cfg.intro || '', doc.videolink ? 'Videocall: ' + doc.videolink : ''].filter(Boolean).join('\n\n'), locatie: doc.videolink || doc.locatie || cfg.locatie, orgNaam: cfg.afzender || 'justPIXIT', orgEmail: admin, gastNaam: naam, gastEmail: email })] : [];
+      if (admin) verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}`, text: aMail.text, html: aMail.html, attachments: ics }, { soort: 'melding nieuwe afspraak' });
+      verstuurMail({ to: email, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: kMail.text, html: kMail.html, attachments: ics }, { soort: 'bevestiging afspraak' });
     }
     return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: doc.locatie || cfg.locatie, bevestiging: cfg.bevestiging, videolink: doc.videolink || '', videoprovider: doc.videoprovider || '', mail: mailActief() });
   }
