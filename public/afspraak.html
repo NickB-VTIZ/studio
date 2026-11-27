@@ -105,8 +105,9 @@ button,input,textarea,select{font:inherit;color:inherit}
 .vidopt>span{flex:1;min-width:0}
 .picks{display:grid;gap:8px}
 .picks .vidopt{display:flex;width:100%}
-.vidopt .otherbox{width:auto;flex:1;min-width:110px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;background:var(--paper)}
-.vidopt:has(input:checked) .otherbox{background:var(--card)}
+.otherwrap{display:none}
+.otherwrap.show{display:block}
+.otherbox{width:100%;border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--card);font:inherit;color:inherit}
 #gastlijst{display:grid;gap:8px}
 #gastlijst:not(:empty){margin-bottom:8px}
 .gastrow{display:flex;gap:8px;align-items:center}
@@ -202,7 +203,7 @@ const parseDay=s=>{const [y,m,d]=s.slice(0,10).split('-').map(Number);return new
 const isoDay=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const fmtLong=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long'});
 const fmtLongY=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-const pick=(name,opts,o={})=>`<div class="picks">${opts.map((op,i)=>{const val=op&&op.value!==undefined?op.value:op;const lab=op&&op.label!==undefined?op.label:op;const ic=(op&&op.icon)||'';const ander=o.other&&isAnder(val);return `<label class="vidopt"><input type="radio" name="${name}" value="${esc(val)}"${o.checkFirst&&i===0?' checked':''}${ander?' data-ander="1"':''}>${ic}<span>${esc(lab)}</span>${ander?`<input type="text" class="otherbox" id="${name}-other" placeholder="Vul aan…" maxlength="120" aria-label="Andere, vul aan">`:''}</label>`;}).join('')}</div>`;
+const pick=(name,opts,o={})=>`<div class="picks">${opts.map((op,i)=>{const val=op&&op.value!==undefined?op.value:op;const lab=op&&op.label!==undefined?op.label:op;const ic=(op&&op.icon)||'';const ander=o.other&&isAnder(val);return `<label class="vidopt"><input type="radio" name="${name}" value="${esc(val)}"${o.checkFirst&&i===0?' checked':''}${ander?' data-ander="1"':''}>${ic}<span>${esc(lab)}</span></label>${ander?`<div class="otherwrap"><input type="text" class="otherbox" id="${name}-other" placeholder="Vul hier aan…" maxlength="120" aria-label="Andere, vul aan"></div>`:''}`;}).join('')}</div>`;
 let cfg=null,byDay={},month=null,selDay=null,selSlot=null,busy=false;
 const EVENT_ID=(()=>{const m=location.pathname.match(/^\/afspraak\/([a-z0-9][a-z0-9-]*)\/?$/);if(m&&m[1]!=='wijzig')return m[1];return new URLSearchParams(location.search).get('e')||'';})();
 const evQ=p=>p+(EVENT_ID?(p.includes('?')?'&':'?')+'e='+encodeURIComponent(EVENT_ID):'');
@@ -322,7 +323,7 @@ document.addEventListener('submit',async e=>{
   }catch(e2){err.innerHTML='<p class="err">Geen verbinding. Probeer het opnieuw.</p>'}
   finally{busy=false;const b=$('#submit');if(b){b.disabled=false;b.textContent='Bevestig onze afspraak'}}
 });
-document.addEventListener('input',e=>{if(e.target.classList&&e.target.classList.contains('otherbox')){const lab=e.target.closest('.vidopt');const r=lab&&lab.querySelector('input[type=radio]');if(r&&!r.checked)r.checked=true}});
+document.addEventListener('change',e=>{const el=e.target;if(el.type==='radio'&&el.closest&&el.closest('.picks')){const p=el.closest('.picks');const a=p.querySelector('input[data-ander]');const w=p.querySelector('.otherwrap');if(w){const show=!!(a&&a.checked);w.classList.toggle('show',show);if(show){const inp=w.querySelector('.otherbox');if(inp)setTimeout(()=>inp.focus(),0)}}}});
 function gastRij(){const d=document.createElement('div');d.className='gastrow';d.innerHTML='<input type="email" class="gast-email" placeholder="gast@email.be" maxlength="160"><button type="button" class="gast-del" aria-label="Verwijderen">×</button>';return d}
 document.addEventListener('click',e=>{
   if(e.target.id==='gastAdd'){const l=document.getElementById('gastlijst');if(l){const r=gastRij();l.appendChild(r);const i=r.querySelector('input');if(i)i.focus()}return}
