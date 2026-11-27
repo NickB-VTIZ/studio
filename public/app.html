@@ -2445,7 +2445,10 @@ function beheerAfspraken(){
    .bk-vanaf{font-size:12px;color:var(--muted);display:flex;gap:4px;align-items:center}
    .iconbtn.plus{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:18px;line-height:1;cursor:pointer;color:var(--ink)}
    .iconbtn.plus:hover{background:var(--sunk)}
-   @media(max-width:640px){.bk-dag{grid-template-columns:1fr auto;gap:8px}.bk-dagnaam{grid-column:1/-1;padding-top:0}}</style>
+   @media(max-width:640px){.bk-dag{grid-template-columns:1fr auto;gap:8px}.bk-dagnaam{grid-column:1/-1;padding-top:0}}
+   .evq{display:grid;gap:16px;margin-bottom:16px}
+   .evqrow{display:flex;gap:6px;align-items:center}
+   .evqrow input{flex:1}</style>
    <section><h2>Online afspraken</h2><p>Maak verschillende soorten afspraken, elk met een eigen link die je zelf deelt. Enkel jij ziet deze lijst.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">${chips}<button class="btn small" id="evNew">+ Nieuw event</button></div>
     <div class="sec" style="background:var(--sunk);border-radius:8px;padding:12px 14px"><div class="label" style="margin-bottom:4px">Overzichtspagina</div><p class="hint" style="margin:0 0 8px">Eén algemene link waarop de klant zelf kiest uit alle events die je hieronder op het overzicht zet.</p>
@@ -2485,9 +2488,15 @@ function beheerAfspraken(){
         <div style="display:grid;gap:8px">${(ev.uitzonderingen||[]).map(uitzRij).join('')||'<p class="hint" style="margin:0">Geen uitzonderingen.</p>'}</div>
         <button class="btn small" id="evAddUitz" style="margin-top:8px">+ Uitzondering toevoegen</button></div>`}
      </div>
+     <div class="evq">
+      <div class="fld full"><span>“Waarvoor?”-keuzes voor dit event — de klant kiest er één</span>
+       <div style="display:grid;gap:6px">${(ev.types||[]).map((x,i)=>`<div class="evqrow"><input data-evtext="types" data-evi="${i}" value="${esc(x)}" placeholder="bv. Huwelijk"><button class="iconbtn danger" data-evtextdel="types:${i}" title="Verwijderen">×</button></div>`).join('')||'<p class="hint" style="margin:0">Nog geen keuzes — voeg er een toe of laat leeg om de vraag weg te laten.</p>'}</div>
+       <button class="btn small" data-evtextadd="types" style="margin-top:6px">+ Keuze toevoegen</button></div>
+      <div class="fld full"><span>Extra vragen op het formulier voor dit event</span>
+       <div style="display:grid;gap:6px">${(ev.vragen||[]).map((x,i)=>`<div class="evqrow"><input data-evtext="vragen" data-evi="${i}" value="${esc(x)}" placeholder="bv. Hebben jullie al een datum?"><button class="iconbtn danger" data-evtextdel="vragen:${i}" title="Verwijderen">×</button></div>`).join('')||'<p class="hint" style="margin:0">Nog geen extra vragen.</p>'}</div>
+       <button class="btn small" data-evtextadd="vragen" style="margin-top:6px">+ Vraag toevoegen</button></div>
+     </div>
      <div class="grid2">
-      <label class="fld"><span>Keuzes "Waarvoor?" (één per regel)</span><textarea data-evlist="types" rows="3">${esc((ev.types||[]).join('\n'))}</textarea></label>
-      <label class="fld"><span>Extra vragen op het formulier (één per regel)</span><textarea data-evlist="vragen" rows="3">${esc((ev.vragen||[]).join('\n'))}</textarea></label>
       <label class="fld full"><span>Bevestigingstekst (op de pagina en in de mail)</span><textarea data-ev="bevestiging" rows="2">${esc(ev.bevestiging)}</textarea></label>
       <label class="fld"><span>Afzender in bevestigingsmail</span><input data-ev="afzender" value="${esc(ev.afzender)}"></label>
      </div>
@@ -2498,7 +2507,9 @@ function beheerAfspraken(){
     <div class="sec" style="display:grid;gap:10px"><div id="agendaBox"><p class="hint" style="margin:0">Laden…</p></div></div></section>`;
 }
 function evUniekId(basis){let s=String(basis||'event').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,32)||'event';let id=s,n=2;while(cfg.events.some(e=>e.id===id)){id=s+'-'+n;n++}return id}
-document.addEventListener('click',e=>{const t=e.target.closest('[data-evsel],#evNew,#evDel,#evCopy,#evCopyOverzicht,#evAddRegel,[data-evaddday],[data-evdelregel],#evAddUitz,[data-evdeluitz],[data-bkview],[data-bknav],[data-bkday]');if(!t)return;
+document.addEventListener('click',e=>{const t=e.target.closest('[data-evsel],#evNew,#evDel,#evCopy,#evCopyOverzicht,#evAddRegel,[data-evaddday],[data-evdelregel],#evAddUitz,[data-evdeluitz],[data-evtextadd],[data-evtextdel],[data-bkview],[data-bknav],[data-bkday]');if(!t)return;
+  if(t.dataset.evtextadd!==undefined){const ev=cfg.events[bkSel];const v=t.dataset.evtextadd;ev[v]=ev[v]||[];ev[v].push('');saveCfg(true);rerenderBeheer();return}
+  if(t.dataset.evtextdel!==undefined){const ev=cfg.events[bkSel];const [v,i]=t.dataset.evtextdel.split(':');if(ev[v])ev[v].splice(+i,1);saveCfg(true);rerenderBeheer();return}
   if(t.id==='evCopyOverzicht'){copy(t.dataset.link);return}
   if(t.dataset.bkview!==undefined){bkView=t.dataset.bkview;try{localStorage.setItem('jp-bkview',bkView)}catch(err){}bkDag='';rerenderBeheer();return}
   if(t.dataset.bknav!==undefined){bkMaand=maandShift(bkMaand,Number(t.dataset.bknav));rerenderBeheer();return}
@@ -2516,6 +2527,7 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-evsel],#ev
 document.addEventListener('input',e=>{const el=e.target;if(!el.dataset)return;const ev=cfg.events&&cfg.events[bkSel];if(!ev)return;
   if(el.dataset.ev!==undefined&&el.tagName!=='SELECT'){const k=el.dataset.ev;ev[k]=(el.type==='number')?(Number(el.value)||0):el.value;saveCfg();return}
   if(el.dataset.evlist!==undefined){ev[el.dataset.evlist]=el.value.split('\n').map(x=>x.trim()).filter(Boolean);saveCfg();return}
+  if(el.dataset.evtext!==undefined&&el.dataset.evi!==undefined){const v=el.dataset.evtext;ev[v]=ev[v]||[];ev[v][+el.dataset.evi]=el.value;saveCfg();return}
   if(el.dataset.evr!==undefined&&el.dataset.evk&&el.tagName!=='SELECT'){const r=ev.regels[+el.dataset.evr];if(r){r[el.dataset.evk]=el.value;saveCfg()}return}
   if(el.dataset.evu!==undefined&&el.dataset.evk&&el.tagName!=='SELECT'){const u=ev.uitzonderingen[+el.dataset.evu];if(u){u[el.dataset.evk]=el.value;saveCfg()}return}
   if(el.dataset.bkuitz!==undefined){const d=bkDag;if(!d)return;ev.uitzonderingen=ev.uitzonderingen||[];let u=ev.uitzonderingen.find(x=>x.datum===d&&x.modus==='open');if(!u){u={datum:d,modus:'open',van:'09:30',tot:'12:00'};ev.uitzonderingen.push(u)}u[el.dataset.bkuitz]=el.value;saveCfg();return}

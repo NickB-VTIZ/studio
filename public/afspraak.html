@@ -240,7 +240,7 @@ function renderSlots(){
    ${slots.length?`<div class="slots">${slots.map(s=>`<button class="slot" data-slot="${s}">${s.slice(11,16)}</button>`).join('')}</div>`:'<p class="slot-empty">Geen vrije momenten meer op deze dag.</p>'}`;
 }
 function renderForm(){
-  const types=cfg.types||[];const vragen=(cfg.vragen||[]).filter(v=>!/gevonden|leren kennen|ken je|ken jij|hoe ken/i.test(v));
+  const types=(cfg.types||[]).filter(Boolean);const vragen=(cfg.vragen||[]).filter(v=>v&&!/gevonden|leren kennen|ken je|ken jij|hoe ken/i.test(v));
   const bronOpties=['Via Google','(Huwelijks)beurs','Social media','Mond-aan-mond reclame','Andere'];
   return `<form id="bform" novalidate>
    <div class="chosen"><div><div class="lab">Jullie moment</div><div class="when">${esc(fmtLong(selSlot.slice(0,10)))} om ${selSlot.slice(11,16)}</div></div><button type="button" class="btn ghost" id="back">Ander moment kiezen</button></div>
