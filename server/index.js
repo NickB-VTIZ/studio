@@ -480,9 +480,13 @@ function cmpVersie(a, b) { const pa = String(a).split('.').map(Number), pb = Str
 function nieuwsteVersie() {
   if (Date.now() - latestCache.at < 60000) return Promise.resolve(latestCache.data);
   return new Promise(resolve => {
-    const req = https.get(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { 'User-Agent': 'justpixit-studio', 'Accept': 'application/vnd.github+json' }, timeout: 6000 }, r => {
+    // We kijken naar de laatste geslaagde build (run_number) i.p.v. een GitHub-release:
+    // de image-versie is altijd 1.<run_number>, dus dit loopt gelijk met wat je binnenhaalt,
+    // ook als de release-stap zou mislukken.
+    const url = `https://api.github.com/repos/${REPO}/actions/workflows/docker.yml/runs?branch=main&status=success&per_page=1`;
+    const req = https.get(url, { headers: { 'User-Agent': 'justpixit-studio', 'Accept': 'application/vnd.github+json' }, timeout: 6000 }, r => {
       let b = ''; r.on('data', c => b += c); r.on('end', () => {
-        try { const tag = (JSON.parse(b).tag_name || '').replace(/^v/, ''); latestCache = { at: Date.now(), data: tag || null }; resolve(latestCache.data); }
+        try { const runs = (JSON.parse(b).workflow_runs) || []; const n = runs[0] && runs[0].run_number; const v = n ? ('1.' + n) : null; latestCache = { at: Date.now(), data: v }; resolve(v); }
         catch (e) { resolve(null); }
       });
     });
