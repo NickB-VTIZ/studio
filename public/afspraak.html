@@ -96,9 +96,17 @@ button,input,textarea,select{font:inherit;color:inherit}
 .slot{border:1px solid var(--green);color:var(--green);background:var(--card);border-radius:3px;padding:12px 6px;cursor:pointer;font-variant-numeric:tabular-nums;font-size:15px}
 .slot:hover{background:var(--green);color:var(--green-ink)}
 .vidopts{display:flex;gap:8px;flex-wrap:wrap}
-.vidopt{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:3px;padding:9px 13px;cursor:pointer;background:var(--paper)}
+.vidopt{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:6px;padding:11px 14px;cursor:pointer;background:var(--card)}
+.vidopt:hover{border-color:var(--sage-deep)}
 .vidopt:has(input:checked){border-color:var(--green);background:var(--sage)}
-.vidopt input{accent-color:var(--green);margin:0}
+.vidopt input[type=radio]{width:auto;min-width:0;border:0;padding:0;background:none;box-shadow:none;accent-color:var(--green);margin:0;flex:none}
+.vidopt>svg{width:22px;height:22px;flex:none}
+.vidopt>svg.brand{border-radius:5px}
+.vidopt>span{flex:1;min-width:0}
+.picks{display:grid;gap:8px}
+.picks .vidopt{display:flex;width:100%}
+.vidopt .otherbox{width:auto;flex:1;min-width:110px;border:1px solid var(--line);border-radius:5px;padding:7px 10px;background:var(--paper)}
+.vidopt:has(input:checked) .otherbox{background:var(--card)}
 .slot-empty{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:16px;text-align:center}
 .pick-first{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:20px 16px;text-align:center}
 
@@ -171,8 +179,12 @@ fetch('/api/stijl').then(r=>r.json()).then(s=>{
 const IC={
   klok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
-  euro:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7.5a6 6 0 1 0 0 9M5 10.5h8M5 13.5h8"/></svg>'
+  euro:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7.5a6 6 0 1 0 0 9M5 10.5h8M5 13.5h8"/></svg>',
+  teams:'<svg class="brand" viewBox="0 0 32 32" aria-hidden="true"><circle cx="23.2" cy="6.6" r="3.1" fill="#7B83EB"/><path d="M24.4 11.2H29a.9.9 0 0 1 .9.9v6.2a4.3 4.3 0 0 1-4.3 4.3 4 4 0 0 1-.9-.1V11.6a.4.4 0 0 1 .4-.4z" fill="#5059C9" opacity=".9"/><rect x="3" y="7.5" width="17.2" height="17" rx="3" fill="#7B83EB"/><path d="M7.4 11.6h8.4v2.3h-3v7.9h-2.5v-7.9H7.4z" fill="#fff"/></svg>',
+  zoom:'<svg class="brand" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#2D8CFF"/><path d="M6.5 12.4c0-1 .8-1.9 1.9-1.9h7.4c1 0 1.9.8 1.9 1.9v7.2c0 1-.8 1.9-1.9 1.9H8.4c-1 0-1.9-.8-1.9-1.9v-7.2zM19.7 14.1l4.1-2.4c.6-.3 1.2.1 1.2.7v7.2c0 .6-.6 1-1.2.7l-4.1-2.4v-3.8z" fill="#fff"/></svg>'
 };
+const isAnder=v=>/^(ander|andere|other|iets anders)$/i.test(String(v==null?'':v).trim());
+const locIcon=id=>id==='teams'?IC.teams:(id==='zoom'?IC.zoom:IC.pin);
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad=n=>String(n).padStart(2,'0');
@@ -180,6 +192,7 @@ const parseDay=s=>{const [y,m,d]=s.slice(0,10).split('-').map(Number);return new
 const isoDay=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const fmtLong=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long'});
 const fmtLongY=s=>parseDay(s).toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+const pick=(name,opts,o={})=>`<div class="picks">${opts.map((op,i)=>{const val=op&&op.value!==undefined?op.value:op;const lab=op&&op.label!==undefined?op.label:op;const ic=(op&&op.icon)||'';const ander=o.other&&isAnder(val);return `<label class="vidopt"><input type="radio" name="${name}" value="${esc(val)}"${o.checkFirst&&i===0?' checked':''}${ander?' data-ander="1"':''}>${ic}<span>${esc(lab)}</span>${ander?`<input type="text" class="otherbox" id="${name}-other" placeholder="Vul aan…" maxlength="120" aria-label="Andere, vul aan">`:''}</label>`;}).join('')}</div>`;
 let cfg=null,byDay={},month=null,selDay=null,selSlot=null,busy=false;
 const EVENT_ID=(()=>{const m=location.pathname.match(/^\/afspraak\/([a-z0-9][a-z0-9-]*)\/?$/);if(m&&m[1]!=='wijzig')return m[1];return new URLSearchParams(location.search).get('e')||'';})();
 const evQ=p=>p+(EVENT_ID?(p.includes('?')?'&':'?')+'e='+encodeURIComponent(EVENT_ID):'');
@@ -234,10 +247,10 @@ function renderForm(){
     <label class="fld full"><span>Naam of namen</span><input id="f-naam" required maxlength="120" placeholder="bv. Lotte &amp; Bram"></label>
     <label class="fld"><span>E-mail</span><input id="f-email" type="email" required maxlength="160" placeholder="naam@voorbeeld.be"></label>
     <label class="fld"><span>Telefoon</span><input id="f-tel" type="tel" required maxlength="40" placeholder="bv. 0470 12 34 56"></label>
-    ${types.length?`<label class="fld"><span>Waarvoor?</span><select id="f-type">${types.map(t=>`<option>${esc(t)}</option>`).join('')}</select></label>`:''}
-    <label class="fld"><span>Waar ken je justPIXIT?</span><select id="f-bron" data-vraag="Waar ken je justPIXIT?"><option value="">Maak een keuze…</option>${bronOpties.map(o=>`<option>${esc(o)}</option>`).join('')}</select></label>
-    ${(()=>{const opts=[];if(cfg.kantoor)opts.push({id:'kantoor',label:cfg.kantoorNaam||'Op kantoor'});(cfg.video||[]).forEach(v=>opts.push(v));if(!opts.length)return '';return `<div class="fld full"><span>Locatie</span><div class="vidopts">${opts.map((o,i)=>`<label class="vidopt"><input type="radio" name="f-locatie" value="${esc(o.id)}" ${i===0?'checked':''}>${esc(o.label)}</label>`).join('')}</div></div>`;})()}
+    ${types.length?`<div class="fld full"><span>Waarvoor?</span>${pick('f-type',types.map(t=>({value:t,label:t})),{other:true})}</div>`:''}
+    ${(()=>{const opts=[];if(cfg.kantoor)opts.push({value:'kantoor',label:cfg.kantoorNaam||'Op kantoor',icon:IC.pin});(cfg.video||[]).forEach(v=>opts.push({value:v.id,label:v.label,icon:locIcon(v.id)}));if(!opts.length)return '';return `<div class="fld full"><span>Locatie</span>${pick('f-locatie',opts,{checkFirst:true})}</div>`;})()}
     <label class="fld"><span>Datum van het feest (als die al vastligt)</span><input id="f-event" type="date"></label>
+    <div class="fld full"><span>Waar ken je justPIXIT?</span>${pick('f-bron',bronOpties.map(b=>({value:b,label:b})),{other:true})}</div>
     ${vragen.map((v,i)=>`<label class="fld full"><span>${esc(v)}</span><input data-vraag="${esc(v)}" id="f-v${i}" maxlength="500"></label>`).join('')}
     <label class="fld full"><span>Vertel al iets over jullie plannen (optioneel)</span><textarea id="f-bericht" maxlength="2000" placeholder="Stijl, aantal gasten, inspiratie…"></textarea></label>
    </div>
@@ -275,14 +288,17 @@ document.addEventListener('click',e=>{
 document.addEventListener('submit',async e=>{
   if(e.target.id!=='bform')return;e.preventDefault();if(busy)return;
   const naam=$('#f-naam').value.trim(),email=$('#f-email').value.trim(),telefoon=$('#f-tel').value.trim();const err=$('#ferr');err.innerHTML='';
-  const bronEl=$('#f-bron');
+  const pickVal=(name)=>{const el=document.querySelector(`input[name="${name}"]:checked`);if(!el)return'';let v=el.value;if(el.dataset.ander){const tx=document.getElementById(name+'-other');if(tx&&tx.value.trim())v=tx.value.trim()}return v};
+  const heeftType=!!document.querySelector('input[name="f-type"]');
+  const bronGekozen=!!document.querySelector('input[name="f-bron"]:checked');
   if(naam.length<2){err.innerHTML='<p class="err">Vul jullie naam in.</p>';$('#f-naam').focus();return}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){err.innerHTML='<p class="err">Vul een geldig e-mailadres in.</p>';$('#f-email').focus();return}
   if(telefoon.replace(/[^0-9]/g,'').length<6){err.innerHTML='<p class="err">Vul een telefoonnummer in.</p>';$('#f-tel').focus();return}
-  if(bronEl&&!bronEl.value){err.innerHTML='<p class="err">Laat even weten waar je justPIXIT kent.</p>';bronEl.focus();return}
+  if(!bronGekozen){err.innerHTML='<p class="err">Laat even weten waar je justPIXIT kent.</p>';const fb=document.querySelector('input[name="f-bron"]');if(fb)fb.focus();return}
   const antwoorden={};document.querySelectorAll('[data-vraag]').forEach(i=>{if(i.value.trim())antwoorden[i.dataset.vraag]=i.value.trim()});
+  const bron=pickVal('f-bron');if(bron)antwoorden['Waar ken je justPIXIT?']=bron;
   const locatie=(document.querySelector('input[name="f-locatie"]:checked')||{}).value||'';
-  const body={naam,email,telefoon:$('#f-tel').value.trim(),type:$('#f-type')?$('#f-type').value:'',locatie,datumEvent:$('#f-event').value,bericht:$('#f-bericht').value.trim(),slot:selSlot,antwoorden};
+  const body={naam,email,telefoon,type:pickVal('f-type'),locatie,datumEvent:$('#f-event').value,bericht:$('#f-bericht').value.trim(),slot:selSlot,antwoorden};
   busy=true;$('#submit').disabled=true;$('#submit').textContent='Even geduld…';
   try{const r=await fetch(evQ('/api/boeking'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();
     if(!r.ok){err.innerHTML=`<p class="err">${esc(j.error||'Er liep iets mis.')}</p>`;if(r.status===409){selSlot=null;await init()}return}
@@ -290,6 +306,7 @@ document.addEventListener('submit',async e=>{
   }catch(e2){err.innerHTML='<p class="err">Geen verbinding. Probeer het opnieuw.</p>'}
   finally{busy=false;const b=$('#submit');if(b){b.disabled=false;b.textContent='Bevestig onze afspraak'}}
 });
+document.addEventListener('input',e=>{if(e.target.classList&&e.target.classList.contains('otherbox')){const lab=e.target.closest('.vidopt');const r=lab&&lab.querySelector('input[type=radio]');if(r&&!r.checked)r.checked=true}});
 init();
 </script>
 </body>
