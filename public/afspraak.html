@@ -119,6 +119,8 @@ button,input,textarea,select{font:inherit;color:inherit}
 .full{grid-column:1/-1}
 .fld{display:grid;gap:6px;min-width:0}
 .fld>span{font-size:13.5px;color:var(--ink-soft)}
+.req{color:var(--green);font-weight:700;font-style:normal}
+.verplicht-note{grid-column:1/-1;font-size:12.5px;color:var(--ink-soft);margin:-4px 0 2px}
 .fld input,.fld textarea,.fld select{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:3px;padding:11px 13px;min-width:0}
 .fld input:focus,.fld textarea:focus,.fld select:focus{outline:none;border-color:var(--green);background:var(--card);box-shadow:0 0 0 3px var(--sage)}
 .fld textarea{resize:vertical;min-height:84px;font-family:inherit}
@@ -244,13 +246,14 @@ function renderForm(){
    <div class="chosen"><div><div class="lab">Jullie moment</div><div class="when">${esc(fmtLong(selSlot.slice(0,10)))} om ${selSlot.slice(11,16)}</div></div><button type="button" class="btn ghost" id="back">Ander moment kiezen</button></div>
    <div class="stephead"><span class="no">3</span><h2>Jullie gegevens</h2></div>
    <div class="form">
-    <label class="fld full"><span>Naam of namen</span><input id="f-naam" required maxlength="120" placeholder="bv. Lotte &amp; Bram"></label>
-    <label class="fld"><span>E-mail</span><input id="f-email" type="email" required maxlength="160" placeholder="naam@voorbeeld.be"></label>
-    <label class="fld"><span>Telefoon</span><input id="f-tel" type="tel" required maxlength="40" placeholder="bv. 0470 12 34 56"></label>
+    <p class="verplicht-note">Velden met <b class="req">*</b> zijn verplicht.</p>
+    <label class="fld full"><span>Naam of namen <b class="req">*</b></span><input id="f-naam" required maxlength="120" placeholder="bv. Lotte &amp; Bram"></label>
+    <label class="fld"><span>E-mail <b class="req">*</b></span><input id="f-email" type="email" required maxlength="160" placeholder="naam@voorbeeld.be"></label>
+    <label class="fld"><span>Telefoon <b class="req">*</b></span><input id="f-tel" type="tel" required maxlength="40" placeholder="bv. 0470 12 34 56"></label>
     ${types.length?`<div class="fld full"><span>Waarvoor?</span>${pick('f-type',types.map(t=>({value:t,label:t})),{other:true})}</div>`:''}
-    ${(()=>{const opts=[];if(cfg.kantoor)opts.push({value:'kantoor',label:cfg.kantoorNaam||'Op kantoor',icon:IC.pin});(cfg.video||[]).forEach(v=>opts.push({value:v.id,label:v.label,icon:locIcon(v.id)}));if(!opts.length)return '';return `<div class="fld full"><span>Locatie</span>${pick('f-locatie',opts,{checkFirst:true})}</div>`;})()}
+    ${(()=>{const opts=[];if(cfg.kantoor)opts.push({value:'kantoor',label:cfg.kantoorNaam||'Op kantoor',icon:IC.pin});(cfg.video||[]).forEach(v=>opts.push({value:v.id,label:v.label,icon:locIcon(v.id)}));if(!opts.length)return '';return `<div class="fld full"><span>Locatie <b class="req">*</b></span>${pick('f-locatie',opts,{checkFirst:true})}</div>`;})()}
     <label class="fld"><span>Datum van het feest (als die al vastligt)</span><input id="f-event" type="date"></label>
-    <div class="fld full"><span>Waar ken je justPIXIT?</span>${pick('f-bron',bronOpties.map(b=>({value:b,label:b})),{other:true})}</div>
+    <div class="fld full"><span>Waar ken je justPIXIT? <b class="req">*</b></span>${pick('f-bron',bronOpties.map(b=>({value:b,label:b})),{other:true})}</div>
     ${vragen.map((v,i)=>`<label class="fld full"><span>${esc(v)}</span><input data-vraag="${esc(v)}" id="f-v${i}" maxlength="500"></label>`).join('')}
     <label class="fld full"><span>Vertel al iets over jullie plannen (optioneel)</span><textarea id="f-bericht" maxlength="2000" placeholder="Stijl, aantal gasten, inspiratie…"></textarea></label>
    </div>

@@ -73,9 +73,11 @@ async function verstuurMail(opts, meta = {}) {
   const r = resendConfig(effEnv()), sm = smtpConfig(effEnv());
   let ok = false, fout = '', via = '';
   try {
-    if (r) { via = 'Resend'; await sendViaResend(opts, r); ok = true; }
-    else if (sm) { via = 'SMTP'; await sendMail(opts, sm); ok = true; }
-    else throw new Error('Geen e-mailkoppeling ingesteld (vul Resend in bij Koppelingen).');
+    // SMTP krijgt voorrang zodra het ingesteld is: dan vertrekt de bevestiging als echte
+    // vergaderuitnodiging (inline text/calendar). Anders valt het terug op Resend.
+    if (sm) { via = 'SMTP'; await sendMail(opts, sm); ok = true; }
+    else if (r) { via = 'Resend'; await sendViaResend(opts, r); ok = true; }
+    else throw new Error('Geen e-mailkoppeling ingesteld (vul Resend of SMTP in bij Koppelingen).');
   } catch (e) { fout = e.message || String(e); }
   logMail({ to: opts.to, subject: opts.subject, soort: meta.soort || '', via, status: ok ? 'ok' : 'fout', fout });
   if (!ok) console.error('[mail]', meta.soort || '', fout);
@@ -1537,8 +1539,8 @@ async function api(req, res, url) {
     const b = await readJson(req, 10e3).catch(() => ({}));
     try {
       if (b.groep === 'mail') {
+        if (smtpConfig(effEnv())) return json(res, 200, { ok: true, detail: 'SMTP is ingesteld en krijgt voorrang. Stuur een testmail bij E-mails om de verzending te controleren.' });
         if (resendConfig(effEnv())) { await testResend(resendConfig(effEnv())); return json(res, 200, { ok: true, detail: 'Resend-sleutel werkt.' }); }
-        if (smtpConfig(effEnv())) return json(res, 200, { ok: true, detail: 'SMTP is ingesteld (geen testbericht verstuurd).' });
         return json(res, 400, { error: 'Nog geen e-mail ingesteld.' });
       }
       if (b.groep === 'whatsapp') { await testTwilio(twilioConfig(effEnv())); return json(res, 200, { ok: true, detail: 'Twilio-verbinding werkt.' }); }

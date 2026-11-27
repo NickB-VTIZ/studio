@@ -2777,8 +2777,11 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAccountPanel()
 /* ---------- koppelingen (aparte pagina) ---------- */
 let koppelOpen=false, koppelData=null;
 const KOPPEL_UI=[
-  {g:'mail',titel:'E-mail (Resend)',sub:'Verstuurt de bevestigingsmails bij een online boeking via Resend. Maak een API-sleutel op resend.com en verifieer je afzender of domein.',velden:[
-    {f:'resendApiKey',l:'Resend API-sleutel',ph:'re_…'},{f:'resendFrom',l:'Afzender',ph:'justPIXIT <info@justpixit.be>'},
+  {g:'mail',titel:'E-mail',sub:'Verstuurt de bevestigings- en meldingsmails bij een online boeking. Vul óf Resend óf SMTP in. Met SMTP vertrekt de bevestiging als echte agenda-uitnodiging (accepteren/weigeren); SMTP krijgt voorrang zodra je de server invult.',velden:[
+    {f:'resendApiKey',l:'Resend API-sleutel',ph:'re_… (laat leeg als je SMTP gebruikt)'},{f:'resendFrom',l:'Resend-afzender',ph:'justPIXIT <info@justpixit.be>'},
+    {f:'smtpHost',l:'SMTP-server',ph:'bv. smtp.office365.com'},{f:'smtpPort',l:'SMTP-poort',ph:'587 (STARTTLS) of 465 (SSL)'},
+    {f:'smtpUser',l:'SMTP-gebruiker',ph:'info@justpixit.be'},{f:'smtpPass',l:'SMTP-wachtwoord',ph:'wachtwoord of app-wachtwoord'},
+    {f:'smtpFrom',l:'SMTP-afzender',ph:'justPIXIT <info@justpixit.be>'},
     {f:'adminEmail',l:'Meldingen naar',ph:'info@justpixit.be'},
   ]},
   {g:'whatsapp',titel:'WhatsApp (Twilio)',sub:'Stuur klanten een WhatsApp vanaf hun klantpagina. WhatsApp vereist een goedgekeurde afzender en templates.',velden:[
