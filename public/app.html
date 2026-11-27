@@ -765,7 +765,7 @@ function mergeCfg(stored){const c=JSON.parse(JSON.stringify(DEFAULTS));if(!store
   if(stored.vragenlijsten&&typeof stored.vragenlijsten==='object')for(const t in stored.vragenlijsten)if(Array.isArray(stored.vragenlijsten[t]))c.vragenlijsten[t]=stored.vragenlijsten[t];
   if(stored.contract&&typeof stored.contract==='object'){const sc=stored.contract;
     for(const k of ['titel','bedrijfNaam','bedrijfAdres','bedrijfBtw','verVoornaam','verNaam','handtekeningId','logoId','voettekst','introTitel','introTekst','ondertekenTekst','fotoVinkje'])if(typeof sc[k]==='string')c.contract[k]=sc[k];
-    if(sc.aantalOndertekenaars===1||sc.aantalOndertekenaars===2)c.contract.aantalOndertekenaars=sc.aantalOndertekenaars;
+    {const aO=Number(sc.aantalOndertekenaars);if(aO===1||aO===2)c.contract.aantalOndertekenaars=aO;}
     if(Array.isArray(sc.secties))c.contract.secties=sc.secties.filter(s=>s&&typeof s==='object').map(s=>({titel:String(s.titel||''),tekst:String(s.tekst||'')}));}
   if(stored.boeking&&typeof stored.boeking==='object'){const b=stored.boeking;for(const k in c.boeking){if(b[k]===undefined)continue;
     if(k==='dagen'&&typeof b.dagen==='object')c.boeking.dagen=Object.assign({},c.boeking.dagen,b.dagen);
@@ -2250,7 +2250,7 @@ function ctDocBody(t,v){
 }
 function ctSignDisplay(t,g,v){
   const sig=url=>url?`<img src="${esc(url)}" alt="handtekening" class="ct-sigimg">`:'';
-  const n=t.aantalOndertekenaars===1?1:2;
+  const n=Number(t.aantalOndertekenaars)===1?1:2;
   const onder=(g&&g.ondertekenaars&&g.ondertekenaars.length?g.ondertekenaars:Array.from({length:n},()=>({}))).slice(0,2);
   const foto=g?!!g.fotoAkkoord:false;
   const plaats=(g&&g.plaats)||(v&&v.opgemaaktTe)||'';const datum=(g&&g.datum)||(v&&v.opgemaaktOp)||'';
