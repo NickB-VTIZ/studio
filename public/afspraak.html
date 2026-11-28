@@ -114,7 +114,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 .gastrow input{flex:1}
 .gastrow .gast-del{flex:none;width:38px;height:38px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink-soft);font-size:18px;line-height:1;cursor:pointer}
 .gastrow .gast-del:hover{border-color:var(--green);color:var(--green)}
-.gastadd{background:none;border:0;color:var(--green);font-weight:600;cursor:pointer;padding:4px 0;font-size:14.5px}
+.gastadd{background:none;border:0;color:var(--green);font-weight:600;cursor:pointer;padding:4px 0;font-size:14.5px;justify-self:start;text-align:left}
 .gastadd:hover{text-decoration:underline}
 .slot-empty{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:16px;text-align:center}
 .pick-first{color:var(--ink-soft);font-size:14px;border:1px dashed var(--line);border-radius:3px;padding:20px 16px;text-align:center}
@@ -265,7 +265,7 @@ function renderForm(){
      <p class="hint" style="margin:6px 0 0">Extra mensen die ook een uitnodiging in hun agenda krijgen.</p></div>
     ${types.length?`<div class="fld full"><span>Waarvoor?</span>${pick('f-type',types.map(t=>({value:t,label:t})),{other:true})}</div>`:''}
     ${(()=>{const opts=[];if(cfg.kantoor)opts.push({value:'kantoor',label:cfg.kantoorNaam||'Op kantoor',icon:IC.pin});(cfg.video||[]).forEach(v=>opts.push({value:v.id,label:v.label,icon:locIcon(v.id)}));if(!opts.length)return '';return `<div class="fld full"><span>Locatie <b class="req">*</b></span>${pick('f-locatie',opts,{checkFirst:true})}</div>`;})()}
-    <label class="fld"><span>Datum van het feest (als die al vastligt)</span><input id="f-event" type="date"></label>
+    <label class="fld"><span>Datum (huwelijk, geboorte…) als die al vastligt</span><input id="f-event" type="date"></label>
     <div class="fld full"><span>Waar ken je justPIXIT? <b class="req">*</b></span>${pick('f-bron',bronOpties.map(b=>({value:b,label:b})),{other:true})}</div>
     ${vragen.map((v,i)=>`<label class="fld full"><span>${esc(v)}</span><input data-vraag="${esc(v)}" id="f-v${i}" maxlength="500"></label>`).join('')}
     <label class="fld full"><span>Vertel al iets over jullie plannen (optioneel)</span><textarea id="f-bericht" maxlength="2000" placeholder="Stijl, aantal gasten, inspiratie…"></textarea></label>
