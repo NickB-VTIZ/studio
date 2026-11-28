@@ -61,7 +61,7 @@ function videoBeschikbaar(c) { c = c || boekingConfig(); const out = []; if (c.v
 async function msZet(klant) { if (!msVerbonden()) return; try { const dur = boekingConfig().duur || 60; const id = (await graph.zetAfspraak(msDoc(), klant, dur)).id; const nw = graph.nieuwRefreshToken(); const mm = msDoc(); if (nw) mm.refreshToken = nw; store.set('instellingen', 'ms', mm); const k = store.get('klanten', klant.id); if (k) { k.msEventId = id; store.set('klanten', klant.id, k); } } catch (e) { console.error('[ms]', e.message); } }
 function verkoperKlaar() { const v = verkoperDoc(); return !!(v.btw && v.bedrijfsnaam); }
 
-const mailActief = () => !!(resendConfig(effEnv()) || smtpConfig(effEnv()));
+const mailActief = () => !!(resendConfig(effEnv()) || smtpConfig(effEnv()) || msVerbonden());
 function logMail(e) {
   const d = store.get('instellingen', 'maillog') || { items: [] };
   d.items = (d.items || []); d.items.unshift(Object.assign({ ts: new Date().toISOString() }, e));
@@ -69,15 +69,29 @@ function logMail(e) {
   store.set('instellingen', 'maillog', d);
 }
 // Stuurt een mail en logt altijd het resultaat. Geeft {ok,error} terug (gooit niet).
+let graphMailUit = false; // wordt true na een Mail.Send-permissiefout; reset bij herkoppeling Office 365
 async function verstuurMail(opts, meta = {}) {
   const r = resendConfig(effEnv()), sm = smtpConfig(effEnv());
   let ok = false, fout = '', via = '';
   try {
-    // SMTP krijgt voorrang zodra het ingesteld is: dan vertrekt de bevestiging als echte
-    // vergaderuitnodiging (inline text/calendar). Anders valt het terug op Resend.
-    if (sm) { via = 'SMTP'; await sendMail(opts, sm); ok = true; }
-    else if (r) { via = 'Resend'; await sendViaResend(opts, r); ok = true; }
-    else throw new Error('Geen e-mailkoppeling ingesteld (vul Resend of SMTP in bij Koppelingen).');
+    // Voorkeur: via het Office 365-account (zelfde afzender als de agenda-uitnodiging).
+    // Valt terug op Resend/SMTP wanneer Graph niet kan (bv. Mail.Send-permissie nog niet toegekend).
+    if (msVerbonden() && !graphMailUit) {
+      try {
+        via = 'Office 365';
+        await graph.verstuurMail(msDoc(), opts);
+        const nw = graph.nieuwRefreshToken(); if (nw) { const mm = msDoc(); mm.refreshToken = nw; store.set('instellingen', 'ms', mm); }
+        ok = true;
+      } catch (e) {
+        if (/Mail\.Send|forbidden|403|insufficient|privilege|scope|AccessDenied/i.test(e.message || '')) graphMailUit = true;
+      }
+    }
+    if (!ok) {
+      if (r) { via = 'Resend'; await sendViaResend(opts, r); ok = true; }
+      else if (sm) { via = 'SMTP'; await sendMail(opts, sm); ok = true; }
+      else if (msVerbonden()) throw new Error('Mail via Office 365 kon niet verstuurd worden; verbind Office 365 opnieuw (voor de Mail.Send-permissie) of stel Resend in.');
+      else throw new Error('Geen e-mailkoppeling ingesteld (vul Resend of SMTP in bij Koppelingen, of verbind Office 365).');
+    }
   } catch (e) { fout = e.message || String(e); }
   logMail({ to: opts.to, subject: opts.subject, soort: meta.soort || '', via, status: ok ? 'ok' : 'fout', fout });
   if (!ok) console.error('[mail]', meta.soort || '', fout);
@@ -196,9 +210,8 @@ async function verplaatsAfspraak(id, slot, door, req, opts = {}) {
     const ccGastenV = gastenV.length ? gastenV : undefined;
     if (doc.email) {
       const k = bouwMail(sjab.verplaatstKlant, basis, knoppen, ['wijziglink']);
-      const ib = admin ? afspraakICS({ uid: 'afspraak-' + id + '@justpixit.be', seq: doc.icsSeq || 1, slot, duur, titel: cfg.titel + ' · justPIXIT', omschrijving: [k.text, doc.videolink ? 'Videocall: ' + doc.videolink : ''].filter(Boolean).join('\n\n'), locatie: doc.videolink || doc.locatie || cfg.locatie, orgNaam: cfg.afzender || 'justPIXIT', orgEmail: admin, gastNaam: doc.naam, gastEmail: doc.email, gasten: gastenV }) : null;
+      // De bijgewerkte agenda-uitnodiging stuurt Microsoft zelf naar de genodigden (de klant + gasten staan op het event).
       verstuurMail({ to: doc.email, cc: ccGastenV, subject: `Afspraak verplaatst: ${cfg.titel} op ${fmtWanneer(slot)}`, text: k.text, html: k.html }, { soort: 'afspraak verplaatst (klant)' });
-      if (ib) verstuurMail({ to: doc.email, cc: ccGastenV, subject: `Agenda-uitnodiging (gewijzigd): ${cfg.titel} op ${fmtWanneer(slot)}`, text: `Je afspraak is verplaatst naar ${fmtWanneer(slot)}. Accepteer de bijgewerkte uitnodiging om je agenda aan te passen.`, invite: { content: ib, method: 'REQUEST' } }, { soort: 'agenda-uitnodiging verplaatst' });
       gemaild = true;
     }
     if (admin && door === 'klant') { const a = bouwMail(sjab.verplaatstAdmin, basis, { videolink: videoKnop(doc) }, ['videolink']); verstuurMail({ to: admin, replyTo: doc.email || undefined, subject: `Afspraak verplaatst: ${doc.naam} – ${fmtWanneer(slot)}`, text: a.text, html: a.html }, { soort: 'afspraak verplaatst (melding)' }); }
@@ -768,7 +781,7 @@ async function api(req, res, url) {
     if (videoKeuze && videoOpties.includes(videoKeuze)) {
       try {
         if (videoKeuze === 'teams') {
-          const r = await graph.zetAfspraak(msDoc(), { naam, kennismaking: slot, locatie: 'Microsoft Teams', email, telefoon, type: doc.type }, cfg.duur || 60, { teams: true });
+          const r = await graph.zetAfspraak(msDoc(), { naam, kennismaking: slot, locatie: 'Microsoft Teams', email, telefoon, type: doc.type, afspraakGasten: gasten }, cfg.duur || 60, { teams: true });
           teamsEvent = r.id; videolink = r.joinUrl || ''; videoprovider = 'Teams';
           const nw = graph.nieuwRefreshToken(); if (nw) { const mm = msDoc(); mm.refreshToken = nw; store.set('instellingen', 'ms', mm); }
           if (!videolink) throw new Error('Microsoft gaf geen Teams-link terug (controleer Calendars.ReadWrite-rechten)');
@@ -791,15 +804,11 @@ async function api(req, res, url) {
       // Knop-plaatshouders mogen vrij in het sjabloon staan; ontbreekt {videolink} in een opgeslagen sjabloon, dan komt de knop achteraan.
       const kMail = bouwMail(sjab.boekingKlant, basis, { videolink: videoKnop(doc), wijziglink: wijzigKnop(req, doc), annuleerlink: annuleerKnop(req, doc) });
       const aMail = bouwMail(sjab.boekingAdmin, basis, { videolink: videoKnop(doc) });
-      const inviteBuf = admin ? afspraakICS({ uid: 'afspraak-' + id + '@justpixit.be', seq: doc.icsSeq || 0, slot, duur: cfg.duur, titel: cfg.titel + ' · justPIXIT', omschrijving: [kMail.text, doc.videolink ? 'Videocall: ' + doc.videolink : ''].filter(Boolean).join('\n\n'), locatie: doc.videolink || doc.locatie || cfg.locatie, orgNaam: cfg.afzender || 'justPIXIT', orgEmail: admin, gastNaam: naam, gastEmail: email, gasten }) : null;
-      const invite = inviteBuf ? { content: inviteBuf, method: 'REQUEST' } : undefined;
       const ccGasten = gasten.length ? gasten : undefined;
-      // De uitnodiging gaat enkel naar de klant (+ eventuele gasten in cc); jouw agenda wordt al gevuld via de Outlook-sync/agenda-feed (anders dubbel).
+      // De echte agenda-uitnodiging (met accepteren/weigeren) stuurt Microsoft zelf vanuit je Outlook-agenda,
+      // omdat de klant als genodigde op de afspraak staat. Hier sturen we enkel de bevestigingsmail + jouw melding.
       if (admin) verstuurMail({ to: admin, replyTo: email, subject: `Nieuwe afspraak: ${naam} – ${when}${gasten.length ? ' (+' + gasten.length + ' gast' + (gasten.length === 1 ? '' : 'en') + ')' : ''}`, text: aMail.text + (gasten.length ? '\n\nGasten: ' + gasten.join(', ') : ''), html: aMail.html }, { soort: 'melding nieuwe afspraak' });
-      // 1) Nette bevestigingsmail (zonder agenda-deel, zodat de mail altijd mooi toont).
       verstuurMail({ to: email, cc: ccGasten, subject: `Bevestiging: ${cfg.titel} op ${when}`, text: kMail.text, html: kMail.html }, { soort: 'bevestiging afspraak' });
-      // 2) Aparte agenda-uitnodiging (meeting request) zodat de afspraak met accepteren/weigeren in de agenda belandt.
-      if (invite) verstuurMail({ to: email, cc: ccGasten, subject: `Agenda-uitnodiging: ${cfg.titel} op ${when}`, text: `Hierbij de uitnodiging voor je ${cfg.titel.toLowerCase()} op ${when}. Accepteer ze om de afspraak aan je agenda toe te voegen.`, invite }, { soort: 'agenda-uitnodiging afspraak' });
     }
     return json(res, 200, { ok: true, slot, duur: cfg.duur, titel: cfg.titel, locatie: doc.locatie || cfg.locatie, bevestiging: cfg.bevestiging, videolink: doc.videolink || '', videoprovider: doc.videoprovider || '', mail: mailActief() });
   }
@@ -1480,7 +1489,7 @@ async function api(req, res, url) {
     const code = url.searchParams.get('code'); const st = url.searchParams.get('state');
     const ck = cookies(req).msstate || ''; const ci = ck.lastIndexOf('.'); const okState = ci > 0 && ck.slice(0, ci) === st && ck.slice(ci + 1) === sign('ms:' + st);
     if (!code || !okState) return text(res, 400, 'Koppeling afgebroken of verlopen. Probeer opnieuw.');
-    try { const mm = msDoc(); const tok = await graph.exchangeCode(mm, code, msRedirect(req)); mm.refreshToken = tok.refresh_token; try { mm.account = await graph.wieBenIk(tok.access_token); } catch (e) {} store.set('instellingen', 'ms', mm); res.writeHead(302, { Location: '/app' }); return res.end(); }
+    try { const mm = msDoc(); const tok = await graph.exchangeCode(mm, code, msRedirect(req)); mm.refreshToken = tok.refresh_token; try { mm.account = await graph.wieBenIk(tok.access_token); } catch (e) {} store.set('instellingen', 'ms', mm); graphMailUit = false; res.writeHead(302, { Location: '/app' }); return res.end(); }
     catch (e) { return text(res, 502, 'Verbinden mislukt: ' + e.message); }
   }
   if (p === '/api/ms/sync' && m === 'POST') {

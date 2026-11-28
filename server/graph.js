@@ -5,7 +5,7 @@ const https = require('https');
 
 const AUTH_HOST = 'login.microsoftonline.com';
 const GRAPH = 'https://graph.microsoft.com/v1.0';
-const SCOPE = 'openid offline_access Calendars.ReadWrite';
+const SCOPE = 'openid offline_access Calendars.ReadWrite Mail.Send';
 let tokenCache = { token: '', exp: 0 };
 
 function tenantOf(cfg) { return cfg.tenant || 'common'; }
@@ -78,7 +78,13 @@ async function zetAfspraak(cfg, klant, duur, opts = {}) {
   const token = await accessToken(cfg);
   if (!klant.kennismaking || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(klant.kennismaking)) throw new Error('Geen geldig tijdstip');
   const start = klant.kennismaking.slice(0, 16) + ':00';
-  const regels = [klant.type ? 'Type: ' + klant.type : '', klant.email ? 'E-mail: ' + klant.email : '', klant.telefoon ? 'Tel: ' + klant.telefoon : '', opts.extraDesc || ''].filter(Boolean);
+  const regels = [klant.type ? 'Type: ' + klant.type : '', klant.telefoon ? 'Tel: ' + klant.telefoon : '', klant.videolink ? 'Videocall: ' + klant.videolink : '', opts.extraDesc || ''].filter(Boolean);
+  // De klant (en eventuele gasten) als genodigde: Microsoft stuurt dan zelf de uitnodiging,
+  // bij een wijziging een update en bij verwijderen een annulatie.
+  const gasten = Array.isArray(klant.afspraakGasten) ? klant.afspraakGasten : [];
+  const attendees = [];
+  if (klant.email) attendees.push({ emailAddress: { address: klant.email, name: klant.naam || '' }, type: 'required' });
+  for (const g of gasten) if (g) attendees.push({ emailAddress: { address: g }, type: 'required' });
   const body = {
     subject: 'Kennismaking · ' + (klant.naam || 'Klant'),
     start: { dateTime: start, timeZone: 'Romance Standard Time' },
@@ -86,6 +92,7 @@ async function zetAfspraak(cfg, klant, duur, opts = {}) {
     location: { displayName: klant.locatie || '' },
     body: { contentType: 'text', content: regels.join('\n') },
   };
+  if (attendees.length) body.attendees = attendees;
   if (opts.teams && !klant.msEventId) { body.isOnlineMeeting = true; body.onlineMeetingProvider = 'teamsForBusiness'; } // enkel bij aanmaken; bij verplaatsen blijft de Teams-link bestaan
   const ev = klant.msEventId
     ? await graph('PATCH', '/me/events/' + encodeURIComponent(klant.msEventId), token, body)
@@ -101,4 +108,25 @@ async function verwijderAfspraak(cfg, eventId) {
   catch (e) { if (/404|not found|ErrorItemNotFound/i.test(e.message)) return true; throw e; }
 }
 
-module.exports = { authUrl, exchangeCode, accessToken, nieuwRefreshToken, wieBenIk, zetAfspraak, verwijderAfspraak };
+// Verstuurt een e-mail via het Microsoft 365-account (vereist de Mail.Send-permissie).
+async function verstuurMail(cfg, { to, cc, replyTo, subject, text, html, attachments }) {
+  const token = await accessToken(cfg);
+  const recip = a => ({ emailAddress: { address: String(a).trim() } });
+  const ccA = (Array.isArray(cc) ? cc : (cc ? [cc] : [])).map(x => String(x || '').trim()).filter(Boolean);
+  const message = {
+    subject: subject || '',
+    body: { contentType: html ? 'HTML' : 'Text', content: html || text || '' },
+    toRecipients: [recip(to)],
+  };
+  if (ccA.length) message.ccRecipients = ccA.map(recip);
+  if (replyTo) message.replyTo = [recip(replyTo)];
+  if (attachments && attachments.length) message.attachments = attachments.filter(a => a && a.content).map(a => ({
+    '@odata.type': '#microsoft.graph.fileAttachment', name: a.filename || 'bijlage',
+    contentType: a.contentType || 'application/octet-stream',
+    contentBytes: (Buffer.isBuffer(a.content) ? a.content : Buffer.from(String(a.content), 'utf8')).toString('base64'),
+  }));
+  await graph('POST', '/me/sendMail', token, { message, saveToSentItems: true });
+  return true;
+}
+
+module.exports = { authUrl, exchangeCode, accessToken, nieuwRefreshToken, wieBenIk, zetAfspraak, verwijderAfspraak, verstuurMail };
