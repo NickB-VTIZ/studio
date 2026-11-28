@@ -53,7 +53,7 @@ a{color:inherit}
 </head>
 <body>
 <div class="wrap">
-  <div class="mark"><div class="logo">just<b>PIXIT</b></div><div class="tag">jullie persoonlijke pagina</div></div>
+  <div class="mark"><div class="logo">just<b>PIXIT</b></div><div class="tag">gepersonaliseerd drukwerk, op maat gemaakt</div></div>
   <div class="hero">
     <h1>Waarvoor wil je een afspraak?</h1>
     <p>Kies het soort afspraak dat bij jullie past. Daarna kies je meteen een moment dat jou uitkomt.</p>
@@ -80,7 +80,7 @@ fetch('/api/stijl').then(r=>r.json()).then(s=>{
     if(!document.querySelector('link[href*="'+s.font.replace(/ /g,'+')+'"]')){const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(s.font)+':ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap';document.head.appendChild(l)}}
   if(s.logoId){const el=document.querySelector('.mark .logo');if(el){el.innerHTML='<img class="logo-img" src="/_logo?v='+encodeURIComponent(s.logoId)+'" alt="'+(s.logo||'justPIXIT')+'">'}}
   else if(s.logo){const el=document.querySelector('.mark .logo');if(el){const parts=s.logo.match(/^(.*?)([A-Z][A-Z]+)$/);if(parts)el.innerHTML=parts[1]+'<b>'+parts[2]+'</b>';else el.textContent=s.logo}}
-  if(s.tagline!=null){const el=document.querySelector('.mark .tag');if(el)el.textContent=s.tagline}
+  // Eigen publieke ondertitel; niet de portaal-tagline "jullie persoonlijke pagina".
 }).catch(()=>{});
 /* Evenementen ophalen */
 fetch('/api/boeking/overzicht').then(r=>r.json()).then(d=>{

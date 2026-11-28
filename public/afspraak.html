@@ -185,7 +185,7 @@ fetch('/api/stijl').then(r=>r.json()).then(s=>{
     if(!document.querySelector('link[href*="'+s.font.replace(/ /g,'+')+'"]')){const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(s.font)+':ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap';document.head.appendChild(l)}}
   if(s.logoId){const el=document.querySelector('.mark .logo');if(el){el.classList.add('is-img');el.innerHTML='<img class="logo-img" src="/_logo?v='+encodeURIComponent(s.logoId)+'" alt="'+(s.logo||'justPIXIT')+'">'}}
   else if(s.logo){const el=document.querySelector('.mark .logo');if(el){const parts=s.logo.match(/^(.*?)([A-Z][A-Z]+)$/);if(parts)el.innerHTML=parts[1]+'<b>'+parts[2]+'</b>';else el.textContent=s.logo}}
-  if(s.tagline!=null){const el=document.querySelector('.mark .tag');if(el)el.textContent=s.tagline}
+  // Op deze publieke afspraakpagina houden we onze eigen ondertitel (niet de portaal-tagline "jullie persoonlijke pagina").
 }).catch(()=>{});
 const IC={
   klok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
